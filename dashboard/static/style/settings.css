@@ -1,0 +1,26 @@
+#settings-container, #settings-loggedout, h3 {
+    width: 800px;
+    margin: auto;
+}
+
+.hidden {
+    display: none;
+}
+
+.grid-container {
+    display: grid;
+    grid-template-columns: 12em 12em;
+}
+
+.grid-item {
+    align-items: center;
+    display: flex;
+}
+
+#pwChangeError, #registerError {
+    color: red;
+}
+
+#pwChangeSuccess, #registerSuccess {
+    color: green;
+}

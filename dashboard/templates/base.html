@@ -1,0 +1,75 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
+<title>{{ config.SITE_NAME }}</title>
+
+<!-- CSS files (external and own, just main for all pages) -->
+<link rel="stylesheet" type="text/css" href="style/ext/jquery.datetimepicker.min.css" />
+<link rel="stylesheet" type="text/css" href="style/ext/jquery-ui.min.css" />
+<link rel="stylesheet" type="text/css" href="style/main.css" />
+
+{% if devices %}
+<script>
+    var devices = JSON.parse('{{ devices | tojson | safe }}');
+</script>
+{% endif %}
+{% if devices %}
+<script>
+    var masterList = JSON.parse('{{ masterlist | tojson | safe }}');
+</script>
+{% endif %}
+<script>
+    let iframe_capavis = "{{ config.IFRAME_CAPAVIS }}"
+    let iframe_energy_usage = "{{ config.IFRAME_ENERGY_USAGE }}"
+</script>
+
+<!-- exernal JS files -->
+<script type="text/javascript" src="script/ext/jquery-3.7.1.min.js"></script>
+<script type="text/javascript" src="script/ext/jquery-ui.min.js"></script>
+<script type="text/javascript" src="script/ext/d3.v7.min.js"></script>
+<script type="text/javascript" src="script/ext/jquery.datetimepicker.full.min.js"></script>
+<script type='text/javascript' src='script/ext/plotly-2.32.0.min.js'></script>
+
+<script type='text/javascript' src='data/benchmarks.js'></script>
+
+<!-- own JS files -->
+<script type="text/javascript" src="script/dataloader.js"></script>
+<script type="text/javascript" src="script/auth.js"></script>
+<script type="text/javascript" src="script/popup-context.js"></script>
+{% block head -%}
+{% endblock -%}
+</head>
+<body>
+    <nav id="nav-top-bar">
+    <script type="text/javascript" src="script/navtopbar.js"></script>
+    </nav>
+
+    <div id="login-container" class="hidden">
+        <div id="login-div">
+                Login: <br> <input type="text" id="username" class="auth" autofocus="" placeholder="Username or email" onkeypress="checkKeyPressAuth(event)" /><br>
+                Password: <br> <input type="password" id="password" class="auth" onkeypress="checkKeyPressAuth(event)" /><br>
+                <button type="button" onclick="checkLogin()" class="auth" id="button-login">Login</button>
+            <br><a href="settings.html">Forgot password?<br>Not signed up yet?<br>Click here.</a>
+            <div id="failed-div" class="hidden"><br>Login failed!<br>Try again.</div>
+        </div>
+        <div id="loggedin-div" class="hidden">
+            Logged in as:<br><br>
+            <span id="username-span">Username</span><br><br>
+            <button type="button" onclick="logout()" class="auth" id="button-logout">Logout</button>
+        </div>
+    </div>
+    <div id="comment-bubble" class="hidden" onclick="commentBubbleClicked()">
+        <img src="gfx/comment-bubble.png" alt="Comment bubble" width="32" />
+        <span id="comment-tooltiptext">Add a comment!</span>
+        <div id="comment-tooltipmodeengaged" class="hidden"><b>Edit mode:</b><br>Click on an element<br>to add a comment.</div>
+    </div>
+    {% include 'popup-context.html' %}
+    {% block content %}
+	{% endblock %}
+
+    <div id="footer">
+	    <span id="footer">Created by <a href="https://wp.lancs.ac.uk/net0i/">the Net0i Team at Lancaster University</a>, 2024.</span>
+	</div>
+	</body>
+</html>

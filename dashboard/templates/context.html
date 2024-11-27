@@ -1,0 +1,31 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="style/ext/datatables.min.css">
+<link rel="stylesheet" type="text/css" href="style/context.css" />
+<script type="text/javascript" src="script/ext/datatables.min.js"></script>
+<script type="text/javascript" src="script/context.js"></script>
+{% endblock %}
+
+{% block content %}
+<div id="main-content">
+
+<h3>View Context Items</h3>
+
+<div id="tableContainer">
+<table id="contextTable">
+</table>
+</div>
+
+<script>var context = JSON.parse('{{ data | tojson | safe}}');</script>
+
+<div id="context-edit-container" class="hidden" draggable="true">
+    <div id="context-edit-header">Add Context Information</div>
+    {% include 'popup-context.html' %}
+    <div class="context-footer">
+        <button type="button" onclick="saveContext()" class="auth" id="edit-context">Save</button>
+    </div>
+</div>
+
+</div>
+{% endblock %}

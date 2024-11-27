@@ -1,0 +1,53 @@
+<div id="building-data">
+	<div id="b-outer-container">
+		<button id="b-close" onclick="closeBuildingDataView()">X</button>
+	<div id="b-header">
+		<h2 id="b-meta-header">Building A</h2>
+		<div id="b-meta">
+			<div id="b-meta1" class="b-meta">Type: <span id="b-meta1span" class="b-meta"></span></div>
+			<div id="b-meta2" class="b-meta">Size: <span id="b-meta2span" class="b-meta"></span></div>
+			<div id="b-meta3" class="b-meta">Intensity: <span id="b-meta3span" class="b-meta"></span></div>
+			<div id="b-meta4" class="b-meta">Consumption: <span id="b-meta4span" class="b-meta"></span></div>
+		</div>
+	</div>
+	<div id="b-content">
+		<div id="b-sidebar">
+		<label for="b-start-date"><b>Start date:</b></label>
+		<br>
+		<input type="date" id="b-start-date" value="2024-06-01" min="2020-01-01" max="2025-12-31" />
+		<br>
+		<label for="b-end-date"><b>End date:</b></label>
+		<br>
+		<input type="date" id="b-end-date" value="2024-07-08" min="2020-01-01" max="2025-12-31" />
+		<br><br>
+		<b>Aggregate by:</b>
+		<br>
+		<div id="b-aggregate-select-container">
+			<div id="b-aggregate-select">
+				<div class="b-inputs"><input id="Hour" type="radio" name="agg" value="1" /><label for="Hour">Hour</label></div>
+				<div class="b-inputs"><input id="Day" type="radio" name="agg" value="24" checked /><label for="Day">Day</label></div>
+				<div class="b-inputs"><input id="Week" type="radio" name="agg" value="168" /><label for="Week">Week</label></div>
+				<div class="b-inputs"><input id="Month" type="radio" name="agg" value="720" /><label for="Month">Month</label></div>
+				<div class="b-inputs"><input id="Year" type="radio" name="agg" value="8760" /><label for="Year">Year</label></div>
+			</div>
+		</div>
+		<br>
+		<b>Select sensor:</b>
+		<br>
+		<div id="b-sensor-select-container">
+			<div id="b-sensor-select"></div>
+		</div>
+		<br>
+		<button class="b-button" onclick="redrawPlot()">Change filter</button>
+		</div>
+		<div id="b-plot-container">
+			<h3 id="b-plot-header">Past usage</h3>
+            <div id="b-plot" class="plot-div">
+            </div>
+        </div>
+	</div>
+	<div id="b-footer">
+		<button class="b-button" onclick="downloadSensorData()"><img src="gfx/download.png" width="24" alt="Download" /> &nbsp; Download CSV</button>
+	</div>
+	</div>
+</div>

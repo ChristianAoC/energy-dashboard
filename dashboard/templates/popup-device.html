@@ -1,0 +1,49 @@
+<div id="device-data">
+	<div id="b-outer-container">
+		<button id="b-close" onclick="closeDeviceDataView()">X</button>
+	<div id="b-header">
+		<h2 id="b-meta-header">sensor ID</h2>
+        <!--
+		<div id="b-meta">
+			<div id="b-meta1" class="b-meta">Type: <span id="b-meta1span" class="b-meta"></span></div>
+			<div id="b-meta2" class="b-meta">Size: <span id="b-meta2span" class="b-meta"></span></div>
+			<div id="b-meta3" class="b-meta">Intensity: <span id="b-meta3span" class="b-meta"></span></div>
+			<div id="b-meta4" class="b-meta">Consumption: <span id="b-meta4span" class="b-meta"></span></div>
+		</div>
+        -->
+	</div>
+	<div id="b-content">
+		<div id="b-sidebar">
+		<label for="b-start-date"><b>Start date:</b></label>
+		<br>
+		<input type="date" id="b-start-date" value="2024-01-01" min="2020-01-01" max="2025-12-31" />
+		<br>
+		<label for="b-end-date"><b>End date:</b></label>
+		<br>
+		<input type="date" id="b-end-date" value="2024-09-09" min="2020-01-01" max="2025-12-31" />
+		<br>
+        <div id="ratecum">
+            <br>
+            <b>Rate or<br>cumulative:</b>
+            <br>
+            <div id="b-class-select-container">
+                <div id="b-class-select">
+                    <div class="b-inputs"><input id="Rate" type="radio" name="class" value="rate" checked /><label for="Rate">Rate</label></div>
+                    <div class="b-inputs"><input id="Cumulative" type="radio" name="class" value="cum" /><label for="Cumulative">Cumulative</label></div>
+                </div>
+            </div>
+            <br>
+        </div>
+		<button class="b-button" id="b-button" onclick="redrawDevicePlot()" data-sensor="">Change filter</button>
+		</div>
+		<div id="b-plot-container">
+			<h3 id="b-plot-header">Past usage</h3>
+            <div id="b-plot" class="plot-div">
+            </div>
+        </div>
+	</div>
+	<div id="b-footer">
+		<button class="b-button" onclick="downloadSensorDeviceData()"><img src="gfx/download.png" width="24" alt="Download" /> &nbsp; Download CSV</button>
+	</div>
+	</div>
+</div>

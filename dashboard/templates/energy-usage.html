@@ -1,0 +1,17 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="style/energy-usage.css" />
+{% endblock %}
+
+{% block content %}
+<div id="main-content">
+
+{% if config.IFRAME_ENERGY_USAGE %}
+<iframe id="energy-usage" title="Energy Usage" src="{{ config.ENERGY_USAGE }}"></iframe>
+{% else %}
+This site is only visible on an internal network.
+{% endif %}
+
+</div>
+{% endblock %}

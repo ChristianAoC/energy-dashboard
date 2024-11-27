@@ -1,0 +1,53 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="style/settings.css" />
+<script type="text/javascript" src="script/settings.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div id="settings-container">
+
+<br>
+
+<h3>Settings</h3>
+
+{% if user %}
+
+<span id="registerSuccess"></span>
+
+Logged in as (...).<br>
+
+<h4>Change password</h4>
+
+<span id="pwChangeError"></span><span id="pwChangeSuccess"></span>
+
+<div class="grid-container">
+    <div class="grid-item">Current password:</div><div class="grid-item"><input type="password" id="change-old-password" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
+    <div class="grid-item">New password:</div><div class="grid-item"><input type="password" id="change-new-password1" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
+    <div class="grid-item">Repeat new password:</div><div class="grid-item"><input type="password" id="change-new-password2" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
+    <div class="grid-item"><button type="button" class="auth" onclick="changePassword()" id="change-password">Change password</button></div><div class="grid-item"></div>
+</div>
+
+{% else %}
+
+Not logged in.<br>
+
+<h4>Register</h4>
+
+<div class="grid-container">
+    <div class="grid-item">Username:</div><div class="grid-item"><input type="text" id="new-username" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
+    <div class="grid-item">Email:</div><div class="grid-item"><input type="email" id="new-email" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
+    <div class="grid-item">New password:</div><div class="grid-item"><input type="password" id="new-password1" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
+    <div class="grid-item">Repeat new password:</div><div class="grid-item"><input type="password" id="new-password2" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
+    <div class="grid-item"><button type="button" class="auth" onclick="registerRequest()" id="register-request">Register</button></div><div class="grid-item"></div>
+</div>
+
+<span id="registerError"></span>
+
+{% endif %}
+    
+</div>
+
+{% endblock %}

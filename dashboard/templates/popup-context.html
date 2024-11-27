@@ -1,0 +1,79 @@
+<div id="context-container" class="context-container hidden" draggable="true">
+    <div id="context-header" class="context-header">
+        <span>Add Context Information</span>
+        <button id="context-close" onclick="closeContextDialog()">X</button>
+    </div>
+
+    <div id="context-content">
+        <div id="gc-sensors-label" class="gc-grid-element">
+            <!--<label for="context-sensors">Sensor:</label>-->
+            Sensor:
+        </div>
+        <div id="gc-sensors" class="gc-grid-element">
+            <form action="#">
+                <select name="context-sensors" id="contextDD"></select>
+            </form>
+        </div>
+        <div id="gc-datefrom-label" class="gc-grid-element">
+            <label for="con-start-date">Start:</label>
+        </div>
+        <div id="gc-datefrom" class="gc-grid-element">
+            <input type="text" id="con-start-date" class="datetimepicker" />
+        </div>
+        <div id="gc-dateto-label" class="gc-grid-element">
+            <label for="con-end-date">End:</label>
+        </div>
+        <div id="gc-dateto" class="gc-grid-element">
+            <input type="text" id="con-end-date" class="datetimepicker" />
+        </div>
+        <div id="gc-datefromfuzzy" class="gc-grid-element">
+            <input type="checkbox" id="fuzzy-from" value="fuzzy-from" name="fuzzy-from" />
+            <label for="fuzzy-from">Start date uncertain</label>
+        </div>
+        <div id="gc-datetofuzzy" class="gc-grid-element">
+            <input type="checkbox" id="fuzzy-to" value="fuzzy-to" name="fuzzy-to" />
+            <label for="fuzzy-to">End date uncertain</label>
+        </div>
+        <div id="gc-typeradios-label" class="gc-grid-element">Type:</div>
+        <div id="gc-typeradios" class="gc-grid-element">
+            <input type="radio" id="context-type-oneoff" class="context-type" name="context-type" value="One-off" />
+            <label for="context-type-oneoff">One-off event</label><br>
+            <input type="radio" id="context-type-recurring" class="context-type" name="context-type" value="Recurring" />
+            <label for="context-type-recurring">Recurring event</label><br>
+            <input type="radio" id="context-type-dataerror" class="context-type" name="context-type" value="Data Error" />
+            <label for="context-type-dataerror">Data error</label><br>
+            <input type="radio" id="context-type-sitefeedback" class="context-type" name="context-type" value="Site feedback" />
+            <label for="context-type-sitefeedback">Site feedback</label><br>
+            <input type="radio" id="context-type-other" class="context-type" name="context-type" value="Other" />
+            <input type="text" for="context-type-other" id="context-other-text" name="context-other-text" maxlength="64" />
+        </div>
+        <div id="gc-recurring-label" class="gc-grid-element">
+            <!--<img id="info-repeat" src="gfx/info.png" alt="info" />-->
+            <span id="info-repeat">Repeats<br>every:<div id="info-repeat-tooltip">Event repeats indefinitely, with first occurence as specified in "start".</div></span>
+            <br><br>
+            <input type="number" id="recurring-number" name="recurring-number" min="1" max="99999" value="1" />
+        </div>
+        <div id="gc-recurring" class="gc-grid-element">
+            <input type="radio" id="context-recurring-hours" name="context-recurring" value="hours" />
+            <label for="context-recurring-hours">Hours</label><br>
+            <input type="radio" id="context-recurring-days" name="context-recurring" value="days" />
+            <label for="context-recurring-days">Days</label><br>
+            <input type="radio" id="context-recurring-weeks" name="context-recurring" value="weeks" />
+            <label for="context-recurring-weeks">Weeks</label><br>
+            <input type="radio" id="context-recurring-months" name="context-recurring" value="months" />
+            <label for="context-recurring-months">Months</label><br>
+            <input type="radio" id="context-recurring-years" name="context-recurring" value="years" />
+            <label for="context-recurring-years">Years</label>
+        </div>
+        <div id="gc-comment-label" class="gc-grid-element">
+            Text:
+        </div>
+        <div id="gc-comment" class="gc-grid-element">
+            <textarea id="context-comment"></textarea>
+        </div>
+    </div>
+
+    <div class="context-footer">
+        <button type="button" onclick="saveContext()" class="auth" id="context-button" action="add">Add Context</button>
+    </div>
+</div>
