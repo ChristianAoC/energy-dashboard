@@ -24,8 +24,6 @@ $(document).ready( function () {
 
 			{"data": varNameDevMeasuringShort, "title": "Building"},
             {"data": varNameDevBuilding, "title": "Building Code"},
-			{"data": varNameDevMeasuringLong, "title": "Measuring What?"},
-			{"data": varNameDevSensorLocation, "title": "Sensor Location"},
 			{"data": varNameDevSensorType, "title": "Sensor Type"},
 			{"data": varNameDevClass, "title": "Rate/Cum."},
 			{"data": varNameDevResolution, "title": "Resolution"},
@@ -33,10 +31,6 @@ $(document).ready( function () {
 
             {"data": varNameDevMeterLevel, "title": "Meter Level"},
             {"data": varNameDevBuildingLevelMeter, "title": "Building Level Meter?"},
-
-            {"data": varNameDevInvoiced, "title": "Invoiced?"},
-            {"data": varNameDevTenant, "title": "Tenant?"},
-			{"data": varNameDevTenantName, "title": "Tenant Name"},
         ],
         createdRow: function (row, data, dataIndex) {
             $(row).attr("data-sensor", data[varNameDevSensorID]);

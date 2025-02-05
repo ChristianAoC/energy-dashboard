@@ -9,6 +9,9 @@ api/data/internal/
 dashboard/static/templates/apitest.html
 dashboard/static/templates/health.html
 
+# find data set here: https://christianremy.com/lu_data_2023.zip
+api/data/sample/
+
 #########################################################
 
 # Byte-compiled / optimized / DLL files

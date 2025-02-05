@@ -413,7 +413,7 @@ button#context-close {
 }
 
 div#footer {
-    position: absolute;
+    position: fixed;
     bottom: 0px;
     width: 100%;
     text-align: center;

@@ -164,7 +164,8 @@ function getCurPageStartDate() {
     } else {
         let setDate = new Date(Date.now());
         setDate.setDate(setDate.getDate()-7);
-        return setDate.toISOString().slice(0, 10)+" 00:00";
+        //return setDate.toISOString().slice(0, 10)+" 00:00";
+        return "2023-02-07 00:00";
     }
 };
 
@@ -175,7 +176,8 @@ function getCurPageEndDate() {
         return document.getElementById("b-end-date").value+" 23:50";
     } else {
         let setDate = new Date(Date.now());
-        return setDate.toISOString().slice(0, 10)+" 23:50";
+        //return setDate.toISOString().slice(0, 10)+" 23:50";
+        return "2023-02-13 23:50";
     }
 };
 
@@ -276,11 +278,11 @@ $(document).ready( function () {
 
     // https://xdsoft.net/jqplugins/datetimepicker/
     jQuery('#con-start-date').datetimepicker({
-        value: "2024-07-22 00:00",
+        value: "2023-02-02 00:00",
         format:'Y/m/d H:i'
     });
     jQuery('#con-end-date').datetimepicker({
-        value: "2024-07-28 23:50",
+        value: "2023-03-28 23:50",
         format:'Y/m/d H:i'
     });
 
