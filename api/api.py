@@ -85,7 +85,7 @@ def query_pandas(m, from_time, to_time):
                             port = InfluxPort,
                             username = InfluxUser,
                             password = InfluxPass)
-    
+
     return pd.DataFrame(client.query(qry).get_points())
 
 ## Get Data from influx
@@ -97,11 +97,11 @@ def query_pandas(m, from_time, to_time):
 def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     ## set come constants
     max_time_interval = dt.timedelta(days=3650)
-    
+
     ## convert to UTC for influx
     from_time = from_time.astimezone(dt.timezone.utc)
     to_time = to_time.astimezone(dt.timezone.utc)
-        
+
     ## check time limits
     if to_time - from_time > max_time_interval:
         from_time = to_time - max_time_interval
@@ -131,7 +131,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
                                 port = InfluxPort,
                                 username = InfluxUser,
                                 password = InfluxPass)
-        
+
         result = client.query(qry)
 
         ## get as list of dictionaries
@@ -160,7 +160,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
     if len(obs)==0:
         return out
-    
+
     ## standarise the value based on resolution and format time
     if m["resolution"] is not None:
         kappa = m["unit_conversion_factor"] / m["resolution"]
@@ -168,31 +168,31 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     else:
         kappa = 1.0
         rho = 1.0
-        
+
     for o in obs:
         o['value'] = round( rho * round(o["value"] * kappa) ,10 )
         o['time'] = o['time'][:-1] + '+0000'
-            
+
     ## uncumulate if required
     if to_rate and (m["class"] == "Cumulative"):
         xcur = obs[-1]["value"]
         for ii in reversed(range(len(obs)-1)):
             if obs[ii]["value"]==0:
                 obs[ii]["value"] = None
-                
+
             if obs[ii]["value"] == None:
                 obs[ii+1]["value"] = None ## rate on next step not valid
                 continue
-            
+
             if xcur==None:
                 xcur = obs[ii]["value"]
-                
+
             if obs[ii]["value"] > xcur:
                 ## can't be valid
                 obs[ii]["value"] = None
             else:
                 xcur = obs[ii]["value"]
-                
+
             if obs[ii+1]["value"]==None or obs[ii]["value"]==None:
                 obs[ii+1]["value"] = None
             else:
@@ -209,11 +209,11 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
         df.reset_index(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
-        
+
         obs = json.loads(df.to_json(orient='records')) #This is ugly buut seems to avoid return NaN rather then null - originaly used pd.DataFrame.to_dict(df,orient="records")
 
     out["obs"] = obs
-    
+
     return out
 
 ## Get time of last observation
@@ -247,7 +247,7 @@ def query_last_obs_time(m, to_time, from_time):
         f.close()
         if len(obs) > 0:
             return obs[-1]["time"]
-    
+
     ustr = '"SEED"."autogen"."' + m["raw_uuid"] + '"'
     ## convert to_time to correct time zone
     to_time = to_time.astimezone(dt.timezone.utc)
@@ -256,13 +256,13 @@ def query_last_obs_time(m, to_time, from_time):
     ## form query
     qry = 'SELECT LAST(value) FROM ' + ustr + ' WHERE time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
         ' AND time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
-    
+
     ## create client for influx
     client = InfluxDBClient(host = InfluxURL,
                             port = InfluxPort,
                             username = InfluxUser,
                             password = InfluxPass)
-    
+
     result = client.query(qry)
     out = list(result.get_points())
     if len(out)>0:
@@ -270,7 +270,7 @@ def query_last_obs_time(m, to_time, from_time):
         out = out[:-1] + '+0000'
     else:
         out = None
-    
+
     return out
     ## handle result
     # out = dict.fromkeys(uuid)    
@@ -361,7 +361,7 @@ def summary():
     except:
         from_time = to_time - dt.timedelta(days=7) + dt.timedelta(seconds=1)
 
-        
+
     ## trim out buildings with no mazemap id
     buildings = [x for x in BUILDINGS() if x["maze_map_label"]]
 
@@ -381,12 +381,12 @@ def summary():
             if ii == "gas":
                 b[ii]['unit'] = "m3"
             elif ii == "electricity":
-                b[ii]['unit'] = "kWh"                
+                b[ii]['unit'] = "kWh"
             elif ii == "heat":
                 b[ii]['unit'] = "MWh"
             elif ii == "water":
                 b[ii]['unit'] = "m3"
-                
+
         for s in b.pop("meters",[]):
             v = s["meter_type"].lower()
 
@@ -394,7 +394,7 @@ def summary():
 
             b[v]['sensor_label'].append( x["label"] )
             b[v]['sensor_uuid'].append( x['uuid'] )
-            
+
             if len(x['obs']) > 0:
                 usage = x['obs'][0]['value']
 
@@ -418,8 +418,8 @@ def summary():
                     if x['unit'] != "m3":
                         print( s["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for water" )
 
-                
-                if b[v]['usage'] is None:    
+
+                if b[v]['usage'] is None:
                     b[v]['usage'] = usage
                 else:
                     b[v]['usage'] += usage
@@ -434,7 +434,7 @@ def summary():
                     ## annual equivilent
                     x *= dt.timedelta(days=365) / (to_time - from_time)
                     b[ii]["eui_annual"] = float(f"{x:.2g}")
-    
+
     return make_response(jsonify( buildings ), 200)
 
 ## Return the meters, optionally trimming by planon or meter_id_clean
@@ -474,7 +474,7 @@ def meter():
 
 
     meters = METERS()
-            
+
     if planon is not None:
         meters[:] = [x for x in meters if x["building"] in planon]
 
@@ -483,13 +483,13 @@ def meter():
 
     to_time = dt.datetime.now(dt.timezone.utc)
     from_time = to_time - dt.timedelta(days=1)
-    
+
     if lastobs == "true":
         for m in meters:
             m["last_obs_time"] = query_last_obs_time(m, to_time,from_time)
 
     return make_response(jsonify( meters ), 200)
-        
+
 ## time series of data for a given sensor
 ##
 ## Parameters:
@@ -520,7 +520,7 @@ def meter_obs():
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z",)
     except:
         to_time = dt.datetime.now(dt.timezone.utc)
-        
+
     try:
         from_time = request.args["from_time"] # this is url decoded
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
@@ -531,7 +531,7 @@ def meter_obs():
         fmt = request.args["format"] # this is url decoded
     except:
         fmt = "json"
-    
+
     try:
         agg = request.args["aggregate"] # this is url decoded
     except:
@@ -540,18 +540,18 @@ def meter_obs():
     try:
         to_rate = request.args["to_rate"].lower() in ['true', '1', 't', 'y'] # this is url decoded
     except:
-        to_rate = True 
-    
+        to_rate = True
+
     ## load and trim meters
     meters = METERS()
     meters[:] = [x for x in meters if x["meter_id_clean"] in uuids]
 
     out = dict.fromkeys(uuids)
-    
+
     for m in meters:
         key = m["meter_id_clean"]
         out[key] = query_time_series(m, from_time, to_time,agg = agg, to_rate = to_rate)
-                
+
     if(fmt=="csv"):
         try:
             csv = 'series,unit,time,value\n'
@@ -567,7 +567,7 @@ def meter_obs():
                          "attachment; filename=mydata.csv"})
         except:
             return make_response("Unable to make csv file",500)
-        
+
     else:
         return make_response(jsonify( out ), 200)
 
@@ -592,7 +592,7 @@ def meter_ping():
         return make_response("Offline mode, can't ping meters", 500)
 
     meters = METERS()
-    
+
     try:
         uuids = request.args["uuid"] # this is url decoded
         uuids = uuids.split(";")
@@ -604,7 +604,7 @@ def meter_ping():
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z")
     except:
         to_time = dt.datetime.now(dt.timezone.utc)
-        
+
     try:
         from_time = request.args["from_time"] # this is url decoded
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
@@ -631,16 +631,16 @@ def meter_ping():
                 "Class":"Rate", "serving": None, "serving_revised": None,
                 "resolution": None,
                 "units_after_conversion": None}
-    
+
     loggers = [fm(x) for x in logger_uuids]
 
     ## get data for each logger
     logger_out = dict.fromkeys(logger_uuids)
     for l in loggers:
         key = l["meter_id_clean"]
-        
+
         x = query_time_series(l, from_time, to_time)['obs']
-        
+
         if summary == "perc":
             n = float(len(x))
             cnt = sum([i["value"] for i in x])
@@ -650,15 +650,15 @@ def meter_ping():
             x = x[-1] if x else None
 
         logger_out[key] = x
-        
+
     ## copy back into meters
     out = dict.fromkeys(uuids)
     for m in meters:
         if m["logger_uuid"] in logger_uuids:
             out[ m["meter_id_clean"] ] = logger_out[ m["logger_uuid"] ]
-        
+
     return make_response(jsonify( out ), 200)
-    
+
 ## get last observation before the specified time
 ##
 ## Parameters:
@@ -685,7 +685,7 @@ def last_meter_obs():
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z",)
     except:
         to_time = dt.datetime.now(dt.timezone.utc)
-        
+
     try:
         from_time = request.args["from_time"] # this is url decoded
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
@@ -696,7 +696,7 @@ def last_meter_obs():
     meters[:] = [x for x in meters if x["meter_id_clean"] in uuids]
 
     out = dict.fromkeys(uuids)
-    
+
     for m in meters:
         key = m["meter_id_clean"]
         out[key] = query_last_obs_time(m, to_time, from_time)
@@ -721,7 +721,7 @@ def get_health(args, returning=False):
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
     except:
         to_time = dt.datetime.now(dt.timezone.utc)
-        
+
     try:
         date_range = int(args["date_range"]) # this is url decoded
     except:
@@ -732,18 +732,18 @@ def get_health(args, returning=False):
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
     except:
         from_time = to_time - dt.timedelta(days=date_range)
-    
+
     xcount = int((to_time - from_time).total_seconds()//600) - 1
 
     try:
         fmt = args["format"] # this is url decoded
     except:
         fmt = "json"
-    
+
     ## load and trim meters
     if uuids is not None:
         meters[:] = [x for x in meters if x["meter_id_clean"] in uuids]
-    
+
     start_time = time.time()
     mc = 0
 
@@ -755,14 +755,16 @@ def get_health(args, returning=False):
 
         # count values. if no values, stop
         m["HC_count"] = len(m_obs)
+        if m["HC_count"] == 0:
+            m["HC_count_perc"] = "0%"
+            m["HC_count_score"] = 0
+            continue
+
         m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
         if m["HC_count_perc"] > 100:
             m["HC_count_perc"] = 100
         m["HC_count_score"] = math.floor(m["HC_count_perc"] / 20)
         m["HC_count_perc"] = str(m["HC_count_perc"])+"%"
-
-        if m["HC_count"] == 0:
-            continue
 
         # count zeroes
         m["HC_zeroes"] = int(m_obs["value"][m_obs["value"]==0].count())
@@ -859,7 +861,7 @@ def get_health(args, returning=False):
 
     proc_time = (time.time() - start_time)
     #print("--- Health check took %s seconds ---" % proc_time)
-    
+
     # save cache, but only if it's a "default" query
     if not bool(list(set(args) & set(["date_range", "from_time", "to_time", "uuid"]))):
         try:
@@ -930,4 +932,3 @@ def meter_health_internal(args):
             return []
     else:
         return get_health(args, True)
-    
