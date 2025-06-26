@@ -1,3 +1,5 @@
+import datetime
+
 from flask import Blueprint, jsonify, make_response, request, Response, json
 import datetime as dt
 import pandas as pd
@@ -279,6 +281,121 @@ def query_last_obs_time(m, to_time, from_time):
 
     # return out
 
+## Retrieve data from influx and process it for meter health
+## m - a meter object
+## from_time - time to get data from (datetime)
+## to_time - time to get data to (datetime)
+## xcount - number of readings meters should have read
+def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetime.datetime, xcount: int):
+    # time series for this meter
+    m_obs = query_pandas(m, from_time, to_time)
+    # m_obs = query_time_series(m, from_time, to_time)["obs"]
+
+    # count values. if no values, stop
+    m["HC_count"] = len(m_obs)
+    if m["HC_count"] == 0:
+        m["HC_count_perc"] = "0%"
+        m["HC_count_score"] = 0
+        return
+
+    m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
+    if m["HC_count_perc"] > 100:
+        m["HC_count_perc"] = 100
+    m["HC_count_score"] = math.floor(m["HC_count_perc"] / 20)
+    m["HC_count_perc"] = str(m["HC_count_perc"]) + "%"
+
+    # count zeroes
+    m["HC_zeroes"] = int(m_obs["value"][m_obs["value"] == 0].count())
+    m["HC_zeroes_perc"] = round(100 * m["HC_zeroes"] / xcount, 2)
+    if m["HC_zeroes_perc"] > 100:
+        m["HC_zeroes_perc"] = 100
+    m["HC_zeroes_score"] = math.floor((100 - m["HC_zeroes_perc"]) / 20)
+    m["HC_zeroes_perc"] = str(m["HC_zeroes_perc"]) + "%"
+
+    # create diff (increase for each value) to prep for cumulative check
+    m_obs["diffs"] = m_obs["value"].diff()
+    diffcount = m_obs["diffs"].count().sum()
+    if diffcount == 0:
+        return
+
+    # count positive, negative, and no increase
+    m["HC_diff_neg"] = int(m_obs.diffs[m_obs.diffs < 0].count())
+    m["HC_diff_neg_perc"] = round(100 * m["HC_diff_neg"] / diffcount, 2)
+    if m["HC_diff_neg_perc"] > 100:
+        m["HC_diff_neg_perc"] = 100
+
+    m["HC_diff_pos"] = int(m_obs.diffs[m_obs.diffs > 0].count())
+    m["HC_diff_pos_perc"] = round(100 * m["HC_diff_pos"] / diffcount, 2)
+    if m["HC_diff_pos_perc"] > 100:
+        m["HC_diff_pos_perc"] = 100
+    m["HC_diff_pos_score"] = math.floor(m["HC_diff_pos_perc"] / 20)
+
+    m["HC_diff_zero"] = int(m_obs.diffs[m_obs.diffs == 0].count())
+    m["HC_diff_zero_perc"] = round(100 * m["HC_diff_zero"] / diffcount, 2)
+    if m["HC_diff_zero_perc"] > 100:
+        m["HC_diff_zero_perc"] = 100
+
+    # assume that cumulative meters have > 80% of values increase and vice versa
+    m["HC_class"] = m["class"]
+    if m["HC_diff_zero_perc"] > 80:
+        m["HC_class_check"] = "Too many zero diffs to check"
+
+    if m["class"] == "Cumulative":
+        if m["HC_diff_pos_perc"] < 80 and m["HC_diff_neg_perc"] > 20:
+            m["HC_class_check"] = "Check (seems rate)"
+            m["HC_class"] = "Rate"
+        else:
+            m["HC_class_check"] = "Okay (cumulative)"
+    else:
+        if m["HC_diff_pos_perc"] > 80:
+            m["HC_class_check"] = "Check (seems cumulative)"
+            m["HC_class"] = "Cumulative"
+        else:
+            m["HC_class_check"] = "Okay (rate)"
+
+    m["HC_diff_neg_perc"] = str(m["HC_diff_neg_perc"]) + "%"
+    m["HC_diff_pos_perc"] = str(m["HC_diff_pos_perc"]) + "%"
+    m["HC_diff_zero_perc"] = str(m["HC_diff_zero_perc"]) + "%"
+
+    m["HC_functional_matrix"] = m["HC_count_score"] * m["HC_zeroes_score"]
+
+    # if cumulative (or assumed cumul) run statistics on that data, otherwise on raw
+    if m["HC_class"] == "Cumulative":
+        m["HC_mean"] = int(m_obs["diffs"].mean())
+        m["HC_median"] = int(m_obs["diffs"].median())
+        m["HC_mode"] = int(m_obs["diffs"].mode()[0])
+        m["HC_std"] = int(m_obs["diffs"].std())
+        m["HC_min"] = int(m_obs["diffs"].min())
+        m["HC_max"] = int(m_obs["diffs"].max())
+        m["HC_outliers"] = int(m_obs.diffs[m_obs.diffs > m["HC_mean"] * 5].count())
+        m_obs["HC_ignz"] = m_obs[m_obs["diffs"] != 0]["diffs"]
+        m["HC_cumulative_matrix"] = m["HC_diff_pos_score"] * m["HC_functional_matrix"]
+        m["HC_score"] = math.floor(m["HC_cumulative_matrix"] / 25)
+
+    else:
+        m["HC_mean"] = int(m_obs["value"].mean())
+        m["HC_median"] = int(m_obs["value"].median())
+        m["HC_mode"] = int(m_obs["value"].mode()[0])
+        m["HC_std"] = int(m_obs["value"].std())
+        m["HC_min"] = int(m_obs["value"].min())
+        m["HC_max"] = int(m_obs["value"].max())
+        m["HC_outliers"] = int(m_obs["value"][m_obs["value"] > m["HC_mean"] * 5].count())
+        m_obs["HC_ignz"] = m_obs[m_obs["value"] != 0]["value"]
+        m["HC_score"] = math.floor(m["HC_functional_matrix"] / 5)
+
+    m["HC_outliers_perc"] = round(100 * m["HC_outliers"] / xcount, 2)
+    if m["HC_outliers_perc"] > 100:
+        m["HC_outliers_perc"] = 100
+    m["HC_outliers_perc"] = str(m["HC_outliers_perc"]) + "%"
+
+    ignz_count = m_obs["HC_ignz"].count().sum()
+    m["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
+    if ignz_count == 0:
+        return
+    m["HC_outliers_ignz_perc"] = round(100 * m["HC_outliers_ignz"] / ignz_count, 2)
+    if m["HC_outliers_ignz_perc"] > 100:
+        m["HC_outliers_ignz_perc"] = 100
+    m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
 
 ## #############################################################################################
 
@@ -745,122 +862,13 @@ def get_health(args, returning=False):
         meters[:] = [x for x in meters if x["meter_id_clean"] in uuids]
 
     start_time = time.time()
-    mc = 0
+    mc = 0 # Not sure what this was initially for
 
     for m in meters:
-
-        # time series for this meter
-        m_obs = query_pandas(m, from_time, to_time)
-        #m_obs = query_time_series(m, from_time, to_time)["obs"]
-
-        # count values. if no values, stop
-        m["HC_count"] = len(m_obs)
-        if m["HC_count"] == 0:
-            m["HC_count_perc"] = "0%"
-            m["HC_count_score"] = 0
-            continue
-
-        m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
-        if m["HC_count_perc"] > 100:
-            m["HC_count_perc"] = 100
-        m["HC_count_score"] = math.floor(m["HC_count_perc"] / 20)
-        m["HC_count_perc"] = str(m["HC_count_perc"])+"%"
-
-        # count zeroes
-        m["HC_zeroes"] = int(m_obs["value"][m_obs["value"]==0].count())
-        m["HC_zeroes_perc"] = round(100 * m["HC_zeroes"] / xcount, 2)
-        if m["HC_zeroes_perc"] > 100:
-            m["HC_zeroes_perc"] = 100
-        m["HC_zeroes_score"] = math.floor((100-m["HC_zeroes_perc"]) / 20)
-        m["HC_zeroes_perc"] = str(m["HC_zeroes_perc"])+"%"
-
-        # create diff (increase for each value) to prep for cumulative check
-        m_obs["diffs"] = m_obs["value"].diff()
-        diffcount = m_obs["diffs"].count().sum()
-        if diffcount == 0:
-            continue
-
-        # count positive, negative, and no increase
-        m["HC_diff_neg"] = int(m_obs.diffs[m_obs.diffs<0].count())
-        m["HC_diff_neg_perc"] = round(100 * m["HC_diff_neg"] / diffcount, 2)
-        if m["HC_diff_neg_perc"] > 100:
-            m["HC_diff_neg_perc"] = 100
-
-        m["HC_diff_pos"] = int(m_obs.diffs[m_obs.diffs>0].count())
-        m["HC_diff_pos_perc"] = round(100 * m["HC_diff_pos"] / diffcount, 2)
-        if m["HC_diff_pos_perc"] > 100:
-            m["HC_diff_pos_perc"] = 100
-        m["HC_diff_pos_score"] = math.floor(m["HC_diff_pos_perc"] / 20)
-
-        m["HC_diff_zero"] = int(m_obs.diffs[m_obs.diffs==0].count())
-        m["HC_diff_zero_perc"] = round(100 * m["HC_diff_zero"] / diffcount, 2)
-        if m["HC_diff_zero_perc"] > 100:
-            m["HC_diff_zero_perc"] = 100
-
-        # assume that cumulative meters have > 80% of values increase and vice versa
-        m["HC_class"] = m["class"]
-        if m["HC_diff_zero_perc"] > 80:
-            m["HC_class_check"] = "Too many zero diffs to check"
-
-        if m["class"] == "Cumulative":
-            if m["HC_diff_pos_perc"] < 80 and m["HC_diff_neg_perc"] > 20:
-                m["HC_class_check"] = "Check (seems rate)"
-                m["HC_class"] = "Rate"
-            else:
-                m["HC_class_check"] = "Okay (cumulative)"
-        else:
-            if m["HC_diff_pos_perc"] > 80:
-                m["HC_class_check"] = "Check (seems cumulative)"
-                m["HC_class"] = "Cumulative"
-            else:
-                m["HC_class_check"] = "Okay (rate)"
-
-        m["HC_diff_neg_perc"] = str(m["HC_diff_neg_perc"])+"%"
-        m["HC_diff_pos_perc"] = str(m["HC_diff_pos_perc"])+"%"
-        m["HC_diff_zero_perc"] = str(m["HC_diff_zero_perc"])+"%"
-
-        m["HC_functional_matrix"] = m["HC_count_score"] * m["HC_zeroes_score"]
-
-        # if cumulative (or assumed cumul) run statistics on that data, otherwise on raw
-        if m["HC_class"] == "Cumulative":
-            m["HC_mean"] = int(m_obs["diffs"].mean())
-            m["HC_median"] = int(m_obs["diffs"].median())
-            m["HC_mode"] = int(m_obs["diffs"].mode()[0])
-            m["HC_std"] = int(m_obs["diffs"].std())
-            m["HC_min"] = int(m_obs["diffs"].min())
-            m["HC_max"] = int(m_obs["diffs"].max())
-            m["HC_outliers"] = int(m_obs.diffs[m_obs.diffs>m["HC_mean"]*5].count())
-            m_obs["HC_ignz"] = m_obs[m_obs["diffs"] != 0]["diffs"]
-            m["HC_cumulative_matrix"] = m["HC_diff_pos_score"] * m["HC_functional_matrix"]
-            m["HC_score"] = math.floor(m["HC_cumulative_matrix"] / 25)
-
-        else:
-            m["HC_mean"] = int(m_obs["value"].mean())
-            m["HC_median"] = int(m_obs["value"].median())
-            m["HC_mode"] = int(m_obs["value"].mode()[0])
-            m["HC_std"] = int(m_obs["value"].std())
-            m["HC_min"] = int(m_obs["value"].min())
-            m["HC_max"] = int(m_obs["value"].max())
-            m["HC_outliers"] = int(m_obs["value"][m_obs["value"]>m["HC_mean"]*5].count())
-            m_obs["HC_ignz"] = m_obs[m_obs["value"] != 0]["value"]
-            m["HC_score"] = math.floor(m["HC_functional_matrix"] / 5)
-
-        m["HC_outliers_perc"] = round(100 * m["HC_outliers"] / xcount, 2)
-        if m["HC_outliers_perc"] > 100:
-            m["HC_outliers_perc"] = 100
-        m["HC_outliers_perc"] = str(m["HC_outliers_perc"])+"%"
-
-        ignz_count = m_obs["HC_ignz"].count().sum()
-        m["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz>m_obs["HC_ignz"].mean()*5].count())
-        if ignz_count == 0:
-            continue
-        m["HC_outliers_ignz_perc"] = round(100 * m["HC_outliers_ignz"] / ignz_count, 2)
-        if m["HC_outliers_ignz_perc"] > 100:
-            m["HC_outliers_ignz_perc"] = 100
-        m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"])+"%"
+        process_meter_health(m, from_time, to_time, xcount)
 
     proc_time = (time.time() - start_time)
-    #print("--- Health check took %s seconds ---" % proc_time)
+    print("--- Health check took %s seconds ---" % proc_time)
 
     # save cache, but only if it's a "default" query
     if not bool(list(set(args) & set(["date_range", "from_time", "to_time", "uuid"]))):
