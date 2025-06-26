@@ -864,8 +864,23 @@ def get_health(args, returning=False):
     start_time = time.time()
     mc = 0 # Not sure what this was initially for
 
+    threads = []
     for m in meters:
-        process_meter_health(m, from_time, to_time, xcount)
+        thread_name = f"HC_{m["raw_uuid"]}"
+        if thread_name == "HC_":
+            # If the meter doesn't have a raw_uuid attribute, skip it
+            # If we don't, it will only get skipped later in the code - may as well do it now!
+            m["HC_count"] = 0
+            m["HC_count_perc"] = "0%"
+            m["HC_count_score"] = 0
+            continue
+
+        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, xcount), name=thread_name, daemon=True))
+        threads[-1].start()
+
+    # Wait for all threads to complete
+    for t in threads:
+        t.join()
 
     proc_time = (time.time() - start_time)
     print("--- Health check took %s seconds ---" % proc_time)
