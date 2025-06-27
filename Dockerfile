@@ -16,7 +16,7 @@ RUN pip install --no-cache-dir -r requirements.txt
 COPY . .
 
 # Expose port Flask will run on
-EXPOSE 80
+EXPOSE 5050
 
 # Set file permissions for writable files/folders
 RUN mkdir -p /app/data/health_check && \
