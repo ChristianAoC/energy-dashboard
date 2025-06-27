@@ -49,7 +49,9 @@ function closeDeviceDataView() {
 		(document.getElementById("device-data").style.display == "inline")) {
 			document.getElementById("device-data").style.display = "none";
             commentParent = "deviceTable";
-            leaveCommentMode();
+            if (commentMode) {
+                leaveCommentMode();
+            }
 	}
 };
 
@@ -104,7 +106,8 @@ function redrawDevicePlot() {
         //        uri += "&aggregate=" + agg + "H";
 
     let thisDev;
-    for (d of devices) {
+    //for (d of devices) {
+    for (d of hc_latest) {
         if (d[varNameDevSensorID] == sensor) {
             thisDev = d;
         }

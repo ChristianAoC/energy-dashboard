@@ -1,65 +1,92 @@
-# Original code by Paul Smith
-# Adapted and expanded by Christian Remy
-
 from flask import Blueprint, jsonify, make_response, request, Response, json
 import datetime as dt
 import pandas as pd
 from influxdb import InfluxDBClient
 from dotenv import load_dotenv
 import os
+import time
+import threading
+import csv
+import math
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
 load_dotenv()
+
+val = os.getenv("OFFLINE_MODE", "True")
+offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
+
+val = os.getenv("ANON_MODE", "True")
+anonMode = val.strip().lower() in ("1", "true", "yes", "on")
+
 InfluxURL = os.getenv("INFLUX_URL")
 InfluxPort = os.getenv("INFLUX_PORT")
 InfluxUser = os.getenv("INFLUX_USER")
 InfluxPass = os.getenv("INFLUX_PASS")
 
-offlineMode = False
 if InfluxURL == None or InfluxPort == None or InfluxUser == None or InfluxPass == None:
     offlineMode = True
 
-meters_file = "./api/data/internal/UniMeters.json"
-meters_weather_file = "./api/data/internal/weather_meters.json"
-buildings_file = "./api/data/internal/UniHierarchy.json"
-buildings_usage_file = "./api/data/internal/UniHierarchyWithUsage.json"
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+
+hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
+
+meters_file = os.path.join(DATA_DIR, "internal_meta", 'meters_all.json')
+buildings_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchy.json')
+buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWithUsage.json')
 
 if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
     offlineMode = True
 
-meters_offline = "./api/data/meters.json"
-buildings_offline = "./api/data/buildings.json"
-usage_offline = "./api/data/usage.json"
+hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
+hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
+
+meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
+buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
+usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
 
 ## #################################################################
 ## constants - should not be changed later in code
 def METERS():
-    if not offlineMode and os.path.isfile(meters_weather_file):
-        meters = json.load(open(meters_file)) + json.load(open(meters_weather_file))
-    if not offlineMode:
-        meters = json.load(open(meters_file))
-    else:
-        meters = json.load(open(meters_offline))
-    meters = [m for m in meters if m["meter_id_clean"] is not None]
-    return meters
+    if anonMode == True:
+        return json.load(open(meters_anon_file))
+    return json.load(open(meters_file))
 
 def BUILDINGS():
-    if offlineMode:
-        return json.load(open(buildings_offline))
+    if anonMode == True:
+        return json.load(open(buildings_anon_file))
     return json.load(open(buildings_file))
 
 # offline file needed so the UI doesn't wait for the API call to compute sample usage
 def BUILDINGSWITHUSAGE():
-    if offlineMode:
-        return json.load(open(usage_offline))
+    if anonMode == True:
+        return json.load(open(usage_anon_file))
     return json.load(open(buildings_usage_file))
 
 ## #################################################################
 ## helper functions
 
-# TODO ONLY FOR TESTING
-offlineMode = True
+## Minimal/efficient call - get time series as Pandas
+## m - a meter object
+## from_time - time to get data from (datetime)
+## to_time - time to get data to (datetime)
+def query_pandas(m, from_time, to_time):
+
+    if m["raw_uuid"] is None: ## can't get data
+        return pd.DataFrame()
+
+    ## format query
+    qry = 'SELECT * as value FROM "SEED"."autogen"."' + m["raw_uuid"] + \
+        '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
+        ' AND time < \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
+
+    ## create client for influx
+    client = InfluxDBClient(host = InfluxURL,
+                            port = InfluxPort,
+                            username = InfluxUser,
+                            password = InfluxPass)
+    
+    return pd.DataFrame(client.query(qry).get_points())
 
 ## Get Data from influx
 ## m - a meter object
@@ -82,7 +109,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     ## set the basic output
     out = {
         "uuid": m["meter_id_clean"],
-        #"label": m["serving"], #user serving revised because this is way too lengthy
+        #"label": m["serving"], #use serving revised because this is way too lengthy
         "label": m["serving_revised"],
         "obs": [],
         "unit": m["units_after_conversion"]
@@ -90,7 +117,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
     obs = []
 
-    if not offlineMode:
+    if not offlineMode and not anonMode:
         if m["raw_uuid"] is None: ## can't get data
             return out
 
@@ -111,17 +138,25 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         obs = list(result.get_points())
 
     else:
-        f = open('api/data/sample/'+m["meter_id_clean"]+'.json',)
-        obs = json.load(f)
-        f.close()
+        try:
+            if anonMode:
+                f = open('api/data/anon/'+m["meter_id_clean"]+'.json',)
+                obs = json.load(f)
+                f.close()
+            if offlineMode:
+                f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
+                obs = json.load(f)
+                f.close()
 
-        newobs = []
-        for o in obs:
-            if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
-                o["time"] = o["time"][:-5] + 'Z'
-                newobs.append(o)
+            newobs = []
+            for o in obs:
+                if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
+                    o["time"] = o["time"][:-5] + 'Z'
+                    newobs.append(o)
 
-        obs = newobs
+            obs = newobs
+        except:
+            return out
 
     if len(obs)==0:
         return out
@@ -187,21 +222,31 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 ## from_time - time to get data from (datetime)
 def query_last_obs_time(m, to_time, from_time):
 
+    ## convert uuid to string for query
+    ##ustr = ",".join(['"SEED"."autogen"."'+x+'"' for x in uuid])
+    if m["raw_uuid"] is None:
+        return None
+
     # if offline, last obs is simply last line of file
-    if offlineMode:
+    if anonMode == True:
         try:
             f = open('api/data/sample/'+m["meter_id_clean"]+'.json',)
+        except:
+            return make_response("Anon mode and can't open/find a file for this UUID", 500)
+        obs = json.load(f)
+        f.close()
+        if len(obs) > 0:
+            return obs[-1]["time"]
+
+    if offlineMode == True:
+        try:
+            f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
         except:
             return make_response("Offline mode and can't open/find a file for this UUID", 500)
         obs = json.load(f)
         f.close()
         if len(obs) > 0:
             return obs[-1]["time"]
-
-    ## convert uuid to string for query
-    ##ustr = ",".join(['"SEED"."autogen"."'+x+'"' for x in uuid])
-    if m["raw_uuid"] is None:
-        return None
     
     ustr = '"SEED"."autogen"."' + m["raw_uuid"] + '"'
     ## convert to_time to correct time zone
@@ -241,6 +286,9 @@ def query_last_obs_time(m, to_time, from_time):
 ## Parameters:
 ## Return:
 ## current time
+##
+## Example:
+## http://127.0.0.1:5000/api/
 @api_bp.route('/', methods=["GET"])
 def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
@@ -253,7 +301,7 @@ def health():
 ## json containing the structure
 ##
 ## Example:
-## http://127.0.0.1:5000/hierarchy
+## http://127.0.0.1:5000/api/hierarchy
 @api_bp.route('/hierarchy')
 def hierarchy():
     return make_response(jsonify( BUILDINGS() ), 200)
@@ -268,6 +316,24 @@ def devices():
 def usageoffline():
     return BUILDINGSWITHUSAGE()
 
+## Return the latest health check table so we're not waiting for ages
+@api_bp.route('/hc_latest')
+def hc_latest():
+    try:
+        hc_cache = json.load(open(hc_latest_file))
+        return hc_cache
+    except:
+        return []
+
+## Health check cache meta
+@api_bp.route('/hc_meta')
+def hc_meta():
+    try:
+        hc_meta = json.load(open(hc_meta_file))
+        return hc_meta
+    except:
+        return {}
+
 ## Return summary of the energy usage over all buildings with main meters and mazemap ids
 ##
 ## Parameters:
@@ -276,7 +342,7 @@ def usageoffline():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/summary
+## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
 def summary():
     try:
@@ -382,11 +448,11 @@ def summary():
 ## json format time series data
 ##
 ## Example:
-## http://127.0.0.1:5000/meter
-## http://127.0.0.1:5000/meter?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/meter?lastobs=true
-## http://127.0.0.1:5000/meter?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:500/meter?is_weather=true
+## http://127.0.0.1:5000/api/meter
+## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter?lastobs=true
+## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter?is_weather=true
 @api_bp.route('/meter')
 def meter():
     try:
@@ -438,9 +504,9 @@ def meter():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/meter_obs?uuid=WTHR_0
+## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter_obs?uuid=WTHR_0
 @api_bp.route('/meter_obs')
 def meter_obs():
     try:
@@ -505,7 +571,6 @@ def meter_obs():
     else:
         return make_response(jsonify( out ), 200)
 
-
 ## Get record of pings to the meter
 ##
 ## Parameters:
@@ -519,12 +584,13 @@ def meter_obs():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/meter_ping?uuid=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter_ping?uuid=AP001_L01_M2
 @api_bp.route('/meter_ping')
 def meter_ping():
-    if offlineMode:
+
+    if offlineMode == True:
         return make_response("Offline mode, can't ping meters", 500)
-    
+
     meters = METERS()
     
     try:
@@ -562,7 +628,7 @@ def meter_ping():
     logger_uuids = list(set(logger_uuids))
     def fm(x):
         return {"meter_id_clean": x, "raw_uuid":x,
-                "Class":"Rate", "serving": None,
+                "Class":"Rate", "serving": None, "serving_revised": None,
                 "resolution": None,
                 "units_after_conversion": None}
     
@@ -602,10 +668,10 @@ def meter_ping():
 ## Return:
 ## json dictionary of last time or null is no observations
 ## Example:
-## http://127.0.0.1:5000/last_meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/last_meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/last_meter_obs?uuid=WTHR_0
-## http://127.0.0.1:5000/last_meter_obs?uuid=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
+## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2
+## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/last_meter_obs?uuid=WTHR_0
+## http://127.0.0.1:5000/api/last_meter_obs?uuid=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
 @api_bp.route('/last_meter_obs')
 def last_meter_obs():
     try:
@@ -636,3 +702,232 @@ def last_meter_obs():
         out[key] = query_last_obs_time(m, to_time, from_time)
 
     return make_response(jsonify( out ), 200)
+
+def get_health(args, returning=False):
+    #if offlineMode == True:
+    #    return "Offline mode, can't get meters"
+        #return make_response("Offline mode, can't get meters", 500)
+
+    meters = METERS()
+
+    try:
+        uuids = args["uuid"] # this is url decoded
+        uuids = uuids.split(";")
+    except:
+        uuids = [x["meter_id_clean"] for x in meters]
+
+    try:
+        to_time = args["to_time"] # this is url decoded
+        to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
+    except:
+        to_time = dt.datetime.now(dt.timezone.utc)
+        
+    try:
+        date_range = int(args["date_range"]) # this is url decoded
+    except:
+        date_range = 30
+
+    try:
+        from_time = args["from_time"] # this is url decoded
+        from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
+    except:
+        from_time = to_time - dt.timedelta(days=date_range)
+    
+    xcount = int((to_time - from_time).total_seconds()//600) - 1
+
+    try:
+        fmt = args["format"] # this is url decoded
+    except:
+        fmt = "json"
+    
+    ## load and trim meters
+    if uuids is not None:
+        meters[:] = [x for x in meters if x["meter_id_clean"] in uuids]
+    
+    start_time = time.time()
+    mc = 0
+
+    for m in meters:
+
+        # time series for this meter
+        m_obs = query_pandas(m, from_time, to_time)
+        #m_obs = query_time_series(m, from_time, to_time)["obs"]
+
+        # count values. if no values, stop
+        m["HC_count"] = len(m_obs)
+        m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
+        if m["HC_count_perc"] > 100:
+            m["HC_count_perc"] = 100
+        m["HC_count_score"] = math.floor(m["HC_count_perc"] / 20)
+        m["HC_count_perc"] = str(m["HC_count_perc"])+"%"
+
+        if m["HC_count"] == 0:
+            continue
+
+        # count zeroes
+        m["HC_zeroes"] = int(m_obs["value"][m_obs["value"]==0].count())
+        m["HC_zeroes_perc"] = round(100 * m["HC_zeroes"] / xcount, 2)
+        if m["HC_zeroes_perc"] > 100:
+            m["HC_zeroes_perc"] = 100
+        m["HC_zeroes_score"] = math.floor((100-m["HC_zeroes_perc"]) / 20)
+        m["HC_zeroes_perc"] = str(m["HC_zeroes_perc"])+"%"
+
+        # create diff (increase for each value) to prep for cumulative check
+        m_obs["diffs"] = m_obs["value"].diff()
+        diffcount = m_obs["diffs"].count().sum()
+        if diffcount == 0:
+            continue
+
+        # count positive, negative, and no increase
+        m["HC_diff_neg"] = int(m_obs.diffs[m_obs.diffs<0].count())
+        m["HC_diff_neg_perc"] = round(100 * m["HC_diff_neg"] / diffcount, 2)
+        if m["HC_diff_neg_perc"] > 100:
+            m["HC_diff_neg_perc"] = 100
+
+        m["HC_diff_pos"] = int(m_obs.diffs[m_obs.diffs>0].count())
+        m["HC_diff_pos_perc"] = round(100 * m["HC_diff_pos"] / diffcount, 2)
+        if m["HC_diff_pos_perc"] > 100:
+            m["HC_diff_pos_perc"] = 100
+        m["HC_diff_pos_score"] = math.floor(m["HC_diff_pos_perc"] / 20)
+
+        m["HC_diff_zero"] = int(m_obs.diffs[m_obs.diffs==0].count())
+        m["HC_diff_zero_perc"] = round(100 * m["HC_diff_zero"] / diffcount, 2)
+        if m["HC_diff_zero_perc"] > 100:
+            m["HC_diff_zero_perc"] = 100
+
+        # assume that cumulative meters have > 80% of values increase and vice versa
+        m["HC_class"] = m["class"]
+        if m["HC_diff_zero_perc"] > 80:
+            m["HC_class_check"] = "Too many zero diffs to check"
+
+        if m["class"] == "Cumulative":
+            if m["HC_diff_pos_perc"] < 80 and m["HC_diff_neg_perc"] > 20:
+                m["HC_class_check"] = "Check (seems rate)"
+                m["HC_class"] = "Rate"
+            else:
+                m["HC_class_check"] = "Okay (cumulative)"
+        else:
+            if m["HC_diff_pos_perc"] > 80:
+                m["HC_class_check"] = "Check (seems cumulative)"
+                m["HC_class"] = "Cumulative"
+            else:
+                m["HC_class_check"] = "Okay (rate)"
+
+        m["HC_diff_neg_perc"] = str(m["HC_diff_neg_perc"])+"%"
+        m["HC_diff_pos_perc"] = str(m["HC_diff_pos_perc"])+"%"
+        m["HC_diff_zero_perc"] = str(m["HC_diff_zero_perc"])+"%"
+
+        m["HC_functional_matrix"] = m["HC_count_score"] * m["HC_zeroes_score"]
+
+        # if cumulative (or assumed cumul) run statistics on that data, otherwise on raw
+        if m["HC_class"] == "Cumulative":
+            m["HC_mean"] = int(m_obs["diffs"].mean())
+            m["HC_median"] = int(m_obs["diffs"].median())
+            m["HC_mode"] = int(m_obs["diffs"].mode()[0])
+            m["HC_std"] = int(m_obs["diffs"].std())
+            m["HC_min"] = int(m_obs["diffs"].min())
+            m["HC_max"] = int(m_obs["diffs"].max())
+            m["HC_outliers"] = int(m_obs.diffs[m_obs.diffs>m["HC_mean"]*5].count())
+            m_obs["HC_ignz"] = m_obs[m_obs["diffs"] != 0]["diffs"]
+            m["HC_cumulative_matrix"] = m["HC_diff_pos_score"] * m["HC_functional_matrix"]
+            m["HC_score"] = math.floor(m["HC_cumulative_matrix"] / 25)
+
+        else:
+            m["HC_mean"] = int(m_obs["value"].mean())
+            m["HC_median"] = int(m_obs["value"].median())
+            m["HC_mode"] = int(m_obs["value"].mode()[0])
+            m["HC_std"] = int(m_obs["value"].std())
+            m["HC_min"] = int(m_obs["value"].min())
+            m["HC_max"] = int(m_obs["value"].max())
+            m["HC_outliers"] = int(m_obs["value"][m_obs["value"]>m["HC_mean"]*5].count())
+            m_obs["HC_ignz"] = m_obs[m_obs["value"] != 0]["value"]
+            m["HC_score"] = math.floor(m["HC_functional_matrix"] / 5)
+
+        m["HC_outliers_perc"] = round(100 * m["HC_outliers"] / xcount, 2)
+        if m["HC_outliers_perc"] > 100:
+            m["HC_outliers_perc"] = 100
+        m["HC_outliers_perc"] = str(m["HC_outliers_perc"])+"%"
+
+        ignz_count = m_obs["HC_ignz"].count().sum()
+        m["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz>m_obs["HC_ignz"].mean()*5].count())
+        if ignz_count == 0:
+            continue
+        m["HC_outliers_ignz_perc"] = round(100 * m["HC_outliers_ignz"] / ignz_count, 2)
+        if m["HC_outliers_ignz_perc"] > 100:
+            m["HC_outliers_ignz_perc"] = 100
+        m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"])+"%"
+
+    proc_time = (time.time() - start_time)
+    #print("--- Health check took %s seconds ---" % proc_time)
+    
+    # save cache, but only if it's a "default" query
+    if not bool(list(set(args) & set(["date_range", "from_time", "to_time", "uuid"]))):
+        try:
+            with open(hc_latest_file, "w") as f:
+                json.dump(meters, f)
+            try:
+                hc_meta = {
+                    "filename": hc_latest_file,
+                    "meters": len(meters),
+                    "to_time": to_time.timestamp(),
+                    "from_time": from_time.timestamp(),
+                    "date_range": date_range,
+                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
+                    "processing_time": proc_time
+                }
+                with open(hc_meta_file, "w") as f:
+                    json.dump(hc_meta, f)
+            except:
+                print("Error trying to save metadata for latest HC cache")
+        except:
+            print("Error trying to save current health check in cache")
+    if returning:
+        return meters
+
+## Create health check of meters (requested by IES)
+##
+## Parameters:
+## uuid - gauge id (planon style) or missing for all gauges
+## to_time - final observation time, defaults to current time
+## from_time - first observation time, defaults to 30 days ago
+## date_range - how far back we want to check in days (ignored if from_time is given)
+##
+## Return:
+## json format time series data
+## Example:
+## http://127.0.0.1:5000/api/meter_health?uuid=AP001_L01_M2&date_range=7
+@api_bp.route('/meter_health')
+def meter_health():
+    return make_response(jsonify(meter_health_internal(request.args)), 200)
+
+# this is the same but doesn't return a response as we need the pure JSON for the template
+@api_bp.route('/meter_health_internal')
+def meter_health_internal(args):
+
+    # if "default" call, check if there's a cache
+    hc_cache = hc_latest()
+    if len(args) == 0 or list(args.keys()) == ["hidden"]:
+        if hc_cache and len(hc_cache) > 2:
+            try:
+                hc_meta = json.load(open(hc_meta_file))
+                cache_age = dt.datetime.now(dt.timezone.utc).timestamp() - hc_meta["to_time"]
+                if (cache_age < 3600 * hc_update_time and int(hc_meta["date_range"]) == 30 and int(hc_meta["meters"]) > 1000):
+                    return hc_cache
+            except:
+                print("Error reading meta file, skipping cache")
+
+        updateOngoing = False
+        for th in threading.enumerate():
+            if th.name == "updateMainHC":
+                updateOngoing = True
+        if not updateOngoing:
+            # TODO: at the moment can't build new HC from offline (would need to be done in query_pandas)!
+            thread = threading.Thread(target=get_health, args=(args,), name="updateMainHC", daemon=True)
+            thread.start()
+        if hc_cache and len(hc_cache) > 2:
+            return hc_cache
+        else:
+            return []
+    else:
+        return get_health(args, True)
+    

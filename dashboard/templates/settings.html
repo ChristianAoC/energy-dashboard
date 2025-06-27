@@ -13,22 +13,12 @@
 
 <h3>Settings</h3>
 
+<br>
+
 {% if user %}
 
-<span id="registerSuccess"></span>
-
-Logged in as (...).<br>
-
-<h4>Change password</h4>
-
-<span id="pwChangeError"></span><span id="pwChangeSuccess"></span>
-
-<div class="grid-container">
-    <div class="grid-item">Current password:</div><div class="grid-item"><input type="password" id="change-old-password" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
-    <div class="grid-item">New password:</div><div class="grid-item"><input type="password" id="change-new-password1" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
-    <div class="grid-item">Repeat new password:</div><div class="grid-item"><input type="password" id="change-new-password2" class="auth" onkeypress="checkKeyPressPW(event)" /></div>
-    <div class="grid-item"><button type="button" class="auth" onclick="changePassword()" id="change-password">Change password</button></div><div class="grid-item"></div>
-</div>
+Logged in as {{user["email"]}}.<br><br>
+<button type="button" onclick="logout()" class="auth" id="button-logout">Logout</button>
 
 {% else %}
 
@@ -36,15 +26,11 @@ Not logged in.<br>
 
 <h4>Register</h4>
 
-<div class="grid-container">
-    <div class="grid-item">Username:</div><div class="grid-item"><input type="text" id="new-username" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
-    <div class="grid-item">Email:</div><div class="grid-item"><input type="email" id="new-email" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
-    <div class="grid-item">New password:</div><div class="grid-item"><input type="password" id="new-password1" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
-    <div class="grid-item">Repeat new password:</div><div class="grid-item"><input type="password" id="new-password2" class="auth" onkeypress="checkKeyPressReg(event)" /></div>
-    <div class="grid-item"><button type="button" class="auth" onclick="registerRequest()" id="register-request">Register</button></div><div class="grid-item"></div>
-</div>
-
-<span id="registerError"></span>
+This site does not use passwords, instead you receive a login token via email. Your email will be your username.<br><br>
+Enter email address to request a login token:<br>
+<input type="text" id="login-request-email" class="auth" autofocus="" placeholder="Email" onkeypress="checkKeyPressAuth(event)" /><br>
+<button type="button" onclick="requestLogin()" class="auth" id="login-request-button">Request login token</button><br>
+<div id="login-request-div"></div>
 
 {% endif %}
     

@@ -10,6 +10,7 @@ $(document).ready( function () {
 		"pageLength": 25,
         "columns": [
 			{"data": varNameDevSensorID, "title": "Sensor ID"},
+            /*
 			{"data": null,
                 render: function (data, type, row) {
                     if (typeof row[varNameDevLastObs] != "string") {
@@ -19,11 +20,14 @@ $(document).ready( function () {
                     }
                 },
                 "title": "Last data point"},
+            */
 
 			{"data": "perc", "defaultContent": "", "title": "Percentage pings"},
 
 			{"data": varNameDevMeasuringShort, "title": "Building"},
             {"data": varNameDevBuilding, "title": "Building Code"},
+			{"data": varNameDevMeasuringShort, "title": "Measuring What?"},
+			//{"data": varNameDevSensorLocation, "title": "Sensor Location"},
 			{"data": varNameDevSensorType, "title": "Sensor Type"},
 			{"data": varNameDevClass, "title": "Rate/Cum."},
 			{"data": varNameDevResolution, "title": "Resolution"},
@@ -31,6 +35,10 @@ $(document).ready( function () {
 
             {"data": varNameDevMeterLevel, "title": "Meter Level"},
             {"data": varNameDevBuildingLevelMeter, "title": "Building Level Meter?"},
+
+            //{"data": varNameDevInvoiced, "title": "Invoiced?"},
+            //{"data": varNameDevTenant, "title": "Tenant?"},
+			//{"data": varNameDevTenantName, "title": "Tenant Name"},
         ],
         createdRow: function (row, data, dataIndex) {
             $(row).attr("data-sensor", data[varNameDevSensorID]);
@@ -51,6 +59,7 @@ $(document).ready( function () {
             let columnIdx = e.target.getAttribute('data-column');
             let column = deviceTable.column(columnIdx);
             column.visible(!column.visible());
+            el.classList.toggle("hidden");
 
             let urlParams = new URLSearchParams(window.location.search);
             if (urlParams.has('hidden')) {

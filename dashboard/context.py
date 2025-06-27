@@ -8,8 +8,9 @@ filename = "context.json"
 def add_context(contextElem):
     if not os.path.isfile(filename):
         f = open(filename, "w")
+        json.dump([], f)
         f.close()
-    with open(filename, 'r') as openfile:
+    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
         max_id = 0
         for item in context:
@@ -31,7 +32,7 @@ def add_context(contextElem):
 def edit_context(contextElem):
     if not os.path.isfile(filename):
         return "Context file missing"
-    with open(filename, 'r') as openfile:
+    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
         for i in range(len(context)):
             if int(context[i]["id"]) == int(contextElem["id"]):
@@ -46,11 +47,13 @@ def edit_context(contextElem):
 def delete_context(contextID):
     if not os.path.isfile(filename):
         return "Context file missing"
-    with open(filename, 'r') as openfile:
+    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
         for i in range(len(context)):
-            if context[i]["id"] == int(contextID):
-                context.pop(i)
+            if int(context[i]["id"]) == int(contextID):
+                # don't delete, just set delete flag
+                #context.pop(i)
+                context[i]["deleted"] = 1
                 break
     tempfile = os.path.join(os.path.dirname(filename), str(uuid.uuid4()))
     with open(tempfile, 'w') as outfile:
@@ -61,7 +64,7 @@ def delete_context(contextID):
 def get_context(args):
     if not os.path.isfile(filename):
         return "Context file missing"
-    with open(filename, 'r') as openfile:
+    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
         timeFormat = "%Y-%m-%d %H:%M"
         for key, value in args.items():
@@ -104,6 +107,10 @@ def get_context(args):
 def view_all():
     if not os.path.isfile(filename):
         return "Context file missing"
-    with open(filename, 'r') as openfile:
+    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
+        for i, c in enumerate(context):
+            if "deleted" in c:
+                if c["deleted"] == 1 or c["deleted"] == "1":
+                    context.pop(i)
         return context

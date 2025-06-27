@@ -1,6 +1,7 @@
 // define globals
-var myMap;
-var clickedOn = "";
+let myMap;
+let clickedOn = "";
+let contextMarkers = [];
 
 $(document).ready( function () {
     if (testGraphMode) {
@@ -58,8 +59,83 @@ $(document).ready( function () {
         myMap.addControl(new Mazemap.mapboxgl.NavigationControl());
         
         highlightBuildingsList();
+
+        let sensors = "";
+        for (let b of masterList) {
+            for (let t of ["electricity", "gas", "heat", "water"]) {
+                if (b[t] && b[t]["sensor_uuid"] && b[t]["sensor_uuid"].length > 0) {
+                    sensors += b[t]["sensor_uuid"].join(";") + ";";
+                }
+            }
+        }
+
+        let uri = "getcontext?sensor=" + sensors +
+                "&start=" + getCurPageStartDate() +
+                "&end=" + getCurPageEndDate();
+
+        fetch(uri, { method: 'GET' })
+            .then(response => response.json())
+            .then(data => {
+                displayContextMarkers(data["context"]);
+            });
     });
 });
+
+function clearContextMarkers() {
+    for (let m of contextMarkers) {
+        m.remove();
+    }
+    contextMarkers = [];
+}
+
+function displayContextMarkers(contextData) {
+    clearContextMarkers();
+
+    for (let e of contextData) {
+        for (let b of masterList) {
+            for (let t of ["electricity", "gas", "heat", "water"]) {
+                if (b[t] && b[t]["sensor_uuid"].includes(e.sensor)) {
+                    // Found the building this sensor is in
+                    const matchedBuilding = allBuildings.find(f => f.properties.id == b[varNameMLMazeMapID]);
+                    if (matchedBuilding) {
+                        const lngLat = Mazemap.Util.getPoiLngLat(matchedBuilding);
+                        
+                        const el = document.createElement('div');
+                        el.className = 'context-marker';
+                        el.innerHTML = "&#128161;";
+                        el.style.fontSize = "20px";
+                        el.style.cursor = "pointer";
+
+                        const hoverText = "<b>Context:</b><br>" +
+                            e.comment + ",<br><br>" +
+                            "  Start: " + (e.startfuzzy ? "ca. " : "") + e.start + "<br>" +
+                            "  End: " + (e.endfuzzy ? "ca. " : "") + e.end + "<br>" +
+                            "    (Added by: " + e.author + ")";
+
+                        const popup = new Mazemap.mapboxgl.Popup({
+                            closeButton: true,
+                            closeOnClick: true
+                        }).setHTML(hoverText);
+
+                        const marker = new Mazemap.mapboxgl.Marker(el)
+                            .setLngLat(lngLat)
+                            .addTo(myMap);
+
+                        el.addEventListener('mouseenter', () => {
+                            popup.setLngLat(lngLat).addTo(myMap);
+                        });
+
+                        el.addEventListener('mouseleave', () => {
+                            popup.remove();
+                        });
+                        
+                        contextMarkers.push(marker);
+                    }
+                }
+            }
+        }
+    }
+}
 
 // Utility function for getting the first feature matching the given layer name
 function getFirstFeatureWithLayerName(features, layerNames) {

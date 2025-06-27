@@ -94,19 +94,18 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
-function clickCheck(e) {
-    if (!commentMode) { // shouldn't need this as listener is removed, but just for safety
-        console.log("Comment mode left (safety catch function)")
-        return;
-    }
+function createContextDialog(clickedSensor, from, to) {
+    if (commentParent == "healthcheckTable") {
+        document.getElementById("none-from").checked = true;
+        document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
+        document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
+        document.getElementById("none-to").checked = true;
+        document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+        document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
+        }
 
     populateDD();
-    leaveCommentMode();
-
     document.getElementById("context-container").classList.remove("hidden");
-
-    var clickedSensor = "";
-    var ddElem = document.getElementById("contextDD");
 
     document.getElementById("fuzzy-from").checked = false;
     document.getElementById("fuzzy-to").checked = false;
@@ -116,8 +115,28 @@ function clickCheck(e) {
     document.getElementById("recurring-number").value = 1;
     document.getElementById("context-recurring-weeks").checked = true;
 
+    var ddElem = document.getElementById("contextDD");
+
+    if (clickedSensor == "" || clickedSensor == null) {
+        ddElem.value = "select";
+    } else {
+        ddElem.value = clickedSensor;
+    }
+
+    document.getElementById("con-start-date").value = from;
+    document.getElementById("con-end-date").value = to;
+};
+
+function clickCheck(e) {
+    if (!commentMode) { // shouldn't need this as listener is removed, but just for safety
+        console.log("Comment mode left (safety catch function)")
+        return;
+    }
+
+    var clickedSensor = "";
+
     // add sensor pre-set
-    if (commentParent == "deviceTable") {
+    if ((commentParent == "deviceTable") || (commentParent == "healthcheckTable")) {
         clickedSensor = e.target.closest("tr").getAttribute("data-sensor");
 
     } else if (commentParent == "view-map") {
@@ -146,14 +165,11 @@ function clickCheck(e) {
         clickedSensor = document.getElementById('b-button').dataset.sensor;
     }
 
-    if (clickedSensor == "" || clickedSensor == null) {
-        ddElem.value = "select";
-    } else {
-        ddElem.value = clickedSensor;
-    }
+    var fromContext = getCurPageStartDate();
+    var toContext = getCurPageEndDate();
 
-    document.getElementById("con-start-date").value = getCurPageStartDate();
-    document.getElementById("con-end-date").value = getCurPageEndDate();
+    createContextDialog(clickedSensor, fromContext, toContext)
+    leaveCommentMode();
 };
 
 function getCurPageStartDate() {
@@ -164,8 +180,7 @@ function getCurPageStartDate() {
     } else {
         let setDate = new Date(Date.now());
         setDate.setDate(setDate.getDate()-7);
-        //return setDate.toISOString().slice(0, 10)+" 00:00";
-        return "2023-02-07 00:00";
+        return setDate.toISOString().slice(0, 10)+" 00:00";
     }
 };
 
@@ -176,25 +191,54 @@ function getCurPageEndDate() {
         return document.getElementById("b-end-date").value+" 23:50";
     } else {
         let setDate = new Date(Date.now());
-        //return setDate.toISOString().slice(0, 10)+" 23:50";
-        return "2023-02-13 23:50";
+        return setDate.toISOString().slice(0, 10)+" 23:50";
     }
 };
 
+function htmlEscape(text) {
+    return String(text)
+      .replaceAll("&", "&amp;")
+      .replaceAll("<", "&lt;")
+      .replaceAll(">", "&gt;")
+      .replaceAll("/", "&#47;")
+      .replaceAll("\\", "&#92;")
+      .replaceAll('"', "&quot;")
+      .replaceAll("'", "&#39;");
+}
+
 function saveContext() {
+    if (commentParent == "healthcheckTable") {
+        var table = $('#healthcheckTable').DataTable();
+        var rowNode = $('#healthcheckTable tbody tr[data-sensor="' + document.getElementById("contextDD").value + '"]');
+        //var row = table.row(rowNode);
+        var cellNode = rowNode.find('td.lastCol');
+        var currentHTML = cellNode.html();
+        if (currentHTML != "") {
+            currentHTML += "<br>";
+        }
+        currentHTML += "<b>";
+        currentHTML += (getCookie("Email") != "") ? getCookie("Email").split('@')[0] : "(anonymous)";
+        currentHTML += "</b>: ";
+        currentHTML += document.getElementById("context-comment").value;
+        console.log(currentHTML);
+        cellNode.html(currentHTML);
+    }
+
     var submitType = document.querySelector('input[name="context-type"]:checked').value;
     if (submitType == "Other") {
         submitType = document.getElementById("context-other-text").value;
     }
     var toSubmit = {
-        "author": (username != "") ? username : "(anonymous)",
+        "author": (getCookie("Email") != "") ? getCookie("Email") : "(anonymous)",
         "sensor": document.getElementById("contextDD").value,
+        "startnone": document.getElementById("none-from").checked,
         "start": document.getElementById("con-start-date").value,
         "startfuzzy": document.getElementById("fuzzy-from").checked,
+        "endnone": document.getElementById("none-to").checked,
         "end": document.getElementById("con-end-date").value,
         "endfuzzy": document.getElementById("fuzzy-to").checked,
         "type": submitType,
-        "comment": document.getElementById("context-comment").value
+        "comment": htmlEscape(document.getElementById("context-comment").value)
     }
     if (submitType == "Recurring") {
         toSubmit["recurring-number"] = document.getElementById("recurring-number").value;
@@ -255,6 +299,20 @@ $(document).ready( function () {
         e.style.gridArea = e.id;
     }
 
+    document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
+    document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
+    $('input#none-from').change(function(){
+        document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
+        document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
+    });
+
+    document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+    document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
+    $('input#none-to').change(function(){
+        document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+        document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
+    });
+
     document.getElementById("context-other-text").disabled = !$('#context-type-other').is(':checked');
 
     $('input#context-type-other').change(function(){
@@ -278,12 +336,12 @@ $(document).ready( function () {
 
     // https://xdsoft.net/jqplugins/datetimepicker/
     jQuery('#con-start-date').datetimepicker({
-        value: "2023-02-02 00:00",
-        format:'Y/m/d H:i'
+        value: "2025-05-01 00:00",
+        format:'Y-m-d H:i'
     });
     jQuery('#con-end-date').datetimepicker({
-        value: "2023-03-28 23:50",
-        format:'Y/m/d H:i'
+        value: "2025-06-10 23:50",
+        format:'Y-m-d H:i'
     });
 
     $( function() {

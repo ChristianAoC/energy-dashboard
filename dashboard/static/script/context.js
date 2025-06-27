@@ -50,8 +50,19 @@ $(document).ready( function () {
     if (context == "Context file missing") {
         return;
     }
+
+    // remove all "deleted" context elements, can add some checkbox for that later
+    var contextFiltered = [];
+    for (i in context) {
+        if (context[i]["deleted"] == "1") {
+            continue
+        } else {
+            contextFiltered.push(context[i]);
+        }
+    }
+
     var contextTable = $('#contextTable').DataTable({
-		"data": context,
+		"data": contextFiltered,
 		"pageLength": 25,
         columns: [
             {data: "id", visible: false},
@@ -59,13 +70,21 @@ $(document).ready( function () {
             {data: "sensor", title: "Sensor"},
             {data: "start", title: "Start",
                 render: function (data, type, row) {
-                    return row["startfuzzy"] == false ? data : "Ca. "+data;
+                    if (row["startnone"] == true) {
+                        return "None";
+                    } else {
+                       return row["startfuzzy"] == false ? data : "Ca. "+data;
+                    }
                 }
             },
             //{data: "startfuzzy", title: "Exact Start", render: function (data) { return data == true ? "No" : "Yes"; }},
             {data: "end", title: "End",
                 render: function (data, type, row) {
-                    return row["endfuzzy"] == false ? data : "Ca. "+data;
+                    if (row["endnone"] == true) {
+                        return "None";
+                    } else {
+                        return row["endfuzzy"] == false ? data : "Ca. "+data;
+                    }
                 }
             },
             //{data: "endfuzzy", title: "Exact End", render: function (data) { return data == true ? "No" : "Yes"; }},

@@ -1,16 +1,16 @@
 # .env file should be created after deployment
 .env
-# database/context files will be automatically created:
-database.db
+
+# user DB/context files will be automatically created:
 context.json
+users.json
 
-# these folders/files contains LU specific meter meta info or are just for testing
-api/data/internal/
-dashboard/static/templates/apitest.html
-dashboard/static/templates/health.html
+# data files
+data/offline/
 
-# find data set here: https://christianremy.com/lu_data_2023.zip
-api/data/sample/
+# for public release (energy-dashboard repo) also exclude those:
+data/internal_meta/
+data/internal_scripts/
 
 #########################################################
 

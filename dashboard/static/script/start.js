@@ -74,13 +74,10 @@ $(document).ready( function () {
 
     let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
     sideBarStartDate = sideBarStartDate.toISOString().split('T')[0];
-    //document.getElementById('sb-start-date').value = sideBarStartDate;
-    // for public release instead: issue fixed date in 2023
-    document.getElementById('sb-start-date').value = "2023-02-07";
+    document.getElementById('sb-start-date').value = sideBarStartDate;
     let sideBarEndDate = new Date();
     sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
-    //document.getElementById('sb-end-date').value = sideBarEndDate;
-    document.getElementById('sb-end-date').value = "2023-02-13";
+    document.getElementById('sb-end-date').value = sideBarEndDate;
 
     let allButtons = document.querySelectorAll(".button-type");
     allButtons.forEach(checkSetting);

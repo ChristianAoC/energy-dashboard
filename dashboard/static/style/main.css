@@ -58,6 +58,15 @@ h3{
     font-weight: bold;
 }
 
+div#nav-parent {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: auto;
+    width: 100%;
+    z-index: 9999;
+}
+
 nav#nav-top-bar {
     position: sticky;
     top: 0;
@@ -103,6 +112,10 @@ nav#nav-top-bar {
     border-bottom: 5px solid #3f3f3f;
 }
 
+div#content-parent {
+    margin-top: 76px;
+}
+
 div#main-content {
     margin: 20px;
 }
@@ -145,14 +158,19 @@ div#context-content {
     padding: 10px 24px 10px 24px;
     gap: 8px;
     display: grid;
-    grid-template-columns: min-content auto min-content auto;
+    grid-template-columns: min-content auto 3.5em auto;
     grid-template-areas:
         "gc-sensors-label gc-sensors gc-sensors gc-sensors"
-        "gc-datefrom-label gc-datefrom gc-dateto-label gc-dateto"
-        "gc-datefromfuzzy gc-datefromfuzzy gc-datetofuzzy gc-datetofuzzy"
+        "gc-datefrom-label gc-datefrom-none gc-dateto-label gc-dateto-none"
+        ". gc-datefrom . gc-dateto"
+        ". gc-datefromfuzzy . gc-datetofuzzy"
         "gc-typeradios-label gc-typeradios gc-recurring-label gc-recurring"
         "gc-comment-label gc-comment gc-comment gc-comment"
         ". . . gc-button";
+}
+
+input#recurring-number {
+    width: 3em;
 }
 
 div.context-header {
@@ -192,8 +210,12 @@ input.auth {
     outline: none;
 }
 
+div#response-div {
+    max-width: 10em;
+}
+
 button.auth {
-    font-size: 1em;
+    font-size: 0.8em;
     padding: 3px 20px 3px 20px;
     margin: 5px 0px 5px 0px;
     cursor: pointer;
@@ -425,7 +447,48 @@ span#footer {
     opacity: 0.8;
 }
 
-#about-container {
+#centred-container {
     width: 800px;
     margin: 0 auto;
+}
+
+#settings-button {
+    margin: 0px 5px 0px 5px;
+}
+
+button.toggle-vis {
+    background-color: #555;
+    color: white;
+    margin: 2px;
+    padding: 5px;
+    border-radius: 5px;
+}
+
+button.toggle-vis.hidden {
+    background-color: white;
+    color: #555;
+}
+
+.colorScore0 {
+    background-color: #d3a0a0 !important;
+}
+
+.colorScore1 {
+    background-color: #e0c3ab !important;
+}
+
+.colorScore2 {
+    background-color: #d3c4a0 !important;
+}
+
+.colorScore3 {
+    background-color: #d4d09d !important;
+}
+
+.colorScore4 {
+    background-color: #bac99b !important;
+}
+
+.colorScore5 {
+    background-color: #9fc9a2 !important;
 }

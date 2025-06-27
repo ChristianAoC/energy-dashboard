@@ -1,9 +1,9 @@
-from flask import render_template, send_file, request, Blueprint, make_response
+from flask import render_template, send_file, request, Blueprint, make_response, current_app, redirect
 from markupsafe import escape
 import api.api as api_bp
-import dashboard.db as db
-#import dashboard.cache as cache
+import dashboard.user as user
 import dashboard.context as context
+from functools import wraps
 
 dashboard_bp = Blueprint('dashboard_bp'
     , __name__,
@@ -15,9 +15,15 @@ dashboard_bp = Blueprint('dashboard_bp'
 ###            start page and general stuff             ###
 ###########################################################
 
+@dashboard_bp.route("/helloworld")
+def helloworld():
+    return current_app.config["SITE_NAME"]
+
 @dashboard_bp.route("/")
 def index():
-    return start()
+    #return health_check()
+    #return redirect("health-check.html?hidden=;3;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;21;23;24;25;27;26;28;30;31;32;33;35;29;37;")
+    return redirect("health-check.html?hidden=;3;5;7;8;11;12;14;15;16;18;19;21;23;24;25;28;30;31;32;33;29;;4;38;;36;;43;44;42;41;40;;27;;34;35;;;9;;;;;10;")
 
 @dashboard_bp.route("/favicon.ico")
 def getFavicon():
@@ -27,31 +33,72 @@ def getFavicon():
 ###                  user management                    ###
 ###########################################################
 
+# decorator to limit certain pages to a specific user level
+def required_user_level(level_config_key):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            cookies = request.cookies
+            try:
+                level = int(current_app.config[level_config_key])
+                if level == 1 or int(user.get_user_level(cookies["Email"], cookies["SessionID"])) >= level:
+                    return function(*args, **kwargs)
+            except:
+                print("No or wrong cookie")
+            return noaccess()
+        return wrapper
+    return decorator
+
+def setCookies(email, sessionID):
+    resp = make_response(render_template('settings.html', user = user.get_user(email)))
+    resp.set_cookie("SessionID", sessionID, 60*60*24*365)
+    resp.set_cookie("Email", email, 60*60*24*365)
+    return resp
+
+@dashboard_bp.route("/logout", methods=['POST'])
+def logout():
+    email = request.args.get('email')
+    if email == None or email == "":
+        return "No email provided."
+    resp = make_response(render_template('settings.html'))
+    resp.delete_cookie('SessionID')
+    resp.delete_cookie('Email')
+    return resp
+
 @dashboard_bp.route("/loginrequest", methods=['POST'])
 def loginRequest():
-    username = request.args.get('username')
-    password = request.args.get('password')
-    res = "loginfailed"
-    if db.check_login(username, password):
-        res = "loginok"
-        # change to this below once we movie cookie logic to flask
-        #res = make_response("loginok")
-        #res.set_cookie('username', username)
-    return res
-
-@dashboard_bp.route("/registerrequest", methods=['POST'])
-def registerRequest():
-    username = request.args.get('username')
-    password = request.args.get('password')
     email = request.args.get('email')
-    return db.add_user(username, password, email)
+    if email == None or email == "":
+        return "No email provided."
+    result = user.login_request(email)
+    if len(result) == 4 and result[0] == True:
+        resp = setCookies(result[1], result[2])
+        return resp
+    return make_response(result)
 
-@dashboard_bp.route("/changepassword", methods=['POST'])
-def changePassword():
-    username = request.args.get('username')
-    password = request.args.get('password')
-    newPW = request.args.get('newPW')
-    return db.change_password(username, password, newPW)
+@dashboard_bp.route("/verify_login")
+def verifyLogin():
+    email = request.args.get('email')
+    if email == None or email == "":
+        return "No email provided."
+    code = request.args.get('code')
+    if code == None or code == "":
+        return "No code provided."
+
+    result = user.check_code(email, code)
+    if result[0] == True:
+        resp = setCookies(email, result[1])
+    else:
+        resp = make_response(result[1])
+    return resp
+
+@dashboard_bp.route("/get_user_level", methods=['POST'])
+def getUserLevel():
+    sessionID = request.args.get('SessionID')
+    email = request.args.get('email')
+    if email == None or email == "" or sessionID == None or sessionID == "":
+        return 0
+    return make_response(user.get_user_level(email, sessionID))
 
 ###########################################################
 ###               context functionality                 ###
@@ -74,66 +121,63 @@ def deleteContext():
 
 @dashboard_bp.route("/getcontext", methods=['GET'])
 def getContext():
-    return { "context": escape(context.get_context(request.args)) }
+    return { "context": context.get_context(request.args) }
 
 ###########################################################
 ###                 main web templates                  ###
+###########################################################
+
+@dashboard_bp.route("/noacess.html")
+def noaccess():
+    return render_template('noaccess.html')
+
+@dashboard_bp.route("/start.html")
+#@required_user_level(1)
+def start():
+    return render_template('start.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/health-check.html")
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+def health_check():
+    hc_latest = api_bp.meter_health_internal(request.args)
+    if len(hc_latest) > 0:
+        return render_template('health-check.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline(), hc_latest = hc_latest, hc_meta = api_bp.hc_meta(), context = context.view_all())
+    else:
+        return render_template('health-check.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline(), hc_latest = api_bp.devices(), hc_meta = api_bp.hc_meta(), context = context.view_all())
+
+@dashboard_bp.route("/anomaly.html")
+#@required_user_level(3)
+def anomaly():
+    return render_template('anomaly.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/energy-usage.html")
+#@required_user_level(3)
+def energyusage():
+    return render_template('energy-usage.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/context.html")
+@required_user_level("USER_LEVEL_VIEW_COMMENTS")
+def context_view():
+    data = context.view_all()
+    return render_template('context.html', data = data, devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/about.html")
+def about():
+    return render_template('about.html')
+
+@dashboard_bp.route("/settings.html")
+def settings():
+    return render_template('settings.html', user = user.get_user())
+
+###########################################################
+###            others (not in main layout)              ###
 ###########################################################
 
 @dashboard_bp.route("/tutorial.html")
 def tutorial():
     return render_template('tutorial.html')
 
-@dashboard_bp.route("/start.html")
-def start():
-    return render_template('start.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
 @dashboard_bp.route("/devices.html")
+@required_user_level(3)
 def devices():
     return render_template('devices.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
-@dashboard_bp.route("/anomaly.html")
-def anomaly():
-    return render_template('anomaly.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
-@dashboard_bp.route("/energy-usage.html")
-def energyusage():
-    return render_template('energy-usage.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
-@dashboard_bp.route("/context.html")
-def context_view():
-    data = context.view_all()
-    return render_template('context.html', data = data, devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
-@dashboard_bp.route("/statistics.html")
-def statistics():
-    return render_template('statistics.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
-
-@dashboard_bp.route("/settings.html")
-def settings():
-    return render_template('settings.html')
-
-@dashboard_bp.route("/about.html")
-def about():
-    return render_template('about.html')
-
-###########################################################
-###            others (not in main layout)              ###
-###########################################################
-
-@dashboard_bp.route("/apitest.html")
-def apitest():
-    return render_template('apitest.html')
-
-###########################################################
-###              getting and caching data               ###
-###########################################################
-
-# CURRENTLY NOT IN USE
-#@dashboard_bp.route("/getdata/<endpoint>", methods=['GET', 'POST'])
-#def getData(endpoint):
-#    if endpoint != "summary":
-#        return "Only summary endpoint supported."
-#    
-#    return cache.getData(endpoint, request.args)
-
