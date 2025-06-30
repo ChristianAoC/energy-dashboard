@@ -295,7 +295,7 @@ def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetim
     m["HC_count"] = len(m_obs)
     if m["HC_count"] == 0:
         m["HC_count_perc"] = "0%"
-        m["HC_count_score"] = 0
+        m["HC_score"] = 0
         return
 
     m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
@@ -872,7 +872,7 @@ def get_health(args, returning=False):
             # If we don't, it will only get skipped later in the code - may as well do it now!
             m["HC_count"] = 0
             m["HC_count_perc"] = "0%"
-            m["HC_count_score"] = 0
+            m["HC_score"] = 0
             continue
 
         threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, xcount), name=thread_name, daemon=True))
