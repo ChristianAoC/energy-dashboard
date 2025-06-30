@@ -70,3 +70,10 @@ If you don't want or cannot set an STMP host for email confirmation, it is recom
 If you are part of an organisation, it might be advisable to restrict emails to one or several particular domains, using the `REQUIRED_EMAIL_DOMAINS` variable.
 
 Last but not least, you can specify user levels to restrict access to certain parts and functions of the dashboard. For more on that check `app.py` (for basic settings) as well as `dashboard/main.py` (to set additional user levels for specific routes). By default, everyone can see all parts of the dashboard and add comments, but not edit/delete comments.
+
+## License
+
+This project is licensed under the [MIT License](LICENSE).  
+You are free to use, modify, and distribute this software for any purpose, including commercial use, as long as you include the original copyright.
+
+Please note that this software is provided "as is", without any warranty.
