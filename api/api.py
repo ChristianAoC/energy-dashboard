@@ -892,7 +892,7 @@ def get_health(args, returning=False):
                 json.dump(meters, f)
             try:
                 hc_meta = {
-                    "filename": hc_latest_file,
+                    "filename": os.path.basename(hc_latest_file),
                     "meters": len(meters),
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
