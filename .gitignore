@@ -1,18 +1,4 @@
-# .env file should be created after deployment
 .env
-
-# user DB/context files will be automatically created:
-context.json
-users.json
-
-# data files
-data/offline/
-
-# for public release (energy-dashboard repo) also exclude those:
-data/internal_meta/
-data/internal_scripts/
-
-#########################################################
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
