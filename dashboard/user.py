@@ -7,7 +7,7 @@ import json
 import uuid
 from datetime import datetime
 
-users_file = "users.json"
+users_file = "data/users.json"
 
 # get current user from JSON DB
 def get_user(email = None):

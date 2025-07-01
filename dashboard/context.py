@@ -3,30 +3,32 @@ import os
 import uuid
 from datetime import datetime
 
-filename = "context.json"
+filename = "data/context.json"
 
 def add_context(contextElem):
-    if not os.path.isfile(filename):
-        f = open(filename, "w")
-        json.dump([], f)
-        f.close()
+    if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
+        with open(filename, "w", encoding="utf-8") as f:
+            json.dump([], f)
+
     with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
-        max_id = 0
-        for item in context:
-            try:
-                this_id = int(item["id"])
-                if this_id > max_id:
-                    max_id = this_id
-            except ValueError:
-                print("ID wasn't a number.")
-        contextElem["id"] = max_id + 1
-        context.append(contextElem)
+
+    max_id = 0
+    for item in context:
+        try:
+            this_id = int(item["id"])
+            if this_id > max_id:
+                max_id = this_id
+        except (ValueError, KeyError):
+            print("ID wasn't a number or missing.")
+
+    contextElem["id"] = max_id + 1
+    context.append(contextElem)
+
     tempfile = os.path.join(os.path.dirname(filename), str(uuid.uuid4()))
-    with open(tempfile, 'w') as outfile:
+    with open(tempfile, 'w', encoding="utf-8") as outfile:
         json.dump(context, outfile, indent=4)
     os.replace(tempfile, filename)
-    # always returns success... but guess that's ok? for now?
     return "success"
 
 def edit_context(contextElem):
