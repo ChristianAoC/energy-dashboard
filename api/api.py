@@ -866,9 +866,9 @@ def get_health(args, returning=False):
 
     threads = []
     for m in meters:
-        thread_name = f"HC_{m["raw_uuid"]}"
+        thread_name = f"HC_{m['meter_id_clean']}"
         if thread_name == "HC_":
-            # If the meter doesn't have a raw_uuid attribute, skip it
+            # If the meter doesn't have a meter_id_clean attribute, skip it
             # If we don't, it will only get skipped later in the code - may as well do it now!
             m["HC_count"] = 0
             m["HC_count_perc"] = "0%"
