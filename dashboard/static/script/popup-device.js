@@ -58,6 +58,7 @@ function closeDeviceDataView() {
 function downloadSensorDeviceData(){
 	var startDate = document.getElementById('b-start-date').value;
 	var endDate = document.getElementById('b-end-date').value;
+    var sensor = document.getElementById('b-button').dataset.sensor;
     var uri="api/meter_obs?uuid=" + sensor +
 	    "&from_time=" + encodeURIComponent(startDate) + "T00:00:00Z" +
 	    "&to_time=" + encodeURIComponent(endDate) + "T23:59:59Z" +
