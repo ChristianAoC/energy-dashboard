@@ -43,6 +43,13 @@ if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
 hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
 hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
 
+meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
+meter_snapshots_files = os.path.join(DATA_DIR, "meter_snapshots")
+meter_health_score_anon_files = os.path.join(DATA_DIR, "anon_meter_health_score")
+meter_health_score_offline_files = os.path.join(DATA_DIR, "offline_meter_health_score")
+meter_snapshots_anon_files = os.path.join(DATA_DIR, "anon_meter_snapshots")
+meter_snapshots_offline_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
+
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
@@ -396,6 +403,65 @@ def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetim
     if m["HC_outliers_ignz_perc"] > 100:
         m["HC_outliers_ignz_perc"] = 100
     m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
+
+def generate_health_cache():
+    end_date = dt.datetime.now(dt.timezone.utc).date()
+
+    # TODO: Thread caching as this takes a long time!
+
+    if not anonMode and not offlineMode:
+
+        # Health Check Score Cache
+        for meter in METERS():
+            # TODO: Parse existing cache to see if we need to update it
+            # Should be as easy as checking if the oldest date in the cache is before end_date
+            meter_health_score_file = os.path.join(meter_health_score_files, f"{meter['meter_id_clean']}.json")
+            meter_health_scores = {}
+
+            start_date = end_date - dt.timedelta(days=365)
+
+            for offset in range((end_date - start_date).days):
+                date = (start_date + dt.timedelta(days=offset))
+                date_range_start = dt.datetime(date.year, date.month, date.day)
+                date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
+                xcount = int((date_range_end - date_range_start).total_seconds() // 600) - 1
+
+                process_meter_health(meter, date_range_start, date_range_end, xcount)
+                meter_health_scores.update({date.isoformat(): meter['HC_score']})
+
+            with open(meter_health_score_file, "w") as f:
+                json.dump(meter_health_scores, f)
+
+        # Meter Snapshot Cache
+        for meter in METERS():
+            # TODO: Parse existing cache to see if we need to update it
+            # Should be as easy as checking if the oldest date in the cache is before end_date
+            meter_snapshots_file = os.path.join(meter_snapshots_files, f"{meter['meter_id_clean']}.json")
+            meter_snapshots = {}
+
+            start_date = end_date - dt.timedelta(days=30)
+
+            for offset in range((end_date - start_date).days):
+                date = (start_date + dt.timedelta(days=offset))
+                date_range_start = dt.datetime(date.year, date.month, date.day)
+                date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
+
+                meter_obs = query_time_series(meter, date_range_start, date_range_end, "30d")['obs']
+                if len(meter_obs) == 0:
+                    # TODO: Should this set hc score to 0 if there isn't any data?
+                    continue
+                meter_snapshots.update({date.isoformat(): meter_obs[0]['value']})
+
+            with open(meter_snapshots_file, "w") as f:
+                json.dump(meter_snapshots, f)
+
+    if anonMode:
+        # TODO: Handle anonMode
+        pass
+    elif offlineMode:
+        # TODO: Handle offlineMode
+        pass
+
 
 ## #############################################################################################
 
