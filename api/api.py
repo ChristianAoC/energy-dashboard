@@ -410,7 +410,6 @@ def generate_meter_data_cache():
     # TODO: Thread caching as this takes a long time!
 
     if not anonMode and not offlineMode:
-
         # Health Check Score Cache
         for meter in METERS():
             # TODO: Parse existing cache to see if we need to update it
@@ -447,10 +446,12 @@ def generate_meter_data_cache():
                 date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
 
                 meter_obs = query_time_series(meter, date_range_start, date_range_end, "24h")['obs']
-                if len(meter_obs) == 0:
-                    # TODO: Should this set hc score to 0 if there isn't any data?
-                    continue
-                meter_snapshots.update({date.isoformat(): meter_obs[0]['value']})
+
+                cache_value = None
+                if len(meter_obs) > 0:
+                    cache_value = meter_obs[0]['value']
+
+                meter_snapshots.update({date.isoformat(): cache_value})
 
             with open(meter_snapshots_file, "w") as f:
                 json.dump(meter_snapshots, f)
