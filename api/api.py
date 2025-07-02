@@ -214,7 +214,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         df = pd.DataFrame.from_dict(obs)
         df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
         df.set_index('time', inplace=True)
-        df = df.resample(agg, origin='end').sum() ## windows go backwards
+        df = df.resample(agg, origin='end').mean() ## windows go backwards
 
         df.reset_index(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
