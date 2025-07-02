@@ -1,5 +1,3 @@
-import datetime
-
 from flask import Blueprint, jsonify, make_response, request, Response, json
 import datetime as dt
 import pandas as pd
@@ -293,7 +291,7 @@ def query_last_obs_time(m, to_time, from_time):
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
 ## xcount - number of readings meters should have read
-def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetime.datetime, xcount: int):
+def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, xcount: int):
     # time series for this meter
     m_obs = query_pandas(m, from_time, to_time)
     # m_obs = query_time_series(m, from_time, to_time)["obs"]
