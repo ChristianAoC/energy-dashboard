@@ -411,10 +411,10 @@ def generate_meter_data_cache():
 
     if not anonMode and not offlineMode:
         # Health Check Score Cache
-        for meter in METERS():
+        for m in METERS():
             # TODO: Parse existing cache to see if we need to update it
             # Should be as easy as checking if the oldest date in the cache is before end_date
-            meter_health_score_file = os.path.join(meter_health_score_files, f"{meter['meter_id_clean']}.json")
+            meter_health_score_file = os.path.join(meter_health_score_files, f"{m['meter_id_clean']}.json")
             meter_health_scores = {}
 
             start_date = end_date - dt.timedelta(days=365)
@@ -425,17 +425,17 @@ def generate_meter_data_cache():
                 date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
                 xcount = int((date_range_end - date_range_start).total_seconds() // 600) - 1
 
-                process_meter_health(meter, date_range_start, date_range_end, xcount)
-                meter_health_scores.update({date.isoformat(): meter['HC_score']})
+                process_meter_health(m, date_range_start, date_range_end, xcount)
+                meter_health_scores.update({date.isoformat(): m['HC_score']})
 
             with open(meter_health_score_file, "w") as f:
                 json.dump(meter_health_scores, f)
 
         # Meter Snapshot Cache
-        for meter in METERS():
+        for m in METERS():
             # TODO: Parse existing cache to see if we need to update it
             # Should be as easy as checking if the oldest date in the cache is before end_date
-            meter_snapshots_file = os.path.join(meter_snapshots_files, f"{meter['meter_id_clean']}.json")
+            meter_snapshots_file = os.path.join(meter_snapshots_files, f"{m['meter_id_clean']}.json")
             meter_snapshots = {}
 
             start_date = end_date - dt.timedelta(days=30)
@@ -445,7 +445,7 @@ def generate_meter_data_cache():
                 date_range_start = dt.datetime(date.year, date.month, date.day)
                 date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
 
-                meter_obs = query_time_series(meter, date_range_start, date_range_end, "24h")['obs']
+                meter_obs = query_time_series(m, date_range_start, date_range_end, "24h")['obs']
 
                 cache_value = None
                 if len(meter_obs) > 0:
