@@ -404,7 +404,7 @@ def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetim
         m["HC_outliers_ignz_perc"] = 100
     m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
 
-def generate_health_cache():
+def generate_meter_data_cache():
     end_date = dt.datetime.now(dt.timezone.utc).date()
 
     # TODO: Thread caching as this takes a long time!
