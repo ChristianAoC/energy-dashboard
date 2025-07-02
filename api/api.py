@@ -446,7 +446,7 @@ def generate_health_cache():
                 date_range_start = dt.datetime(date.year, date.month, date.day)
                 date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
 
-                meter_obs = query_time_series(meter, date_range_start, date_range_end, "30d")['obs']
+                meter_obs = query_time_series(meter, date_range_start, date_range_end, "24h")['obs']
                 if len(meter_obs) == 0:
                     # TODO: Should this set hc score to 0 if there isn't any data?
                     continue
