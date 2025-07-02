@@ -402,54 +402,69 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
         m["HC_outliers_ignz_perc"] = 100
     m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
 
+def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
+    todo = []
+
+    start_date = current_date - dt.timedelta(days=days)
+    # We aren't caching today's data
+    for offset in range((current_date - start_date).days):
+        date = (start_date + dt.timedelta(days=offset))
+        if date.isoformat() in existing_cache:
+            continue
+        date_range_start = dt.datetime(date.year, date.month, date.day)
+        date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
+        todo.append((date, date_range_start, date_range_end))
+
+    if existing_cache == {}:
+        return todo
+
+    # Need to remove expired cache items
+    for cache_item in existing_cache.keys():
+        if dt.date.fromisoformat(cache_item) < start_date:
+            existing_cache.pop(cache_item)
+
+    return todo
+
 def generate_meter_data_cache():
     end_date = dt.datetime.now(dt.timezone.utc).date()
 
     # TODO: Thread caching as this takes a long time!
 
     if not anonMode and not offlineMode:
-        # Health Check Score Cache
         for m in METERS():
-            # TODO: Parse existing cache to see if we need to update it
-            # Should be as easy as checking if the oldest date in the cache is before end_date
+            # Health Check Score Cache
             meter_health_score_file = os.path.join(meter_health_score_files, f"{m['meter_id_clean']}.json")
             meter_health_scores = {}
+            if os.path.exists(meter_health_score_file):
+                try:
+                    meter_health_scores = json.load(open(meter_health_score_file, "r"))
+                except:
+                    meter_health_scores = {}
 
-            start_date = end_date - dt.timedelta(days=365)
-
-            for offset in range((end_date - start_date).days):
-                date = (start_date + dt.timedelta(days=offset))
-                date_range_start = dt.datetime(date.year, date.month, date.day)
-                date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
-                xcount = int((date_range_end - date_range_start).total_seconds() // 600) - 1
-
-                process_meter_health(m, date_range_start, date_range_end, xcount)
-                meter_health_scores.update({date.isoformat(): m['HC_score']})
+            for cache_item in cache_items(365, end_date, meter_health_scores):
+                process_meter_health(m, cache_item[1], cache_item[2], 142)
+                meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
             with open(meter_health_score_file, "w") as f:
                 json.dump(meter_health_scores, f)
 
-        # Meter Snapshot Cache
-        for m in METERS():
-            # TODO: Parse existing cache to see if we need to update it
-            # Should be as easy as checking if the oldest date in the cache is before end_date
+            # Meter Snapshot Cache
             meter_snapshots_file = os.path.join(meter_snapshots_files, f"{m['meter_id_clean']}.json")
             meter_snapshots = {}
+            if os.path.exists(meter_snapshots_file):
+                try:
+                    meter_snapshots = json.load(open(meter_snapshots_file, "r"))
+                except:
+                    meter_snapshots = {}
 
-            start_date = end_date - dt.timedelta(days=30)
-
-            for offset in range((end_date - start_date).days):
-                date = (start_date + dt.timedelta(days=offset))
-                date_range_start = dt.datetime(date.year, date.month, date.day)
-                date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
-
-                meter_obs = query_time_series(m, date_range_start, date_range_end, "24h")['obs']
+            for cache_item in cache_items(30, end_date, meter_snapshots):
+                meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
                 cache_value = None
                 if len(meter_obs) > 0:
                     cache_value = meter_obs[0]['value']
 
-                meter_snapshots.update({date.isoformat(): cache_value})
+                meter_snapshots.update({cache_item[0].isoformat(): cache_value})
 
             with open(meter_snapshots_file, "w") as f:
                 json.dump(meter_snapshots, f)
