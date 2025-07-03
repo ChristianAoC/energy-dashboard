@@ -402,11 +402,16 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
         m["HC_outliers_ignz_perc"] = 100
     m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
 
+## Creates a list with the information required to fill in the missing cache entries for the given cache data
+## It also strips out any expired cache data
+## days - The number of days to store data in the cache
+## current_date - The current data as a datetime.date object
+## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
 def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
     todo = []
 
     start_date = current_date - dt.timedelta(days=days)
-    # We aren't caching today's data
+    # We don't cache today's data as it will never be complete
     for offset in range((current_date - start_date).days):
         date = (start_date + dt.timedelta(days=offset))
         if date.isoformat() in existing_cache:
@@ -426,7 +431,8 @@ def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> 
 
     return todo
 
-def generate_meter_data_cache():
+## Generates the cache data for meter health scores and meter snapshots
+def generate_meter_data_cache() -> None:
     end_date = dt.datetime.now(dt.timezone.utc).date()
 
     # TODO: Thread caching as this takes a long time!
