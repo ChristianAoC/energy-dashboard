@@ -433,8 +433,17 @@ def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.
 
 ## Returns whether the given cache is valid. It is a stripped down version of cache_items to run faster.
 ## days - The number of days to store data in the cache
-## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
-def cache_validity_checker(days: int, existing_cache: dict = {}) -> bool:
+## cache_file - The cache file to be updated
+def cache_validity_checker(days: int, cache_file: str) -> bool:
+    if not os.path.exists(cache_file):
+        return False
+
+    existing_cache = {}
+    try:
+        existing_cache = json.load(open(cache_file, "r"))
+    except:
+        return False
+
     if existing_cache == {}:
         return False
 
@@ -536,22 +545,9 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
 
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-            meter_health_scores = {}
-            if os.path.exists(meter_health_score_file):
-                try:
-                    meter_health_scores = json.load(open(meter_health_score_file, "r"))
-                except:
-                    meter_health_scores = {}
-
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
-            meter_snapshots = {}
-            if os.path.exists(meter_snapshots_file):
-                try:
-                    meter_snapshots = json.load(open(meter_snapshots_file, "r"))
-                except:
-                    meter_snapshots = {}
 
-            if not cache_validity_checker(365, meter_health_scores) and not cache_validity_checker(30, meter_snapshots):
+            if not cache_validity_checker(365, meter_health_score_file) and not cache_validity_checker(30, meter_snapshots_file):
                 continue
 
             threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
