@@ -1,3 +1,11 @@
 *
 !.gitignore
 !health_check/
+
+# Cache
+!anon_meter_health_score
+!anon_meter_snapshots
+!meter_health_score
+!meter_snapshots
+!offline_meter_health_score
+!offline_meter_snapshots
