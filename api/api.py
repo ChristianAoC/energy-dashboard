@@ -431,6 +431,27 @@ def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.
 
     return todo
 
+## Returns whether the given cache is valid. It is a stripped down version of cache_items to run faster.
+## days - The number of days to store data in the cache
+## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
+def cache_validity_checker(days: int, existing_cache: dict = {}) -> bool:
+    if existing_cache == {}:
+        return False
+
+    start_date = dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days)
+
+    for offset in range(days):
+        date = (start_date + dt.timedelta(days=offset))
+        if date.isoformat() not in existing_cache:
+            return False
+
+    # Need to remove expired cache items
+    for cache_item in existing_cache.copy().keys():
+        if dt.date.fromisoformat(cache_item) < start_date:
+            return False
+
+    return True
+
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
 def clean_meter_cache_file_name(file_name: str):
@@ -439,72 +460,49 @@ def clean_meter_cache_file_name(file_name: str):
 
 ## Generate the cache for the provided meter
 ## m - the meter to generate cache for
-## meter_health_bundle - All the information required to generate the cache for meter health
-## meter_snapshots_bundle - All the information required to generate the cache for meter snapshots
-def generate_meter_cache(m: dict, meter_health_bundle: tuple[list[tuple[dt.date, dt.datetime, dt.datetime]], dict], meter_snapshots_bundle: tuple[list[tuple[dt.date, dt.datetime, dt.datetime]], dict]) -> None:
+def generate_meter_cache(m: dict) -> None:
     try:
         file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
 
         # Health Check Score Cache
         meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-        for cache_item in meter_health_bundle[0]:
+        meter_health_scores = {}
+        if os.path.exists(meter_health_score_file):
+            try:
+                meter_health_scores = json.load(open(meter_health_score_file, "r"))
+            except:
+                meter_health_scores = {}
+
+        for cache_item in cache_items(365, meter_health_scores):
             process_meter_health(m, cache_item[1], cache_item[2], 142)
-            meter_health_bundle[1].update({cache_item[0].isoformat(): m['HC_score']})
+            meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
         with open(meter_health_score_file, "w") as f:
-            json.dump(meter_health_bundle[1], f)
+            json.dump(meter_health_scores, f)
 
         # Meter Snapshot Cache
         meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
-        for cache_item in meter_snapshots_bundle[0]:
+        meter_snapshots = {}
+        if os.path.exists(meter_snapshots_file):
+            try:
+                meter_snapshots = json.load(open(meter_snapshots_file, "r"))
+            except:
+                meter_snapshots = {}
+
+        for cache_item in cache_items(30, meter_snapshots):
             meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
             cache_value = None
             if len(meter_obs) > 0:
                 cache_value = meter_obs[0]['value']
 
-            meter_snapshots_bundle[1].update({cache_item[0].isoformat(): cache_value})
+            meter_snapshots.update({cache_item[0].isoformat(): cache_value})
 
         with open(meter_snapshots_file, "w") as f:
-            json.dump(meter_snapshots_bundle[1], f)
+            json.dump(meter_snapshots, f)
     except Exception as e:
         print(f"An error occurred generating cache for meter {m['meter_id_clean']}")
         raise e
-
-## Generates all data required for generate_meter_cache
-## m - The meter to cache
-##
-## Needed so that we can skip starting threads for meters with up-to-date cache files
-def create_cache_info_bundles(m: dict):
-    file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
-
-    meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-    meter_health_scores = {}
-    if os.path.exists(meter_health_score_file):
-        try:
-            meter_health_scores = json.load(open(meter_health_score_file, "r"))
-        except:
-            meter_health_scores = {}
-
-    meter_health_cache_tasks = cache_items(365, meter_health_scores)
-    meter_health_bundle = (meter_health_cache_tasks, meter_health_scores)
-
-    meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
-    meter_snapshots = {}
-    if os.path.exists(meter_snapshots_file):
-        try:
-            meter_snapshots = json.load(open(meter_snapshots_file, "r"))
-        except:
-            meter_snapshots = {}
-
-    meter_summary_cache_tasks = cache_items(30, meter_snapshots)
-    meter_summary_bundle = (meter_summary_cache_tasks, meter_snapshots)
-
-    needs_cache_generation = False
-    if len(meter_health_cache_tasks) > 0 or len(meter_summary_cache_tasks) > 0:
-        needs_cache_generation = True
-
-    return (meter_health_bundle, meter_summary_bundle), needs_cache_generation
 
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
@@ -535,12 +533,28 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
                 # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
                 continue
 
-            cache_info_bundles = create_cache_info_bundles(m)
-            if not cache_info_bundles[1]:
-                # Nothing needs to be updated, skip!
+            file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
+
+            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+            meter_health_scores = {}
+            if os.path.exists(meter_health_score_file):
+                try:
+                    meter_health_scores = json.load(open(meter_health_score_file, "r"))
+                except:
+                    meter_health_scores = {}
+
+            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+            meter_snapshots = {}
+            if os.path.exists(meter_snapshots_file):
+                try:
+                    meter_snapshots = json.load(open(meter_snapshots_file, "r"))
+                except:
+                    meter_snapshots = {}
+
+            if not cache_validity_checker(365, meter_health_scores) and not cache_validity_checker(30, meter_snapshots):
                 continue
 
-            threads.append(threading.Thread(target=generate_meter_cache, args=(m, cache_info_bundles[0][0], cache_info_bundles[0][1]), name=thread_name, daemon=True))
+            threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
             threads[-1].start()
 
         # Wait for all threads to complete
