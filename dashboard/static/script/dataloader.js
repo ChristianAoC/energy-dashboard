@@ -125,23 +125,22 @@ function uncapFirst(str) {
     return str.charAt(0).toLowerCase() + str.slice(1);
 };
 
-// function to call api for json. "forceReload=true" ignores cache
-async function callApiJSON(uri, forceReload=false) {
-    if (!forceReload)
-    try {
-        const response = await fetch(encodeURI(uri));
-        if (response.ok) {
-            try {
-                const json = response.json();
-                return json;
-            } catch {
-                console.error('Could not convert response to proper JSON');
-            }
-        } else {
-            console.error('Promise resolved but HTTP status failed');
+// function to call api for json.
+async function callApiJSON(uri) {
+   try {
+        let url = encodeURI(uri);
+        const response = await fetch(url, { /* headers */});
+
+        if (!response.ok) {
+            console.error(`HTTP error ${response.status} for ${url}`);
+            return null;
         }
-    } catch {
-    console.error('Promise rejected');
+
+        const json = await response.json();
+        return json;
+    } catch (err) {
+        console.error('Failed fetching ${uri}:', err);
+        return null;
     }
 };
 
