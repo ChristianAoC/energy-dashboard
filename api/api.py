@@ -424,8 +424,7 @@ def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> 
         return todo
 
     # Need to remove expired cache items
-    keys = existing_cache.copy().keys()
-    for cache_item in keys:
+    for cache_item in existing_cache.copy().keys():
         if dt.date.fromisoformat(cache_item) < start_date:
             existing_cache.pop(cache_item)
 
