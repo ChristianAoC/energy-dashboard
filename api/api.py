@@ -405,10 +405,10 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
 ## Creates a list with the information required to fill in the missing cache entries for the given cache data
 ## It also strips out any expired cache data
 ## days - The number of days to store data in the cache
-## current_date - The current data as a datetime.date object
 ## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
-def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
+def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
     todo = []
+    current_date = dt.datetime.now(dt.timezone.utc).date()
 
     start_date = current_date - dt.timedelta(days=days)
     # We don't cache today's data as it will never be complete
@@ -432,8 +432,6 @@ def cache_items(days: int, current_date: dt.date, existing_cache: dict = {}) -> 
 
 ## Generates the cache data for meter health scores and meter snapshots
 def generate_meter_data_cache() -> None:
-    end_date = dt.datetime.now(dt.timezone.utc).date()
-
     # TODO: Thread caching as this takes a long time!
 
     if not anonMode and not offlineMode:
@@ -447,7 +445,7 @@ def generate_meter_data_cache() -> None:
                 except:
                     meter_health_scores = {}
 
-            for cache_item in cache_items(365, end_date, meter_health_scores):
+            for cache_item in cache_items(365, meter_health_scores):
                 process_meter_health(m, cache_item[1], cache_item[2], 142)
                 meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
@@ -463,7 +461,7 @@ def generate_meter_data_cache() -> None:
                 except:
                     meter_snapshots = {}
 
-            for cache_item in cache_items(30, end_date, meter_snapshots):
+            for cache_item in cache_items(30, meter_snapshots):
                 meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
                 cache_value = None
