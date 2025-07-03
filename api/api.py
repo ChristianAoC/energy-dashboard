@@ -547,7 +547,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
-            if not cache_validity_checker(365, meter_health_score_file) and not cache_validity_checker(30, meter_snapshots_file):
+            if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
                 continue
 
             threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
