@@ -408,11 +408,10 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
 ## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
 def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
     todo = []
-    current_date = dt.datetime.now(dt.timezone.utc).date()
+    start_date = dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days)
 
-    start_date = current_date - dt.timedelta(days=days)
     # We don't cache today's data as it will never be complete
-    for offset in range((current_date - start_date).days):
+    for offset in range(days):
         date = (start_date + dt.timedelta(days=offset))
         if date.isoformat() in existing_cache:
             continue
