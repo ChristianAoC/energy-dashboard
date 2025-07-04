@@ -40,6 +40,8 @@ buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWith
 if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
     offlineMode = True
 
+if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
+    os.mkdir(os.path.join(DATA_DIR, "health_check"))
 hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
 hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
 
@@ -49,11 +51,17 @@ if not offlineMode:
 else:
     meter_health_score_files = os.path.join(DATA_DIR, "offline_meter_health_score")
     meter_snapshots_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
+if not os.path.exists(meter_health_score_files):
+    os.mkdir(meter_health_score_files)
+if not os.path.exists(meter_snapshots_files):
+    os.mkdir(meter_snapshots_files)
 
 cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
 cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
+if not os.path.exists(os.path.join(DATA_DIR, "meta_anon")):
+    os.mkdir(os.path.join(DATA_DIR, "meta_anon"))
 anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
