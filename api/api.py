@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import os
 import time
 import threading
-import csv
 import math
 import dashboard.user as user
 from functools import wraps
@@ -160,11 +159,11 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     else:
         try:
             if anonMode:
-                f = open('date/anon/'+m["meter_id_clean"]+'.json',)
+                f = open('data/anon/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
             if offlineMode:
-                f = open('date/offline/'+m["meter_id_clean"]+'.json',)
+                f = open('data/offline/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
 
@@ -172,6 +171,8 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
             obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
             obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
             obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+            obs = obs.to_dict('records')
         except:
             return out
 
@@ -188,7 +189,8 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
     for o in obs:
         o['value'] = round( rho * round(o["value"] * kappa) ,10 )
-        o['time'] = o['time'][:-1] + '+0000'
+        if o['time'][:-1] == "Z":
+            o['time'] = o['time'][:-1] + '+0000'
 
     ## uncumulate if required
     if to_rate and (m["class"] == "Cumulative"):
@@ -315,7 +317,7 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
             m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
             m_obs.drop(m_obs[m_obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
             m_obs.drop(m_obs[m_obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
-        except Exception as e:
+        except:
             m["HC_count"] = 0
             m["HC_count_perc"] = "0%"
             m["HC_score"] = 0
@@ -536,7 +538,6 @@ def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: d
                 meter_snapshots = {}
 
         for cache_item in cache_items(cache_time_summary, meter_snapshots, data_start_time, data_end_time):
-            # TODO: Bug somewhere in query_time_series that always returns empty meter_obs
             meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
             cache_value = None
@@ -583,7 +584,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         data_end_time = dt.datetime.now(dt.timezone.utc)
 
     meters = METERS()
-    n = 35 # Process 35 meters at a time (35 was a random number I chose)
+    n = 20 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -600,7 +601,6 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             file_name = f"{clean_meter_name}.json"
 
             if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
-                print(f"Skipping: {m['meter_id_clean']} - no data")
                 continue
 
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
@@ -609,7 +609,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             seen_meters.append(file_name)
 
             if cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time):
-                print(f"Skipping: {m['meter_id_clean']} - healthy existing cache")
+                print(f"Skipping: {m['meter_id_clean']}")
                 continue
 
             threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))
