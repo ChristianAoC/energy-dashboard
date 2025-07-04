@@ -8,35 +8,35 @@ if (typeof summaryCache !== 'undefined' && summaryCache.length > 50) {
 var varNameDevSensorID = "meter_id_clean";
 var varNameDevLastObs = "last_obs_time";
 var varNameDevSensorType = "meter_type"; // gas heat water elec
-var varNameDevSensorLocation = "meter_location"; // TODO not in anon
-var varNameDevMeasuringLong = "serving"; // TODO not in anon (too long)
+var varNameDevSensorLocation = "meter_location"; // not in anon
+var varNameDevMeasuringLong = "serving"; // not in anon (too long)
 var varNameDevMeasuringShort = "serving_revised";
 var varNameDevClass = "class"; // cumulative or rate
 var varNameDevResolution = "resolution";
 //var varNameDevUnits = "measured_units"; // this is converted in the API acc. to Paul, see below
 var varNameDevUnits = "units_after_conversion";
-var varNameDevTenantName = "tenant_name"; // TODO not in anon
+var varNameDevTenantName = "tenant_name"; // not in anon
 
   // those are new, should we add them to table?
-var varNameDevInvoiced = "to_be_invoiced"; // TODO not in anon
+var varNameDevInvoiced = "to_be_invoiced"; // not in anon
 var varNameDevMeterLevel = "meter_level";
 //var varNameDevConfigCheckedDate = "config_checked_date";
 var varNameDevBuildingLevelMeter = "building_level_meter";
 var varNameDevBuilding = "building";
 //var varNameDevAdjustmentFactor = "adjustment_factor";
-var varNameDevParent = "parent"; // TODO not in anon
-var varNameDevParentTwo = "parent2"; // TODO not in anon
-var varNameDevRedundant = "redundant"; // TODO not in anon
-var varNameDevTenant = "tenant"; // TODO not in anon
-var varNameDevTenantID = "tenant_unit_id"; // TODO not in anon
+var varNameDevParent = "parent"; // not in anon
+var varNameDevParentTwo = "parent2"; // not in anon
+var varNameDevRedundant = "redundant"; // not in anon
+var varNameDevTenant = "tenant"; // not in anon
+var varNameDevTenantID = "tenant_unit_id"; // not in anon
 var varNameDevUnitConversionFactor = "unit_conversion_factor";
 //var varNameDevUnitsAfterConversion = "unit_after_conversion"; // Paul said this is actually the returned unit
 
 // masterList variables
 var varNameMLBuildingName = "building_name";
-var varNameMLBuildingGroupName = "building_group_name"; // TODO not in anon
+var varNameMLBuildingGroupName = "building_group_name"; // not in anon
 var varNameMLBuildingID = "building_code";
-var varNameMLBuildingGroup = "building_group"; // TODO not in anon
+var varNameMLBuildingGroup = "building_group"; // not in anon
 var varNameMLMazeMapID = "maze_map_label";
 var varNameMLFloorSize = "floor_area";
 var varNameMLUsage = "usage"; // (this is residential/non-res etc)
@@ -97,25 +97,6 @@ var sizes;
 var elecUse, gasUse, heatUse, waterUse;
 var elecEUI, gasEUI, heatEUI, waterEUI;
 
-function getSliderRanges() {
-    sizes = masterList.map(x => parseInt(x[varNameMLFloorSize]));
-
-    elecUse = masterList.map(x => Math.round(parseFloat(x["electricity"]["usage"]))).filter(x => x); // kWh
-    gasUse = masterList.map(x => Math.round(parseFloat(x["gas"]["usage"]))).filter(x => x); // m3
-    heatUse = masterList.map(x => Math.round(parseFloat(x["heat"]["usage"]))).filter(x => x); // m3
-    waterUse = masterList.map(x => Math.round(parseFloat(x["water"]["usage"]))).filter(x => x); // m3
-
-    elecEUI = masterList.map(x => parseFloat(x["electricity"]["eui_annual"])).filter(x => x);
-    gasEUI = masterList.map(x => parseFloat(x["gas"]["eui_annual"])).filter(x => x);
-    heatEUI = masterList.map(x => parseFloat(x["heat"]["eui_annual"])).filter(x => x);
-    waterEUI = masterList.map(x => parseFloat(x["water"]["eui_annual"])).filter(x => x);
-
-    setRanges(1, Math.min(...sizes), Math.max(...sizes));
-    // TO-DO check which one is actually active on load/session
-    setRanges(2, Math.min(...elecEUI), Math.max(...elecEUI));
-    setRanges(3, Math.min(...elecUse), Math.max(...elecUse));
-};
-
 // need this frequently, strangely JS has no native function for this
 function capFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -123,6 +104,20 @@ function capFirst(str) {
 
 function uncapFirst(str) {
     return str.charAt(0).toLowerCase() + str.slice(1);
+};
+
+
+function addMasterListBenchmarks() {
+    var benchmarksCibse = benchmarksCibseFile;
+    for (m of masterList) {
+        if (!["Residential", "Split Use", "Non Res"].includes(m["usage"])) { continue; }
+        m["electricity"]["bm_good"] = benchmarksCibse[m["usage"]]["electricity"]["good"];
+        m["electricity"]["bm_typical"] = benchmarksCibse[m["usage"]]["electricity"]["typical"];
+        m["gas"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
+        m["gas"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
+        m["heat"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
+        m["heat"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
+    }
 };
 
 // function to call api for json.
@@ -144,15 +139,24 @@ async function callApiJSON(uri) {
     }
 };
 
-function addMasterListBenchmarks() {
-    var benchmarksCibse = benchmarksCibseFile;
-    for (m of masterList) {
-        if (!["Residential", "Split Use", "Non Res"].includes(m["usage"])) { continue; }
-        m["electricity"]["bm_good"] = benchmarksCibse[m["usage"]]["electricity"]["good"];
-        m["electricity"]["bm_typical"] = benchmarksCibse[m["usage"]]["electricity"]["typical"];
-        m["gas"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
-        m["gas"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
-        m["heat"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
-        m["heat"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
+// data loader to call required JSON objects for a given page
+async function getCommonData() {
+    try {
+        const [
+            // TODO add here later: scoreSummary and usage
+            devices,
+            masterlist
+        ] = await Promise.all([
+            callApiJSON('/api/devices'),
+            callApiJSON('/api/usageoffline')
+        ]);
+
+        return {
+            devices,
+            masterlist
+        };
+    } catch (err) {
+        console.error("Error loading common data", err);
+        return {};
     }
-};
+}

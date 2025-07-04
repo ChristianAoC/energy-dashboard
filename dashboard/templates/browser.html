@@ -1,6 +1,48 @@
+{% extends 'base.html' %}
+
+{% block head %}
+<link rel="stylesheet" type="text/css" href="style/start.css" />
+
+<script type='text/javascript' src="script/browser.js"></script>
+{% endblock %}
+
+{% block content %}
+
+<div id="map-sidebar">
+
+<div class="sidebar-date">
+    <label for="sb-start-date">Start date:</label>
+    <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" onchange="dateChange()" />
+</div>
+<div class="sidebar-date">
+    <label for="sb-end-date">End date:</label>
+    <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" onchange="dateChange()" />
+</div>
+
+<div class="clear-float"></div>
+
+<div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
+
+TBD:
+<br><br>
+Rate/cum
+<br><br>
+TBD:
+<br><br>
+- Building select<br>
+- Type select<br>
+- Meter select
+<br><br>
+
+</div>
+
+<!-- end of side bar -->
+
+<div id="start-content">
+
 <div id="building-data">
 	<div id="b-outer-container">
-		<button id="b-close" onclick="closeBuildingDataView()">X</button>
+		<button id="b-close" onclick="closeBuildingDataView()">Make this a "back" button!!!</button>
 	<div id="b-header">
 		<h2 id="b-meta-header">Building A</h2>
 		<div id="b-meta">
@@ -51,3 +93,7 @@
 	</div>
 	</div>
 </div>
+
+</div>
+
+{% endblock %}

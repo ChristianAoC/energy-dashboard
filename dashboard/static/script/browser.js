@@ -182,3 +182,14 @@ function redrawPlot() {
         Plotly.newPlot("b-plot", [pData], pLayoutPopup, pConfigPopup);
 	});
 };
+
+$(document).ready( function () {
+	document.getElementById("comment-bubble").classList.remove("hidden");
+
+    let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
+    sideBarStartDate = sideBarStartDate.toISOString().split('T')[0];
+    document.getElementById('sb-start-date').value = sideBarStartDate;
+    let sideBarEndDate = new Date();
+    sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
+    document.getElementById('sb-end-date').value = sideBarEndDate;
+});
