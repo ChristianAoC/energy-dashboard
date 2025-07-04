@@ -560,6 +560,8 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     n = 35 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
+    seen_meters = []
+
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
@@ -573,6 +575,8 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
+            seen_meters.append(file_name)
+
             if cache_validity_checker(cache_time_health_score, meter_health_score_file) and cache_validity_checker(cache_time_summary, meter_snapshots_file):
                 print(f"Skipping: {m['meter_id_clean']}")
                 continue
@@ -583,6 +587,14 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         # Wait for all threads in chunk to complete
         for t in threads:
             t.join()
+
+    # Clean up non-existent meters
+    existing_cache_files = os.listdir(meter_health_score_files)
+    for existing_cache_file in existing_cache_files:
+        if existing_cache_file[-5:] != ".json":
+            continue
+        if existing_cache_file not in seen_meters:
+            os.remove(os.path.join(meter_health_score_files, existing_cache_file))
 
     cache_generation_lock.release()
     return
