@@ -470,6 +470,7 @@ def clean_meter_cache_file_name(file_name: str):
 ## Generate the cache for the provided meter
 ## m - the meter to generate cache for
 def generate_meter_cache(m: dict) -> None:
+    print(f"Started: {m['meter_id_clean']}")
     try:
         file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
 
@@ -512,6 +513,7 @@ def generate_meter_cache(m: dict) -> None:
     except Exception as e:
         print(f"An error occurred generating cache for meter {m['meter_id_clean']}")
         raise e
+    print(f"Ended: {m['meter_id_clean']}")
 
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
@@ -535,27 +537,33 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         return
 
     if not anonMode and not offlineMode:
-        threads = []
-        for m in METERS():
-            thread_name = f"Mtr_Cache_Gen_{m['meter_id_clean']}"
-            if thread_name == "Mtr_Cache_Gen_":
-                # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
-                continue
+        meters = METERS()
+        n = 35 # Process 35 meters at a time (35 was a random number I chose)
+        meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
-            file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
+        for meter_chunk in meter_chunks:
+            threads = []
+            for m in meter_chunk:
+                clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
+                thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
+                if thread_name == "Mtr_Cache_Gen_":
+                    # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
+                    continue
 
-            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+                file_name = f"{clean_meter_name}.json"
+                meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+                meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
-            if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
-                continue
+                if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
+                    print(f"Skipping: {m['meter_id_clean']}")
+                    continue
 
-            threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
-            threads[-1].start()
+                threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
+                threads[-1].start()
 
-        # Wait for all threads to complete
-        for t in threads:
-            t.join()
+            # Wait for all threads in chunk to complete
+            for t in threads:
+                t.join()
 
     elif anonMode:
         # TODO: Handle anonMode
@@ -566,6 +574,18 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
 
 ## #############################################################################################
+
+
+@api_bp.route('/cache_regeneration', methods=["GET"])
+def regenerate_cache():
+    print("Start!")
+    start_time = time.time()
+    generate_meter_data_cache()
+    end_time = time.time()
+    print("Done!")
+    total_time = end_time - start_time
+    print(f"Took {total_time} seconds")
+    return make_response(str(total_time), 200)
 
 ## simple health check the server is running
 ## Parameters:
