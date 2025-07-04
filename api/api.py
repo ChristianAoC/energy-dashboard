@@ -48,11 +48,13 @@ else:
     meter_health_score_files = os.path.join(DATA_DIR, "offline_meter_health_score")
     meter_snapshots_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
 
+cache_generation_lock = threading.Lock()
+cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
+cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
+
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
-
-cache_generation_lock = threading.Lock()
 
 ## #################################################################
 ## constants - should not be changed later in code
@@ -571,7 +573,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
-            if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
+            if cache_validity_checker(cache_time_health_score, meter_health_score_file) and cache_validity_checker(cache_time_summary, meter_snapshots_file):
                 print(f"Skipping: {m['meter_id_clean']}")
                 continue
 
