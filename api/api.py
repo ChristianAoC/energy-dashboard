@@ -52,6 +52,7 @@ cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
 cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
+anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
@@ -159,13 +160,10 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
                 obs = json.load(f)
                 f.close()
 
-            newobs = []
-            for o in obs:
-                if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
-                    o["time"] = o["time"][:-5] + 'Z'
-                    newobs.append(o)
-
-            obs = newobs
+            obs = pd.DataFrame.from_dict(obs)
+            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
         except:
             return out
 
@@ -305,14 +303,11 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
                 with open(f"data/offline/{m['meter_id_clean']}.json", "r") as f:
                     obs = json.load(f)
 
-            new_obs = []
-            for o in obs:
-                if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
-                    o["time"] = o["time"][:-5] + 'Z'
-                    new_obs.append(o)
-
-            m_obs = pd.DataFrame.from_dict(new_obs)
-        except:
+            m_obs = pd.DataFrame.from_dict(obs)
+            m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            m_obs.drop(m_obs[m_obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            m_obs.drop(m_obs[m_obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+        except Exception as e:
             m["HC_count"] = 0
             m["HC_count_perc"] = "0%"
             m["HC_score"] = 0
@@ -428,9 +423,15 @@ def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, 
 ## It also strips out any expired cache data
 ## days - The number of days to store data in the cache
 ## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
-def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def cache_items(days: int, existing_cache: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
     todo = []
-    start_date = dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days)
+
+    if data_start_time is not None:
+        days = min((data_end_time.date() - data_start_time.date()).days, days)
+
+    start_date = data_end_time.date() - dt.timedelta(days=days)
 
     # We don't cache today's data as it will never be complete
     for offset in range(days):
@@ -454,11 +455,12 @@ def cache_items(days: int, existing_cache: dict = {}) -> list[tuple[dt.date, dt.
 ## Returns whether the given cache is valid. It is a stripped down version of cache_items to run faster.
 ## days - The number of days to store data in the cache
 ## cache_file - The cache file to be updated
-def cache_validity_checker(days: int, cache_file: str) -> bool:
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datetime, data_end_time: dt.datetime) -> bool:
     if not os.path.exists(cache_file):
         return False
 
-    existing_cache = {}
     try:
         existing_cache = json.load(open(cache_file, "r"))
     except:
@@ -467,7 +469,10 @@ def cache_validity_checker(days: int, cache_file: str) -> bool:
     if existing_cache == {}:
         return False
 
-    start_date = dt.datetime.now(dt.timezone.utc).date() - dt.timedelta(days=days)
+    if data_start_time is not None:
+        days = min((data_end_time.date() - data_start_time.date()).days, days)
+
+    start_date = data_end_time.date() - dt.timedelta(days=days)
 
     for offset in range(days):
         date = (start_date + dt.timedelta(days=offset))
@@ -475,7 +480,7 @@ def cache_validity_checker(days: int, cache_file: str) -> bool:
             return False
 
     # Need to remove expired cache items
-    for cache_item in existing_cache.copy().keys():
+    for cache_item in existing_cache:
         if dt.date.fromisoformat(cache_item) < start_date:
             return False
 
@@ -489,7 +494,9 @@ def clean_meter_cache_file_name(file_name: str):
 
 ## Generate the cache for the provided meter
 ## m - the meter to generate cache for
-def generate_meter_cache(m: dict) -> None:
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
     print(f"Started: {m['meter_id_clean']}")
     try:
         file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
@@ -503,7 +510,7 @@ def generate_meter_cache(m: dict) -> None:
             except:
                 meter_health_scores = {}
 
-        for cache_item in cache_items(365, meter_health_scores):
+        for cache_item in cache_items(365, meter_health_scores, data_start_time, data_end_time):
             process_meter_health(m, cache_item[1], cache_item[2], 142)
             meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
@@ -519,7 +526,7 @@ def generate_meter_cache(m: dict) -> None:
             except:
                 meter_snapshots = {}
 
-        for cache_item in cache_items(30, meter_snapshots):
+        for cache_item in cache_items(30, meter_snapshots, data_start_time, data_end_time):
             meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
             cache_value = None
@@ -556,6 +563,15 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
+    if offlineMode:
+        with open(anon_data_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
+        data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+    else:
+        data_start_time = None
+        data_end_time = dt.datetime.now(dt.timezone.utc)
+
     meters = METERS()
     n = 35 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
@@ -572,16 +588,21 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
                 continue
 
             file_name = f"{clean_meter_name}.json"
+
+            if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
+                print(f"Skipping: {m['meter_id_clean']} - no data")
+                continue
+
             meter_health_score_file = os.path.join(meter_health_score_files, file_name)
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
             seen_meters.append(file_name)
 
-            if cache_validity_checker(cache_time_health_score, meter_health_score_file) and cache_validity_checker(cache_time_summary, meter_snapshots_file):
-                print(f"Skipping: {m['meter_id_clean']}")
+            if cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time):
+                print(f"Skipping: {m['meter_id_clean']} - healthy existing cache")
                 continue
 
-            threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
+            threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))
             threads[-1].start()
 
         # Wait for all threads in chunk to complete
