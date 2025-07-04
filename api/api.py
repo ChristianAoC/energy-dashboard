@@ -60,8 +60,6 @@ cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
 cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
-if not os.path.exists(os.path.join(DATA_DIR, "meta_anon")):
-    os.mkdir(os.path.join(DATA_DIR, "meta_anon"))
 anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
