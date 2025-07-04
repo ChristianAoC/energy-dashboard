@@ -1,4 +1,4 @@
-from flask import Blueprint, jsonify, make_response, request, Response, json
+from flask import Blueprint, jsonify, make_response, request, Response, json, current_app
 import datetime as dt
 import pandas as pd
 from influxdb import InfluxDBClient
@@ -8,6 +8,8 @@ import time
 import threading
 import csv
 import math
+import dashboard.user as user
+from functools import wraps
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
@@ -622,9 +624,27 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
 
 ## #############################################################################################
+# decorator to limit certain pages to a specific user level
+def required_user_level(level_config_key):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            cookies = request.cookies
+            try:
+                level = int(current_app.config[level_config_key])
+                if int(user.get_user_level(cookies["Email"], cookies["SessionID"])) < level:
+                    return make_response("Access Denied", 401)
+            except:
+                print("No or wrong cookie")
+                return make_response("Access Denied", 401)
 
+            print("Authorised!")
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
 
 @api_bp.route('/regeneratecache', methods=["GET"])
+@required_user_level("USER_LEVEL_ADMIN")
 def regenerate_cache():
     print("Start!")
     start_time = time.time()
