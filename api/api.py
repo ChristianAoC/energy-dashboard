@@ -41,12 +41,12 @@ if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
 hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
 hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
 
-meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
-meter_snapshots_files = os.path.join(DATA_DIR, "meter_snapshots")
-meter_health_score_anon_files = os.path.join(DATA_DIR, "anon_meter_health_score")
-meter_health_score_offline_files = os.path.join(DATA_DIR, "offline_meter_health_score")
-meter_snapshots_anon_files = os.path.join(DATA_DIR, "anon_meter_snapshots")
-meter_snapshots_offline_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
+if not offlineMode:
+    meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "meter_snapshots")
+else:
+    meter_health_score_files = os.path.join(DATA_DIR, "offline_meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
 
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
@@ -149,11 +149,11 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     else:
         try:
             if anonMode:
-                f = open('api/data/anon/'+m["meter_id_clean"]+'.json',)
+                f = open('date/anon/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
             if offlineMode:
-                f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
+                f = open('date/offline/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
 
@@ -239,7 +239,7 @@ def query_last_obs_time(m, to_time, from_time):
     # if offline, last obs is simply last line of file
     if anonMode == True:
         try:
-            f = open('api/data/sample/'+m["meter_id_clean"]+'.json',)
+            f = open('date/sample/'+m["meter_id_clean"]+'.json',)
         except:
             return make_response("Anon mode and can't open/find a file for this UUID", 500)
         obs = json.load(f)
@@ -249,7 +249,7 @@ def query_last_obs_time(m, to_time, from_time):
 
     if offlineMode == True:
         try:
-            f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
+            f = open('date/offline/'+m["meter_id_clean"]+'.json',)
         except:
             return make_response("Offline mode and can't open/find a file for this UUID", 500)
         obs = json.load(f)
@@ -295,8 +295,26 @@ def query_last_obs_time(m, to_time, from_time):
 ## xcount - number of readings meters should have read
 def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, xcount: int):
     # time series for this meter
-    m_obs = query_pandas(m, from_time, to_time)
-    # m_obs = query_time_series(m, from_time, to_time)["obs"]
+    if not offlineMode:
+        m_obs = query_pandas(m, from_time, to_time)
+    else:
+        try:
+            if offlineMode:
+                with open(f"data/offline/{m['meter_id_clean']}.json", "r") as f:
+                    obs = json.load(f)
+
+            new_obs = []
+            for o in obs:
+                if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
+                    o["time"] = o["time"][:-5] + 'Z'
+                    new_obs.append(o)
+
+            m_obs = pd.DataFrame.from_dict(new_obs)
+        except:
+            m["HC_count"] = 0
+            m["HC_count_perc"] = "0%"
+            m["HC_score"] = 0
+            return
 
     # count values. if no values, stop
     m["HC_count"] = len(m_obs)
@@ -536,47 +554,42 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
-    if not anonMode and not offlineMode:
-        meters = METERS()
-        n = 35 # Process 35 meters at a time (35 was a random number I chose)
-        meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
+    meters = METERS()
+    n = 35 # Process 35 meters at a time (35 was a random number I chose)
+    meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
-        for meter_chunk in meter_chunks:
-            threads = []
-            for m in meter_chunk:
-                clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
-                thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
-                if thread_name == "Mtr_Cache_Gen_":
-                    # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
-                    continue
+    for meter_chunk in meter_chunks:
+        threads = []
+        for m in meter_chunk:
+            clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
+            thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
+            if thread_name == "Mtr_Cache_Gen_":
+                # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
+                continue
 
-                file_name = f"{clean_meter_name}.json"
-                meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-                meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+            file_name = f"{clean_meter_name}.json"
+            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
 
-                if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
-                    print(f"Skipping: {m['meter_id_clean']}")
-                    continue
+            if cache_validity_checker(365, meter_health_score_file) and cache_validity_checker(30, meter_snapshots_file):
+                print(f"Skipping: {m['meter_id_clean']}")
+                continue
 
-                threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
-                threads[-1].start()
+            threads.append(threading.Thread(target=generate_meter_cache, args=(m, ), name=thread_name, daemon=True))
+            threads[-1].start()
 
-            # Wait for all threads in chunk to complete
-            for t in threads:
-                t.join()
+        # Wait for all threads in chunk to complete
+        for t in threads:
+            t.join()
 
-    elif anonMode:
-        # TODO: Handle anonMode
-        pass
-    elif offlineMode:
-        # TODO: Handle offlineMode
-        pass
+    cache_generation_lock.release()
+    return
 
 
 ## #############################################################################################
 
 
-@api_bp.route('/cache_regeneration', methods=["GET"])
+@api_bp.route('/regeneratecache', methods=["GET"])
 def regenerate_cache():
     print("Start!")
     start_time = time.time()
