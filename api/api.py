@@ -519,6 +519,7 @@ def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: d
                 meter_health_scores = {}
 
         for cache_item in cache_items(365, meter_health_scores, data_start_time, data_end_time):
+            # TODO: Bug somewhere in process_meter_health that always returns 0 for the HC score
             process_meter_health(m, cache_item[1], cache_item[2], 142)
             meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
@@ -535,6 +536,7 @@ def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: d
                 meter_snapshots = {}
 
         for cache_item in cache_items(30, meter_snapshots, data_start_time, data_end_time):
+            # TODO: Bug somewhere in query_time_series that always returns empty meter_obs
             meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
             cache_value = None
