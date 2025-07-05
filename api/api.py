@@ -302,8 +302,14 @@ def query_last_obs_time(m, to_time, from_time):
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-## xcount - number of readings meters should have read
-def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime, xcount: int):
+def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime):
+    if offlineMode:
+        # Offline data is recorded at 1 hour intervals
+        xcount = int((to_time - from_time).total_seconds()//3600) - 1
+    else:
+        # Live data is recorded at 10 minute intervals
+        xcount = int((to_time - from_time).total_seconds()//600) - 1
+
     # time series for this meter
     if not offlineMode:
         m_obs = query_pandas(m, from_time, to_time)
@@ -521,8 +527,7 @@ def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: d
                 meter_health_scores = {}
 
         for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
-            # TODO: Bug somewhere in process_meter_health that always returns 0 for the HC score
-            process_meter_health(m, cache_item[1], cache_item[2], 142)
+            process_meter_health(m, cache_item[1], cache_item[2])
             meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
 
         with open(meter_health_score_file, "w") as f:
@@ -1114,8 +1119,6 @@ def get_health(args, returning=False):
     except:
         from_time = to_time - dt.timedelta(days=date_range)
 
-    xcount = int((to_time - from_time).total_seconds()//600) - 1
-
     try:
         fmt = args["format"] # this is url decoded
     except:
@@ -1139,7 +1142,7 @@ def get_health(args, returning=False):
             m["HC_score"] = 0
             continue
 
-        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, xcount), name=thread_name, daemon=True))
+        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time), name=thread_name, daemon=True))
         threads[-1].start()
 
     # Wait for all threads to complete
