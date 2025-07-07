@@ -2,12 +2,12 @@
 let myMap;
 let clickedOn = "";
 let contextMarkers = [];
+getCommonData().then((common) => {
+    window.devices = common.devices;
+    window.masterlist = common.masterlist;
+});
 
 $(document).ready( function () {
-    if (testGraphMode) {
-        return;
-    }
-
     let navHeight = document.getElementById("nav-top-bar").offsetHeight;
     let sideW = document.getElementById("map-sidebar").offsetWidth;
     document.getElementById("view-map").style.marginTop = navHeight + "px";
@@ -259,9 +259,93 @@ function viewEnergyData(buildingID) {
     if (commentMode) {
         return;
     }
+    /* not sure i still need this...
     if (commentParent == "view-map") {
         document.getElementById("building-popup").style.display = "none";
         clearBuildingMarker();
     }
-    viewBuilding(buildingID);
+    */
+    //viewBuilding(buildingID);
+    window.location.href = "browser.html?ref=map&building="+buildingID;
 };
+
+/* TODO - rewrite when we have new API end */
+function getNewSummary() {
+    return "not yet implemented";
+    document.getElementById("loading-text").classList.remove("hidden");
+    document.getElementById("sb-start-date").disabled = true;
+    document.getElementById("sb-end-date").disabled = true;
+    var startDate = document.getElementById("sb-start-date").value;
+	var endDate = document.getElementById("sb-end-date").value;
+
+    // changed to get this from our own endpoint to enable caching - UPDATE: disabled for now
+    // var uri="getdata/summary?" +
+	var uri="api/summary?" +
+        "from_time=" + encodeURIComponent(startDate) +
+	    "&to_time=" + encodeURIComponent(endDate);
+
+    callApiJSON( uri ).then((data) => {
+        masterList = data;
+        addMasterListBenchmarks();
+        originalMasterList = masterList;
+        getSliderRanges();
+        document.getElementById("loading-text").classList.add("hidden");
+        document.getElementById("sb-start-date").disabled = false;
+        document.getElementById("sb-end-date").disabled = false;
+    });
+};
+
+function getSliderRanges() {
+    sizes = masterList.map(x => parseInt(x[varNameMLFloorSize]));
+    setRanges(1, Math.min(...sizes), Math.max(...sizes));
+};
+
+function filterMasterListMap() {
+    masterList = originalMasterList;
+	
+	// check search input
+    const searchInput = document.getElementById("building-search").value.toLowerCase();
+    masterList = masterList.filter(b => b[varNameMLBuildingName].toLowerCase().includes(searchInput));
+
+	// check for type (res/non-res/split use)
+	if (!(document.getElementById("residential").checked)) {
+        masterList = masterList.filter(b => b[varNameMLUsage] != "Residential");
+	}
+	if (!(document.getElementById("nonres").checked)) {
+        masterList = masterList.filter(b => b[varNameMLUsage] != "Non-residential");
+	}
+	if (!(document.getElementById("mixed").checked)) {
+        masterList = masterList.filter(b => b[varNameMLUsage] != "Split Use");
+	}
+
+    // slider range check for floor area
+	let min = parseInt(document.getElementById("fromInput1").value);
+	let max = parseInt(document.getElementById("toInput1").value);
+    masterList = masterList.filter(b => (min <= parseInt(b[varNameMLFloorSize]) && max >= parseInt(b[varNameMLFloorSize])));
+
+    document.getElementById("span-total").innerHTML = masterList.length;
+    highlightBuildingsList();
+};
+
+$(document).ready( function () {
+    document.getElementById("span-total").innerHTML = masterList.length;
+
+    document.getElementById("comment-bubble").classList.remove("hidden");
+    commentParent = "view-map";
+
+    let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
+    sideBarStartDate = sideBarStartDate.toISOString().split('T')[0];
+    document.getElementById('sb-start-date').value = sideBarStartDate;
+    let sideBarEndDate = new Date();
+    sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
+    document.getElementById('sb-end-date').value = sideBarEndDate;
+
+    document.getElementById("building-search").addEventListener("input", filterMasterListMap);
+    document.getElementById("residential").addEventListener("click", filterMasterListMap);
+    document.getElementById("nonres").addEventListener("click", filterMasterListMap);
+    document.getElementById("mixed").addEventListener("click", filterMasterListMap);
+    document.getElementById("fromSlider1").addEventListener("input", filterMasterListMap);
+    document.getElementById("toSlider1").addEventListener("input", filterMasterListMap);
+
+    getSliderRanges();
+});

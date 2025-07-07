@@ -32,7 +32,7 @@ function controlToInput(toSlider, fromInput, toInput, controlSlider) {
 }
 
 function controlFromSlider(fromSlider, toSlider, fromInput) {
-  sliderChange();
+  //sliderChange();
   const [from, to] = getParsed(fromSlider, toSlider);
   fillSlider(fromSlider, toSlider, colorOne, colorTwo, toSlider);
   if (from > to) {
@@ -41,11 +41,11 @@ function controlFromSlider(fromSlider, toSlider, fromInput) {
   } else {
     fromInput.value = from;
   }
-  localStorage.setItem(fromSlider.id, fromSlider.value);
+  //localStorage.setItem(fromSlider.id, fromSlider.value);
 }
 
 function controlToSlider(fromSlider, toSlider, toInput) {
-  sliderChange();
+  //sliderChange();
   const [from, to] = getParsed(fromSlider, toSlider);
   fillSlider(fromSlider, toSlider, colorOne, colorTwo, toSlider);
   setToggleAccessible(toSlider);
@@ -56,7 +56,7 @@ function controlToSlider(fromSlider, toSlider, toInput) {
     toInput.value = from;
     toSlider.value = from;
   }
-  localStorage.setItem(toSlider.id, toSlider.value);
+  //localStorage.setItem(toSlider.id, toSlider.value);
 }
 
 function getParsed(currentFrom, currentTo) {
@@ -99,7 +99,32 @@ function initiateSliders(knob, index) {
 	knob.dispatchEvent(new Event('input'));
 }
 
+function setRanges(num, min, max) {
+    document.getElementById("fromInput"+num).min = min;
+    document.getElementById("toInput"+num).min = min;
+    document.getElementById("fromSlider"+num).min = min;
+    document.getElementById("toSlider"+num).min = min;
+    document.getElementById("fromInput"+num).value = min;
+    document.getElementById("fromSlider"+num).value = min;
+
+    document.getElementById("fromInput"+num).max = max;
+    document.getElementById("toInput"+num).max = max;
+    document.getElementById("fromSlider"+num).max = max;
+    document.getElementById("toSlider"+num).max = max;
+    document.getElementById("toInput"+num).value = max;
+    document.getElementById("toSlider"+num).value = max;
+    
+    //fillSlider(fromSlider1, toSlider1, colorOne, colorTwo, toSlider1);
+    fillSlider(document.querySelector('#fromSlider'+num),
+      document.querySelector('#toSlider'+num),
+      colorOne,
+      colorTwo,
+      document.querySelector('#toSlider'+num));
+};
+
 $(document).ready( function () {
+    // oof this was terrible programming, stackoverflow crap. rewrite.
+    // why the fuck all those const? clutter! TODO
     const fromSlider1 = document.querySelector('#fromSlider1');
     const toSlider1 = document.querySelector('#toSlider1');
     const fromInput1 = document.querySelector('#fromInput1');
@@ -111,36 +136,48 @@ $(document).ready( function () {
     fromInput1.oninput = () => controlFromInput(fromSlider1, fromInput1, toInput1, toSlider1);
     toInput1.oninput = () => controlToInput(toSlider1, fromInput1, toInput1, toSlider1);
     
-    const fromSlider2 = document.querySelector('#fromSlider2');
-    const toSlider2 = document.querySelector('#toSlider2');
-    const fromInput2 = document.querySelector('#fromInput2');
-    const toInput2 = document.querySelector('#toInput2');
-    setToggleAccessible(toSlider2);
-    
-    fromSlider2.oninput = () => controlFromSlider(fromSlider2, toSlider2, fromInput2);
-    toSlider2.oninput = () => controlToSlider(fromSlider2, toSlider2, toInput2);
-    fromInput2.oninput = () => controlFromInput(fromSlider2, fromInput2, toInput2, toSlider2);
-    toInput2.oninput = () => controlToInput(toSlider2, fromInput2, toInput2, toSlider2);
-    
-    const fromSlider3 = document.querySelector('#fromSlider3');
-    const toSlider3 = document.querySelector('#toSlider3');
-    const fromInput3 = document.querySelector('#fromInput3');
-    const toInput3 = document.querySelector('#toInput3');
-    setToggleAccessible(toSlider3);
-    
-    fromSlider3.oninput = () => controlFromSlider(fromSlider3, toSlider3, fromInput3);
-    toSlider3.oninput = () => controlToSlider(fromSlider3, toSlider3, toInput3);
-    fromInput3.oninput = () => controlFromInput(fromSlider3, fromInput3, toInput3, toSlider3);
-    toInput3.oninput = () => controlToInput(toSlider3, fromInput3, toInput3, toSlider3);
-    
+    fillSlider(fromSlider1, toSlider1, colorOne, colorTwo, toSlider1);
+
     // set initial values, after that get from local storage, and trigger input events to redraw
     
-    let allSliderKnobs = [fromSlider1, fromSlider2, fromSlider3, toSlider1, toSlider2, toSlider3];
-    let allInitValues = [0, 0, 0, 99999, 99999, 99999];
+    //let allSliderKnobs = [fromSlider1, toSlider1];
+    //let allInitValues = [0, 99999];
 
+    if (document.getElementById("fromInput2") &&
+        document.getElementById("fromInput3") &&
+        document.getElementById("toInput2") &&
+        document.getElementById("toInput3")) {
+
+      const fromSlider2 = document.querySelector('#fromSlider2');
+      const toSlider2 = document.querySelector('#toSlider2');
+      const fromInput2 = document.querySelector('#fromInput2');
+      const toInput2 = document.querySelector('#toInput2');
+      setToggleAccessible(toSlider2);
+      
+      fromSlider2.oninput = () => controlFromSlider(fromSlider2, toSlider2, fromInput2);
+      toSlider2.oninput = () => controlToSlider(fromSlider2, toSlider2, toInput2);
+      fromInput2.oninput = () => controlFromInput(fromSlider2, fromInput2, toInput2, toSlider2);
+      toInput2.oninput = () => controlToInput(toSlider2, fromInput2, toInput2, toSlider2);
+      
+      const fromSlider3 = document.querySelector('#fromSlider3');
+      const toSlider3 = document.querySelector('#toSlider3');
+      const fromInput3 = document.querySelector('#fromInput3');
+      const toInput3 = document.querySelector('#toInput3');
+      setToggleAccessible(toSlider3);
+      
+      fromSlider3.oninput = () => controlFromSlider(fromSlider3, toSlider3, fromInput3);
+      toSlider3.oninput = () => controlToSlider(fromSlider3, toSlider3, toInput3);
+      fromInput3.oninput = () => controlFromInput(fromSlider3, fromInput3, toInput3, toSlider3);
+      toInput3.oninput = () => controlToInput(toSlider3, fromInput3, toInput3, toSlider3);
+    
+    
+      //allSliderKnobs = [fromSlider1, fromSlider2, fromSlider3, toSlider1, toSlider2, toSlider3];
+      //allInitValues = [0, 0, 0, 99999, 99999, 99999];
+
+      fillSlider(fromSlider2, toSlider2, colorOne, colorTwo, toSlider2);
+      fillSlider(fromSlider3, toSlider3, colorOne, colorTwo, toSlider3);
+    }
+
+    // ?????
     //allSliderKnobs.forEach(initiateSliders);
-
-    fillSlider(fromSlider1, toSlider1, colorOne, colorTwo, toSlider1);
-    fillSlider(fromSlider2, toSlider2, colorOne, colorTwo, toSlider2);
-    fillSlider(fromSlider3, toSlider3, colorOne, colorTwo, toSlider3);
 });

@@ -99,7 +99,7 @@ $(document).ready( function () {
             $(row).attr("data-sensor", data[varNameDevSensorID]);
             $(row).addClass('colorScore'+data["HC_score"]);
 
-            // TODO: check date range applies
+            // check date range applies
             for (c of context) {
                 if (data[varNameDevSensorID] == c["sensor"]) {
                     if ($('td.lastCol', row).is(':empty')) {
@@ -243,7 +243,6 @@ $(document).ready( function () {
         cell = healthcheckTable.cell(this);
         if (commentMode) return;
         if (cell.index()["column"] == 0) {
-            console.log("hi")
             viewDevice(this.closest("tr").getAttribute("data-sensor"));
         } else if (this.classList.contains("lastCol")) {
             createContextDialog(

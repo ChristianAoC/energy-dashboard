@@ -21,9 +21,10 @@ def helloworld():
 
 @dashboard_bp.route("/")
 def index():
+    return browser()
     #return health_check()
     #return redirect("health-check.html?hidden=;3;5;6;7;8;9;10;11;12;13;14;15;16;17;18;19;21;23;24;25;27;26;28;30;31;32;33;35;29;37;")
-    return redirect("health-check.html?hidden=;3;5;7;8;11;12;14;15;16;18;19;21;23;24;25;28;30;31;32;33;29;;4;38;;36;;43;44;42;41;40;;27;;34;35;;;9;;;;;10;")
+    #return redirect("health-check.html?hidden=;3;5;7;8;11;12;14;15;16;18;19;21;23;24;25;28;30;31;32;33;29;;4;38;;36;;43;44;42;41;40;;27;;34;35;;;9;;;;;10;")
 
 @dashboard_bp.route("/favicon.ico")
 def getFavicon():
@@ -131,14 +132,25 @@ def getContext():
 def noaccess():
     return render_template('noaccess.html')
 
-@dashboard_bp.route("/start.html")
-#@required_user_level(1)
-def start():
-    return render_template('start.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+@dashboard_bp.route("/map.html")
+def map():
+    # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
+    return render_template('map.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/benchmark.html")
+def benchmark():
+    # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
+    return render_template('benchmark.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+
+@dashboard_bp.route("/browser.html")
+def browser():
+    # data needed: health_score_summary, [usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
+    return render_template('browser.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
 
 @dashboard_bp.route("/health-check.html")
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_check():
+    # data needed: [health_score_summary, usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
     hc_latest = api_bp.meter_health_internal(request.args)
     if len(hc_latest) > 0:
         return render_template('health-check.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline(), hc_latest = hc_latest, hc_meta = api_bp.hc_meta(), context = context.view_all())
@@ -173,11 +185,16 @@ def settings():
 ###            others (not in main layout)              ###
 ###########################################################
 
-@dashboard_bp.route("/tutorial.html")
-def tutorial():
-    return render_template('tutorial.html')
+#@dashboard_bp.route("/start.html")
+#@required_user_level(1)
+#def start():
+#    return render_template('start.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
 
-@dashboard_bp.route("/devices.html")
-@required_user_level(3)
-def devices():
-    return render_template('devices.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+#@dashboard_bp.route("/tutorial.html")
+#def tutorial():
+#    return render_template('tutorial.html')
+
+#@dashboard_bp.route("/devices.html")
+#@required_user_level(3)
+#def devices():
+#    return render_template('devices.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
