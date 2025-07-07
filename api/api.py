@@ -1,6 +1,4 @@
-import datetime
-
-from flask import Blueprint, jsonify, make_response, request, Response, json
+from flask import Blueprint, jsonify, make_response, request, Response, json, current_app
 import datetime as dt
 import pandas as pd
 from influxdb import InfluxDBClient
@@ -8,8 +6,9 @@ from dotenv import load_dotenv
 import os
 import time
 import threading
-import csv
 import math
+import dashboard.user as user
+from functools import wraps
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
@@ -40,9 +39,27 @@ buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWith
 if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
     offlineMode = True
 
+if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
+    os.mkdir(os.path.join(DATA_DIR, "health_check"))
 hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
 hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
 
+if not offlineMode:
+    meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "meter_snapshots")
+else:
+    meter_health_score_files = os.path.join(DATA_DIR, "offline_meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
+if not os.path.exists(meter_health_score_files):
+    os.mkdir(meter_health_score_files)
+if not os.path.exists(meter_snapshots_files):
+    os.mkdir(meter_snapshots_files)
+
+cache_generation_lock = threading.Lock()
+cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
+cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
+
+anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
@@ -142,21 +159,20 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     else:
         try:
             if anonMode:
-                f = open('api/data/anon/'+m["meter_id_clean"]+'.json',)
+                f = open('data/anon/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
             if offlineMode:
-                f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
+                f = open('data/offline/'+m["meter_id_clean"]+'.json',)
                 obs = json.load(f)
                 f.close()
 
-            newobs = []
-            for o in obs:
-                if dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) >= from_time.astimezone(dt.timezone.utc) and dt.datetime.strptime(o["time"], "%Y-%m-%dT%H:%M:%S+0000").astimezone(dt.timezone.utc) <= to_time.astimezone(dt.timezone.utc):
-                    o["time"] = o["time"][:-5] + 'Z'
-                    newobs.append(o)
-
-            obs = newobs
+            obs = pd.DataFrame.from_dict(obs)
+            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+            obs = obs.to_dict('records')
         except:
             return out
 
@@ -173,7 +189,8 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
     for o in obs:
         o['value'] = round( rho * round(o["value"] * kappa) ,10 )
-        o['time'] = o['time'][:-1] + '+0000'
+        if o['time'][:-1] == "Z":
+            o['time'] = o['time'][:-1] + '+0000'
 
     ## uncumulate if required
     if to_rate and (m["class"] == "Cumulative"):
@@ -207,7 +224,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         df = pd.DataFrame.from_dict(obs)
         df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
         df.set_index('time', inplace=True)
-        df = df.resample(agg, origin='end').sum() ## windows go backwards
+        df = df.resample(agg, origin='end').mean() ## windows go backwards
 
         df.reset_index(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
@@ -232,7 +249,7 @@ def query_last_obs_time(m, to_time, from_time):
     # if offline, last obs is simply last line of file
     if anonMode == True:
         try:
-            f = open('api/data/sample/'+m["meter_id_clean"]+'.json',)
+            f = open('date/sample/'+m["meter_id_clean"]+'.json',)
         except:
             return make_response("Anon mode and can't open/find a file for this UUID", 500)
         obs = json.load(f)
@@ -242,7 +259,7 @@ def query_last_obs_time(m, to_time, from_time):
 
     if offlineMode == True:
         try:
-            f = open('api/data/offline/'+m["meter_id_clean"]+'.json',)
+            f = open('date/offline/'+m["meter_id_clean"]+'.json',)
         except:
             return make_response("Offline mode and can't open/find a file for this UUID", 500)
         obs = json.load(f)
@@ -285,17 +302,38 @@ def query_last_obs_time(m, to_time, from_time):
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-## xcount - number of readings meters should have read
-def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetime.datetime, xcount: int):
+def process_meter_health(m: dict, from_time: dt.datetime, to_time: dt.datetime):
+    if offlineMode:
+        # Offline data is recorded at 1 hour intervals
+        xcount = int((to_time - from_time).total_seconds()//3600) - 1
+    else:
+        # Live data is recorded at 10 minute intervals
+        xcount = int((to_time - from_time).total_seconds()//600) - 1
+
     # time series for this meter
-    m_obs = query_pandas(m, from_time, to_time)
-    # m_obs = query_time_series(m, from_time, to_time)["obs"]
+    if not offlineMode:
+        m_obs = query_pandas(m, from_time, to_time)
+    else:
+        try:
+            if offlineMode:
+                with open(f"data/offline/{m['meter_id_clean']}.json", "r") as f:
+                    obs = json.load(f)
+
+            m_obs = pd.DataFrame.from_dict(obs)
+            m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            m_obs.drop(m_obs[m_obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            m_obs.drop(m_obs[m_obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+        except:
+            m["HC_count"] = 0
+            m["HC_count_perc"] = "0%"
+            m["HC_score"] = 0
+            return
 
     # count values. if no values, stop
     m["HC_count"] = len(m_obs)
     if m["HC_count"] == 0:
         m["HC_count_perc"] = "0%"
-        m["HC_count_score"] = 0
+        m["HC_score"] = 0
         return
 
     m["HC_count_perc"] = round(100 * m["HC_count"] / xcount, 2)
@@ -397,7 +435,238 @@ def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetim
         m["HC_outliers_ignz_perc"] = 100
     m["HC_outliers_ignz_perc"] = str(m["HC_outliers_ignz_perc"]) + "%"
 
+## Creates a list with the information required to fill in the missing cache entries for the given cache data
+## It also strips out any expired cache data
+## days - The number of days to store data in the cache
+## existing_cache - The existing cache dictionary to be updated - Defaults to an empty dictionary
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def cache_items(days: int, existing_cache: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> list[tuple[dt.date, dt.datetime, dt.datetime]]:
+    todo = []
+
+    if data_start_time is not None:
+        days = min((data_end_time.date() - data_start_time.date()).days, days)
+
+    start_date = data_end_time.date() - dt.timedelta(days=days)
+
+    # We don't cache today's data as it will never be complete
+    for offset in range(days):
+        date = (start_date + dt.timedelta(days=offset))
+        if date.isoformat() in existing_cache:
+            continue
+        date_range_start = dt.datetime(date.year, date.month, date.day)
+        date_range_end = date_range_start + dt.timedelta(hours=23, minutes=59, seconds=59)
+        todo.append((date, date_range_start, date_range_end))
+
+    if existing_cache == {}:
+        return todo
+
+    # Need to remove expired cache items
+    for cache_item in existing_cache.copy().keys():
+        if dt.date.fromisoformat(cache_item) < start_date:
+            existing_cache.pop(cache_item)
+
+    return todo
+
+## Returns whether the given cache is valid. It is a stripped down version of cache_items to run faster.
+## days - The number of days to store data in the cache
+## cache_file - The cache file to be updated
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datetime, data_end_time: dt.datetime) -> bool:
+    if not os.path.exists(cache_file):
+        return False
+
+    try:
+        existing_cache = json.load(open(cache_file, "r"))
+    except:
+        return False
+
+    if existing_cache == {}:
+        return False
+
+    if data_start_time is not None:
+        days = min((data_end_time.date() - data_start_time.date()).days, days)
+
+    start_date = data_end_time.date() - dt.timedelta(days=days)
+
+    for offset in range(days):
+        date = (start_date + dt.timedelta(days=offset))
+        if date.isoformat() not in existing_cache:
+            return False
+
+    # Need to remove expired cache items
+    for cache_item in existing_cache:
+        if dt.date.fromisoformat(cache_item) < start_date:
+            return False
+
+    return True
+
+## Cleans the provided file name by replacing / with _
+## file_name - The file name to be cleaned
+def clean_meter_cache_file_name(file_name: str):
+    file_name.replace("/", "_")
+    return file_name
+
+## Generate the cache for the provided meter
+## m - the meter to generate cache for
+## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
+## data_end_time - The latest date that there is data for (Current time if online)
+def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
+    print(f"Started: {m['meter_id_clean']}")
+    try:
+        file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
+
+        # Health Check Score Cache
+        meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+        meter_health_scores = {}
+        if os.path.exists(meter_health_score_file):
+            try:
+                meter_health_scores = json.load(open(meter_health_score_file, "r"))
+            except:
+                meter_health_scores = {}
+
+        for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
+            process_meter_health(m, cache_item[1], cache_item[2])
+            meter_health_scores.update({cache_item[0].isoformat(): m['HC_score']})
+
+        with open(meter_health_score_file, "w") as f:
+            json.dump(meter_health_scores, f)
+
+        # Meter Snapshot Cache
+        meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+        meter_snapshots = {}
+        if os.path.exists(meter_snapshots_file):
+            try:
+                meter_snapshots = json.load(open(meter_snapshots_file, "r"))
+            except:
+                meter_snapshots = {}
+
+        for cache_item in cache_items(cache_time_summary, meter_snapshots, data_start_time, data_end_time):
+            meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
+
+            cache_value = None
+            if len(meter_obs) > 0:
+                cache_value = meter_obs[0]['value']
+
+            meter_snapshots.update({cache_item[0].isoformat(): cache_value})
+
+        with open(meter_snapshots_file, "w") as f:
+            json.dump(meter_snapshots, f)
+    except Exception as e:
+        print(f"An error occurred generating cache for meter {m['meter_id_clean']}")
+        raise e
+    print(f"Ended: {m['meter_id_clean']}")
+
+## Generates the cache data for meter health scores and meter snapshots
+## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
+##
+## The generation of each meter's cache is handed of to a separate thread, this dramatically speeds up cache generation
+## **IF** the majority of the cache is expired/missing, or if this is the first time generating the cache.
+## If the cache has just been updated, and we haven't gone past midnight UTC, then this will likely be slower than doing
+## everything in the request's thread.
+def generate_meter_data_cache(return_if_generating=True) -> None:
+    skip_cache_generation = False
+    if cache_generation_lock.locked():
+        # Cache is in the process of (re)generating, therefore wait for it to be done and then use existing cache
+        skip_cache_generation = True
+        if return_if_generating:
+            return
+
+    cache_generation_lock.acquire()
+
+    if skip_cache_generation:
+        cache_generation_lock.release()
+        return
+
+    if offlineMode:
+        with open(anon_data_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
+        data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+    else:
+        data_start_time = None
+        data_end_time = dt.datetime.now(dt.timezone.utc)
+
+    meters = METERS()
+    n = 20 # Process 35 meters at a time (35 was a random number I chose)
+    meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
+
+    seen_meters = []
+
+    for meter_chunk in meter_chunks:
+        threads = []
+        for m in meter_chunk:
+            clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
+            thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
+            if thread_name == "Mtr_Cache_Gen_":
+                # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
+                continue
+
+            file_name = f"{clean_meter_name}.json"
+
+            if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
+                continue
+
+            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+
+            seen_meters.append(file_name)
+
+            if cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time):
+                print(f"Skipping: {m['meter_id_clean']}")
+                continue
+
+            threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))
+            threads[-1].start()
+
+        # Wait for all threads in chunk to complete
+        for t in threads:
+            t.join()
+
+    # Clean up non-existent meters
+    existing_cache_files = os.listdir(meter_health_score_files)
+    for existing_cache_file in existing_cache_files:
+        if existing_cache_file[-5:] != ".json":
+            continue
+        if existing_cache_file not in seen_meters:
+            os.remove(os.path.join(meter_health_score_files, existing_cache_file))
+
+    cache_generation_lock.release()
+    return
+
+
 ## #############################################################################################
+# decorator to limit certain pages to a specific user level
+def required_user_level(level_config_key):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            cookies = request.cookies
+            try:
+                level = int(current_app.config[level_config_key])
+                if int(user.get_user_level(cookies["Email"], cookies["SessionID"])) < level:
+                    return make_response("Access Denied", 401)
+            except:
+                print("No or wrong cookie")
+                return make_response("Access Denied", 401)
+
+            print("Authorised!")
+            return function(*args, **kwargs)
+        return wrapper
+    return decorator
+
+@api_bp.route('/regeneratecache', methods=["GET"])
+@required_user_level("USER_LEVEL_ADMIN")
+def regenerate_cache():
+    print("Start!")
+    start_time = time.time()
+    generate_meter_data_cache()
+    end_time = time.time()
+    print("Done!")
+    total_time = end_time - start_time
+    print(f"Took {total_time} seconds")
+    return make_response(str(total_time), 200)
 
 ## simple health check the server is running
 ## Parameters:
@@ -409,19 +678,6 @@ def process_meter_health(m: dict, from_time: datetime.datetime, to_time: datetim
 @api_bp.route('/', methods=["GET"])
 def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
-
-## Return the building -> meter hierarchy that is statically cached
-##
-## Parameters: None
-##
-## Return:
-## json containing the structure
-##
-## Example:
-## http://127.0.0.1:5000/api/hierarchy
-@api_bp.route('/hierarchy')
-def hierarchy():
-    return make_response(jsonify( BUILDINGS() ), 200)
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
 @api_bp.route('/devices')
@@ -850,8 +1106,6 @@ def get_health(args, returning=False):
     except:
         from_time = to_time - dt.timedelta(days=date_range)
 
-    xcount = int((to_time - from_time).total_seconds()//600) - 1
-
     try:
         fmt = args["format"] # this is url decoded
     except:
@@ -866,16 +1120,16 @@ def get_health(args, returning=False):
 
     threads = []
     for m in meters:
-        thread_name = f"HC_{m["raw_uuid"]}"
+        thread_name = f"HC_{m['meter_id_clean']}"
         if thread_name == "HC_":
-            # If the meter doesn't have a raw_uuid attribute, skip it
+            # If the meter doesn't have a meter_id_clean attribute, skip it
             # If we don't, it will only get skipped later in the code - may as well do it now!
             m["HC_count"] = 0
             m["HC_count_perc"] = "0%"
-            m["HC_count_score"] = 0
+            m["HC_score"] = 0
             continue
 
-        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, xcount), name=thread_name, daemon=True))
+        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time), name=thread_name, daemon=True))
         threads[-1].start()
 
     # Wait for all threads to complete
@@ -955,3 +1209,53 @@ def meter_health_internal(args):
             return []
     else:
         return get_health(args, True)
+
+## Return meter hierarchy
+##
+## Only returns meters that are attached to a building and only includes buildings with meters
+##
+## Return:
+## json object:
+## {
+##     "building_code": {
+##         "electricity": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "gas": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "heat": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "water": [
+##             "meter_id_clean",
+##             ...
+##         ]
+##     },
+##     ...
+## }
+@api_bp.route('/meter_hierarchy')
+def hierarchy():
+    # trim out buildings with no building meters
+    buildings = [x for x in BUILDINGS() if len(x["meters"]) > 0]
+
+    data = {}
+    for b in buildings:
+        building_response = {}
+        for m in b.pop("meters", []):
+            meter_type = m["meter_type"].lower()
+            if meter_type not in ['gas', 'electricity', 'heat', 'water']:
+                continue
+
+            # Create utility entries on occurrence so that the response is smaller
+            if meter_type not in building_response:
+                building_response[meter_type] = []
+
+            building_response[meter_type].append(m["meter_id_clean"])
+
+        data[b["building_code"]] = building_response
+
+    return make_response(jsonify(data), 200)

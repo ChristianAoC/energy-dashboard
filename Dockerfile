@@ -19,9 +19,8 @@ COPY . .
 EXPOSE 5050
 
 # Set file permissions for writable files/folders
-RUN mkdir -p /app/data/health_check && \
-    touch /app/users.json /app/context.json && \
-    chmod -R 777 /app/users.json /app/context.json /app/data/health_check
+RUN touch /app/users.json /app/context.json && \
+    chmod -R 777 /app/users.json /app/context.json /app/data/health_check /app/data/meter_health_score /app/data/meter_snapshots /app/data/anon_meter_health_score /app/data/offline_meter_health_score /app/data/anon_meter_snapshots /app/data/offline_meter_snapshots
 
 # Default command to run the app
 CMD ["python", "app.py"]
