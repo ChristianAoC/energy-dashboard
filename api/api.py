@@ -679,19 +679,6 @@ def regenerate_cache():
 def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
 
-## Return the building -> meter hierarchy that is statically cached
-##
-## Parameters: None
-##
-## Return:
-## json containing the structure
-##
-## Example:
-## http://127.0.0.1:5000/api/hierarchy
-@api_bp.route('/hierarchy')
-def hierarchy():
-    return make_response(jsonify( BUILDINGS() ), 200)
-
 ## Helper function needed for accessing raw list of all meters in other blueprint
 @api_bp.route('/devices')
 def devices():
