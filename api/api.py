@@ -1222,3 +1222,53 @@ def meter_health_internal(args):
             return []
     else:
         return get_health(args, True)
+
+## Return meter hierarchy
+##
+## Only returns meters that are attached to a building and only includes buildings with meters
+##
+## Return:
+## json object:
+## {
+##     "building_code": {
+##         "electricity": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "gas": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "heat": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "water": [
+##             "meter_id_clean",
+##             ...
+##         ]
+##     },
+##     ...
+## }
+@api_bp.route('/meter_hierarchy')
+def hierarchy():
+    # trim out buildings with no building meters
+    buildings = [x for x in BUILDINGS() if len(x["meters"]) > 0]
+
+    data = {}
+    for b in buildings:
+        building_response = {}
+        for m in b.pop("meters", []):
+            meter_type = m["meter_type"].lower()
+            if meter_type not in ['gas', 'electricity', 'heat', 'water']:
+                continue
+
+            # Create utility entries on occurrence so that the response is smaller
+            if meter_type not in building_response:
+                building_response[meter_type] = []
+
+            building_response[meter_type].append(m["meter_id_clean"])
+
+        data[b["building_code"]] = building_response
+
+    return make_response(jsonify(data), 200)
