@@ -1222,3 +1222,63 @@ def meter_health_internal(args):
             return []
     else:
         return get_health(args, True)
+
+## Create summary of meters
+##
+## Only returns meters that are attached to a building and only includes buildings with meters
+##
+## Return:
+## json object:
+## {
+##     "building_code": {
+##         "electricity": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "gas": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "heat": [
+##             "meter_id_clean",
+##             ...
+##         ],
+##         "water": [
+##             "meter_id_clean",
+##             ...
+##         ]
+##     },
+##     ...
+## }
+@api_bp.route('/usage')
+def usage_summary():
+    ## trim out buildings with no mazemap id
+    buildings = [x for x in BUILDINGS() if x["maze_map_label"]]
+
+    ## trim out meters that aren't building
+    for b in buildings:
+        b["meters"][:] = [m for m in b["meters"] if m["building_level_meter"]]
+
+    ## trim out buildings with no building meters
+    buildings[:] = [x for x in buildings if len(x["meters"]) > 0]
+
+    data = {}
+    for b in buildings:
+        building_response = {
+            "electricity": [],
+            "gas": [],
+            "heat": [],
+            "water": []
+        }
+
+        for m in b.pop("meters", []):
+            meter_type = m["meter_type"].lower()
+
+            if meter_type not in ['gas','electricity','heat','water']:
+                continue
+
+            building_response[meter_type].append(m["meter_id_clean"])
+
+        data[b["building_code"]] = building_response
+
+    return make_response(jsonify(data), 200)
