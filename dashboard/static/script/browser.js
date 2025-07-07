@@ -1,8 +1,28 @@
-var pConfigPopup = {
+//let hierarchy = ""; // TODO api call here once it's done
+let hierarchy = {
+	"MC210":{
+		"electricity":[
+			"MC210_L01_M10_R2048",
+			"MC210_L01_M11_R2052",
+			"MC210_L01_M12_R0"
+		],
+		"gas":[],
+		"heat":[
+			"MC210-L02/M14R45099"
+		],
+		"water":[
+			"MC210-L02/M27R45099",
+			"MC210-L01/M16R999"
+		]
+	},
+	"AP001": []
+};
+
+let pConfigPopup = {
     displayModeBar: false
 };
 
-var pLayoutPopup = {
+let pLayoutPopup = {
     barmode: 'group',
     margin:{
         t: 50
@@ -40,93 +60,24 @@ function convertTSDToPlotlyPopup(tsd, type) {
 	}, totalSum];
 };
 
-function viewBuilding(buildingID) {
-    var curBuilding = [];
-	for (b of masterList) {
-		if (b[varNameMLBuildingID] == buildingID) {
-			curBuilding = b;
-		}
-	}
-
-    commentParent = "building-data";
-
-	document.getElementById("building-data").style.display = "inline";
-	document.getElementById("b-meta-header").innerHTML = curBuilding[varNameMLBuildingName];
-	document.getElementById("b-meta1span").innerHTML = curBuilding[varNameMLUsage];
-
-	// populate the select option
-	var hasOption=false;
-	
-	var html = ""
-	for (x of ["electricity", "gas", "water", "heat"]) {
-	    if (curBuilding[x]["sensor_uuid"].length > 0) {
-            for (y in curBuilding[x]["sensor_uuid"]) {
-        		html += '<div class="b-inputs"><input class="b-input-radio" type="radio" id="' + x + y + '" name="sensor" value="' + curBuilding[x]["sensor_uuid"][y];
-                if (hasOption){ html += '"/>' }
-                else {
-                    html += '" checked />'
-                    hasOption = true
-                }
-                let intCnt = parseInt(y) + 1;
-                html += '<label for="' + x + y + '">' + capFirst(x) + ' ' + intCnt + '</label></div>'
-            }
-	    }
-	}
-	document.getElementById('b-sensor-select').innerHTML = html;
-
-	var type = document.querySelector('input[name="sensor"]:checked').id;
-    type = type.substring(0, type.length - 1);
-    // meta header - do this after and pick first sensor that is available for data
-    if ((curBuilding[varNameMLFloorSize] != 0) && (curBuilding[varNameMLFloorSize] != null)) {
-		document.getElementById("b-meta2span").innerHTML = curBuilding[varNameMLFloorSize] + " m&sup2;";
-		document.getElementById("b-meta3span").innerHTML = curBuilding[type]["eui_annual"]+" "+curBuilding[type]["unit"] + "/m&sup2;";
-		document.getElementById("b-meta4span").innerHTML = curBuilding[type]["usage"]+" "+curBuilding[type]["unit"];
-	} else {
-		document.getElementById("b-meta2span").innerHTML = "(unknown)";
-		document.getElementById("b-meta3span").innerHTML = "(unknown)";
-		document.getElementById("b-meta4span").innerHTML = "(unknown)";
-	}
-
-	redrawPlot();
-};
-
 window.addEventListener('keydown', function (event) {
-	if (event.key === 'Escape' && document.getElementById("building-data").style.display == "inline") {
-		closeBuildingDataView()
+	if (event.key === 'Escape') {
+		let params = new URLSearchParams(document.location.search);
+		let ref = params.get("ref");
+		if (ref) {
+			if (ref == "view-map") {
+                window.location.href = "map.html";
+			} else if (ref == "view-graph") {
+                window.location.href = "benchmark.html";
+			}
+		}
 	}
 });
 
-function closeBuildingDataView() {
-	if ((document.getElementById("building-data").style) &&
-		(document.getElementById("building-data").style.display) &&
-		(document.getElementById("building-data").style.display == "inline")) {
-			document.getElementById("building-data").style.display = "none";
-            commentParent = document.querySelector('input[name=select-view]:checked').value;
-            leaveCommentMode();
-	}
-};
-
-// re-purpose this later to write a monthly agg script
-function createAggregate(tsd, each) {
-	let name = Object.keys(tsd)[0];
-	let tsdT = [];
-	let i = 0;
-	let sum = 0;
-	do {
-		sum += tsd[name][i].value;
-		if ((i+1) % (each) == 0) {
-			tsdT.push({"time": tsd[name][i].time, "value": sum});
-			sum = 0;
-		}
-		i++;
-	} while (i < tsd[name].length);
-	return {[name]: tsdT};
-};
-
 function downloadSensorData(){
 	var sensor = document.querySelector('input[name="sensor"]:checked').value;
-	var startDate = document.getElementById('b-start-date').value;
-	var endDate = document.getElementById('b-end-date').value;
+	var startDate = document.getElementById("sb-start-date").value;
+	var endDate = document.getElementById("sb-end-date").value;
     var uri="api/meter_obs?uuid=" + sensor +
 	    "&from_time=" + encodeURIComponent(startDate) + "T00:00:00Z" +
 	    "&to_time=" + encodeURIComponent(endDate) + "T23:59:59Z" +
@@ -150,22 +101,26 @@ function downloadSensorData(){
 };
 
 function redrawPlot() {
-	var sensor = document.querySelector('input[name="sensor"]:checked').value;
-	var type = document.querySelector('input[name="sensor"]:checked').id;
-    type = type.substring(0, type.length - 1);
-	var agg = document.querySelector('input[name="agg"]:checked').value;
-    var startDate = document.getElementById('b-start-date').value;
-	var endDate = document.getElementById('b-end-date').value;
-    let dateDiff = new Date(endDate) - new Date(startDate);
-    dateDiff = dateDiff / (24*3600*1000);
+	let selMeter = document.getElementById("select-meter").value;
+	if (selMeter == "") {
+		return;
+	}
 
-    var uri="api/meter_obs?uuid=" + sensor +
+	let type = document.getElementById("select-type").value;
+
+	let toRate = document.getElementById("cumultorate").checked;
+	let agg = document.querySelector("input[name='agg']:checked").value;
+    let startDate = document.getElementById("sb-start-date").value;
+	let endDate = document.getElementById("sb-end-date").value;
+
+    let uri="api/meter_obs?uuid=" + selMeter +
 	    "&from_time=" + encodeURIComponent(startDate) + "T00:00:00Z" +
 	    "&to_time=" + encodeURIComponent(endDate) + "T23:59:59Z" +
-        "&aggregate=" + agg + "H";
+		"&to_rate=" + toRate;
+	if (agg != "None") uri += "&aggregate=" + agg + "H";
 
     document.getElementById('b-plot').innerHTML = "<img src='gfx/loading.gif' alt='Loading...' />";
-	document.getElementById('b-plot-header').innerHTML = 'Consumption for sensor "'+sensor+'" (measuring: '+type+') over ' + dateDiff + " days";
+	document.getElementById('b-plot-header').innerHTML = selMeter;
 	
 	callApiJSON( uri ).then((data) => {
 		if (data == null) {
@@ -173,17 +128,62 @@ function redrawPlot() {
 			return;
 		}
 		document.getElementById('b-plot').innerHTML = "";
-        let resArr = convertTSDToPlotlyPopup(data[sensor].obs, "bar");
+        let resArr = convertTSDToPlotlyPopup(data[selMeter].obs, "bar");
         let pData = resArr[0];
-        let totalSum = resArr[1];
-        document.getElementById("b-meta3span").innerHTML = calcIntensity(totalSum, dateDiff, "", sensor.slice(0, 5)) + " " + data[sensor].unit + "/m&sup2;";
-        document.getElementById("b-meta4span").innerHTML = totalSum + " " + data[sensor].unit;
-        pLayoutPopup["yaxis"]["title"]["text"] = capFirst(type) + " [" + data[sensor].unit + "]";
+        pLayoutPopup["yaxis"]["title"]["text"] = capFirst(type) + " [" + data[selMeter].unit + "]";
         Plotly.newPlot("b-plot", [pData], pLayoutPopup, pConfigPopup);
 	});
 };
 
+function selectPopulator(selectID, selectArray) {
+	for( let i = 0; i < selectArray.length; i++ ) {
+		let opt = selectArray[i];
+		let el = document.createElement("option");
+		if (selectID == "select-type") {
+			el.textContent = capFirst(opt);
+		} else {
+			el.textContent = opt;
+		}
+		el.value = opt;
+		document.getElementById(selectID).appendChild(el);
+	};
+};
+
+// called when a building is selected - only needs updating type fields
+function buildingSelected() {
+	let selBuilding = document.getElementById("select-building").value;
+	document.getElementById("select-type").innerHTML = "<option value=''>--Select--</option>";
+	if (selBuilding != "") {
+		selectPopulator("select-type", Object.keys(hierarchy[selBuilding]));
+	}
+};
+
+// called when a type is selected - only needs populating meters
+function typeSelected() {
+	let selType = document.getElementById("select-type").value;
+	let selMeter = document.getElementById("select-meter");
+	selMeter.innerHTML = "<option value=''>--Select--</option>";
+	if (selType != "") {
+		selectPopulator("select-meter", hierarchy[document.getElementById("select-building").value][selType]);
+	}
+};
+
+// when a new building is selected - update cumultorate and redraw
+function meterSelected() {
+	selMeter = document.getElementById("select-meter").value;
+
+	if (selMeter != "") {
+		for( let i = 0; i < devices.length; i++ ) {
+			if (devices[i]["meter_clean_id"] == selMeter) {
+				console.log(devices[i])
+			}
+		};
+	};		
+	redrawPlot();
+};
+
 $(document).ready( function () {
+	commentParent = "device-data";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
     let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
@@ -192,4 +192,15 @@ $(document).ready( function () {
     let sideBarEndDate = new Date();
     sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
     document.getElementById('sb-end-date').value = sideBarEndDate;
+
+	selectPopulator("select-building", Object.keys(hierarchy));
+
+	// TODO implement a cumultorate filter
+    document.getElementById("cumultorate").addEventListener("click", redrawPlot);
+
+	document.getElementById("select-building").addEventListener("change", buildingSelected);
+    document.getElementById("select-type").addEventListener("change", typeSelected);
+    document.getElementById("select-meter").addEventListener("change", meterSelected);
+
+    document.getElementById("download-button").addEventListener("click", downloadSensorData);
 });

@@ -103,8 +103,6 @@ function redrawGraph() {
                 }
             )
             // set bar color
-            //console.log(pData['y']+" "+pData['x']+" "+pData['bmt'])
-            //console.log(pData['y'][i]+" "+pData['x'][i]+" "+pData['bmt'][i])
             if (pData["x"][i] > pData["bmt"][i]) pData.marker.color[i] = "red";
             else if (pData["x"][i] > pData["bmg"][i]) pData.marker.color[i] = "orange";
             else pData.marker.color[i] = "green";

@@ -4,8 +4,6 @@ var contextMeterClicked = "";
 var fullDD = [];
 
 function commentBubbleClicked() {
-    console.log(new Date().toLocaleString().slice(12)+" commentParent: "+commentParent);
-    console.log(new Date().toLocaleString().slice(12)+" commentMode: "+commentMode);
     if (commentMode) {
         leaveCommentMode();
     } else {
@@ -129,7 +127,7 @@ function createContextDialog(clickedSensor, from, to) {
 
 function clickCheck(e) {
     if (!commentMode) { // shouldn't need this as listener is removed, but just for safety
-        console.log("Comment mode left (safety catch function)")
+        console.warn("Comment mode left (safety catch function)")
         return;
     }
 
@@ -173,10 +171,7 @@ function clickCheck(e) {
 };
 
 function getCurPageStartDate() {
-    if (["view-map", "view-list", "view-graph"].includes(commentParent)) {
-        return document.getElementById("sb-start-date").value+" 00:00";
-    } else if (["building-data", "device-data"].includes(commentParent)) {
-        return document.getElementById("b-start-date").value+" 00:00";
+    if (["view-map", "view-list", "view-graph", "device-data"].includes(commentParent)) {
     } else {
         let setDate = new Date(Date.now());
         setDate.setDate(setDate.getDate()-7);
@@ -220,7 +215,6 @@ function saveContext() {
         currentHTML += (getCookie("Email") != "") ? getCookie("Email").split('@')[0] : "(anonymous)";
         currentHTML += "</b>: ";
         currentHTML += document.getElementById("context-comment").value;
-        console.log(currentHTML);
         cellNode.html(currentHTML);
     }
 
