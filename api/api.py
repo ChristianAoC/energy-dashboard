@@ -504,7 +504,7 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
-def clean_meter_cache_file_name(file_name: str):
+def clean_file_name(file_name: str):
     file_name = file_name.replace("/", "_")
     file_name = file_name.replace("\\", "_")
     file_name = file_name.replace(" ", "_")
@@ -520,7 +520,7 @@ def clean_meter_cache_file_name(file_name: str):
 def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
     print(f"Started: {m['meter_id_clean']}")
     try:
-        file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
+        file_name = clean_file_name(f"{m['meter_id_clean']}.json")
 
         # Health Check Score Cache
         meter_health_score_file = os.path.join(meter_health_score_files, file_name)
@@ -602,7 +602,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
-            clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
+            clean_meter_name = clean_file_name(m['meter_id_clean'])
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
             if thread_name == "Mtr_Cache_Gen_":
                 # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
