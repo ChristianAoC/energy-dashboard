@@ -505,7 +505,12 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
 def clean_meter_cache_file_name(file_name: str):
-    file_name.replace("/", "_")
+    file_name = file_name.replace("/", "_")
+    file_name = file_name.replace("\\", "_")
+    file_name = file_name.replace(" ", "_")
+    file_name = file_name.replace(".", "_")
+    file_name = file_name.replace("?", "_")
+    file_name = file_name.replace(",", "_")
     return file_name
 
 ## Generate the cache for the provided meter
