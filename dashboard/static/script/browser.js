@@ -2,7 +2,6 @@
 let hierarchy = {
 	"MC210":{
 		"electricity":[
-			"MC210_L01_M10_R2048",
 			"MC210_L01_M11_R2052",
 			"MC210_L01_M12_R0"
 		],
@@ -11,6 +10,7 @@ let hierarchy = {
 			"MC210-L02/M14R45099"
 		],
 		"water":[
+			"MC210_L01_M10_R2048",
 			"MC210-L02/M27R45099",
 			"MC210-L01/M16R999"
 		]
@@ -152,8 +152,10 @@ function selectPopulator(selectID, selectArray) {
 // called when a building is selected - only needs updating type fields
 function buildingSelected() {
 	let selBuilding = document.getElementById("select-building").value;
-	document.getElementById("select-type").innerHTML = "<option value=''>--Select--</option>";
-	if (selBuilding != "") {
+	let selectType = document.getElementById("select-type");
+	selectType.innerHTML = "<option value=''>--Select--</option>";
+
+	if (selBuilding !== "") {
 		selectPopulator("select-type", Object.keys(hierarchy[selBuilding]));
 	}
 };
@@ -175,7 +177,6 @@ function meterSelected() {
 	if (selMeter != "") {
 		for( let i = 0; i < devices.length; i++ ) {
 			if (devices[i]["meter_id_clean"] == selMeter) {
-				console.log(devices[i]["class"])
 				if (devices[i]["class"] == "Cumulative") {
 					document.getElementById("cumultorate").disabled = false;
 					document.getElementById("alreadyrate").hidden = true;
@@ -211,4 +212,23 @@ $(document).ready( function () {
     document.getElementById("select-meter").addEventListener("change", meterSelected);
 
     document.getElementById("download-button").addEventListener("click", downloadSensorData);
+
+	let params = new URLSearchParams(document.location.search);
+	if (params.get("building")) {
+		document.getElementById("select-building").value = params.get("building");
+	}
+	buildingSelected();
+
+	if (params.get("meter_id")) {
+		for( let i = 0; i < devices.length; i++ ) {
+			if (devices[i]["meter_id_clean"] == params.get("meter_id")) {
+				document.getElementById("select-building").value = devices[i]["building"];
+				buildingSelected();
+				document.getElementById("select-type").value = devices[i]["meter_type"].toLowerCase();
+				typeSelected();
+			}
+		};
+		document.getElementById("select-meter").value = params.get("meter_id");
+	}
+	meterSelected();
 });
