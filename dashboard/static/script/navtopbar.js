@@ -1,5 +1,5 @@
 var url = window.location.href;
-var filename = url.substring(url.lastIndexOf('/')+1);
+var filename = url.substring(url.lastIndexOf('/')+1).split(".")[0];
 
 var html = '<img id="logo" src="gfx/logo.png" alt="Logo" />';
 
@@ -25,7 +25,7 @@ navItems.push(['Context', 'context.html']);
 navItems.push(['About', 'about.html']);
 
 for (i = 0; i<navItems.length; i++){
-	if (filename == navItems[i][1]) {
+	if (filename == navItems[i][1].split(".")[0]) {
 		html += '<div class="navlink active"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
 	} else {
 		html += '<div class="navlink"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
