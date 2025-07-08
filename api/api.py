@@ -725,108 +725,134 @@ def hc_meta():
     except:
         return {}
 
-## Return summary of the energy usage over all buildings with main meters and mazemap ids
+## Create usage summary of meters
+##
+## Only returns meters that are attached to a building.
+## Only includes buildings with a valid floor area at least one meter.
 ##
 ## Parameters:
-## from_time - options inital date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 7 days before to_time
+## from_time - options initial date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 7 days before to_time
 ## to_time - options final observation time in YYYY-mm-dd format (summary of usage upto 23:59 of this date) - default current date
+##
 ## Return:
-## json format time series data
+## json object:
+## {
+##     "building_code": {
+##         "electricity": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption
+##             },
+##             ...
+##         },
+##         "gas": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption
+##             },
+##             ...
+##         },
+##         "heat": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption
+##             },
+##             ...
+##         },
+##         "water": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": conumption
+##             },
+##             ...
+##         }
+##     },
+##     ...
+## }
+##
 ## Example:
 ## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
 def summary():
-    try:
-        to_time = request.args["to_time"] # this is url decoded
-        to_time = dt.datetime.combine(
-            dt.datetime.strptime(to_time,"%Y-%m-%d"),
-            dt.datetime.max.time())
-    except:
-        to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time()) ## check
+    if not offlineMode:
+        to_time = request.args.get("to_time")
+        if to_time is not None:
+            to_time = dt.datetime.combine(dt.datetime.strptime(to_time, "%Y-%m-%d"), dt.datetime.max.time())
+        else:
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
 
-    try:
-        from_time = request.args["from_time"]
-        from_time = dt.datetime.combine(
-            dt.datetime.strptime(from_time,"%Y-%m-%d"),
-            dt.datetime.min.time()) ## check
-    except:
-        from_time = to_time - dt.timedelta(days=7) + dt.timedelta(seconds=1)
+        from_time = request.args.get("from_time")
+        if from_time is not None:
+            from_time = dt.datetime.combine(dt.datetime.strptime(from_time,"%Y-%m-%d"), dt.datetime.min.time())
+        else:
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
+    else:
+        with open(anon_data_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
 
+        to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
 
-    ## trim out buildings with no mazemap id
-    buildings = [x for x in BUILDINGS() if x["maze_map_label"]]
+        if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
 
-    ## trim out meters that aren't building
+    ## trim out buildings with no building meters
+    buildings = [x for x in BUILDINGS() if len(x["meters"]) > 0]
+
+    # trim out buildings with no floor area / invalid floor area
+    buildings = [x for x in buildings if x["floor_area"]]
+    buildings = [x for x in buildings if type(x["floor_area"]) is int]
+
+    units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
+
+    data = {}
     for b in buildings:
+        # Only include building level meters (main meters)
         b["meters"][:] = [m for m in b["meters"] if m["building_level_meter"]]
 
-    ## trim out buildings with no building meters        
-    buildings[:] = [x for x in buildings if len(x["meters"])>0] ## remove buildings with no principle sensors
+        building_response = {}
 
-    ## process each building into correct format - slow...
-    for b in buildings:
+        for m in b.pop("meters", []):
+            meter_type = m["meter_type"].lower()
 
-        ## process the energy usage
-        for ii in ['gas','electricity','heat','water']:
-            b[ii] = {'sensor_label':[],'sensor_uuid':[],'usage':None,'eui':None, 'unit': None, 'eui_annual': None}
-            if ii == "gas":
-                b[ii]['unit'] = "m3"
-            elif ii == "electricity":
-                b[ii]['unit'] = "kWh"
-            elif ii == "heat":
-                b[ii]['unit'] = "MWh"
-            elif ii == "water":
-                b[ii]['unit'] = "m3"
+            if meter_type not in units.keys():
+                continue
 
-        for s in b.pop("meters",[]):
-            v = s["meter_type"].lower()
+            x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
 
-            x = query_time_series(s, from_time, to_time, agg='876000h', to_rate=True)
+            # No data available
+            if len(x['obs']) == 0:
+                continue
 
-            b[v]['sensor_label'].append( x["label"] )
-            b[v]['sensor_uuid'].append( x['uuid'] )
+            usage = x['obs'][0]['value']
 
-            if len(x['obs']) > 0:
-                usage = x['obs'][0]['value']
+            if usage is None:
+                usage = 0
 
-                ## handle unit changes
-                if v == "gas":
-                    if x['unit'] != "m3":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for gas" )
-                elif v == "electricity":
-                    if x['unit'] != "kWh":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for electricity" )
-                elif v == "heat":
-                    if x['unit'] == "kWh":
-                        usage *= 1e-3 # to MWh
-                        x['unit'] = "MWh"
-                    if x['unit'] == "kW":
-                        usage = round(usage * 1e-3 * (1.0/6.0),3 ) ## presume 10 minute data, round to nearest kWh
-                        x['unit'] = "MWh"
-                    if x['unit'] != "MWh":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for heat" )
-                elif v == "water":
-                    if x['unit'] != "m3":
-                        print( s["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for water" )
-
-
-                if b[v]['usage'] is None:
-                    b[v]['usage'] = usage
+            # handle unit changes
+            if x['unit'] != units[meter_type]:
+                if meter_type == "heat" and x['unit'] == "kWh":
+                    usage *= 1e-3  # to MWh
+                elif meter_type == "heat" and x['unit'] == "kW":
+                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3) # presume 10 minute data, round to nearest kWh
                 else:
-                    b[v]['usage'] += usage
+                    continue
 
-        ## process EUI
-        if b["floor_area"] is not None:
-            for ii in ['gas','electricity','heat','water']:
-                if b[ii]["usage"] is not None:
-                    ## raw EUI
-                    x = b[ii]["usage"] / b["floor_area"]
-                    b[ii]["eui"] = float(f"{x:.2g}")
-                    ## annual equivilent
-                    x *= dt.timedelta(days=365) / (to_time - from_time)
-                    b[ii]["eui_annual"] = float(f"{x:.2g}")
+            # process EUI
+            x = usage / b["floor_area"]
+            eui = float(f"{x:.2g}")
 
-    return make_response(jsonify( buildings ), 200)
+            # Create utility entries on occurrence so that the response is smaller
+            if meter_type not in building_response:
+                building_response[meter_type] = {}
+
+            building_response[meter_type][m["meter_id_clean"]] = {
+                "EUI": eui,
+                "consumption": usage
+            }
+
+        data[b["building_code"]] = building_response
+    return make_response(jsonify(data), 200)
 
 ## Return the meters, optionally trimming by planon or meter_id_clean
 ##
@@ -1227,63 +1253,3 @@ def meter_health_internal(args):
             return []
     else:
         return get_health(args, True)
-
-## Create summary of meters
-##
-## Only returns meters that are attached to a building and only includes buildings with meters
-##
-## Return:
-## json object:
-## {
-##     "building_code": {
-##         "electricity": [
-##             "meter_id_clean",
-##             ...
-##         ],
-##         "gas": [
-##             "meter_id_clean",
-##             ...
-##         ],
-##         "heat": [
-##             "meter_id_clean",
-##             ...
-##         ],
-##         "water": [
-##             "meter_id_clean",
-##             ...
-##         ]
-##     },
-##     ...
-## }
-@api_bp.route('/usage')
-def usage_summary():
-    ## trim out buildings with no mazemap id
-    buildings = [x for x in BUILDINGS() if x["maze_map_label"]]
-
-    ## trim out meters that aren't building
-    for b in buildings:
-        b["meters"][:] = [m for m in b["meters"] if m["building_level_meter"]]
-
-    ## trim out buildings with no building meters
-    buildings[:] = [x for x in buildings if len(x["meters"]) > 0]
-
-    data = {}
-    for b in buildings:
-        building_response = {
-            "electricity": [],
-            "gas": [],
-            "heat": [],
-            "water": []
-        }
-
-        for m in b.pop("meters", []):
-            meter_type = m["meter_type"].lower()
-
-            if meter_type not in ['gas','electricity','heat','water']:
-                continue
-
-            building_response[meter_type].append(m["meter_id_clean"])
-
-        data[b["building_code"]] = building_response
-
-    return make_response(jsonify(data), 200)
