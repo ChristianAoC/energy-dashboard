@@ -25,7 +25,7 @@ InfluxPort = os.getenv("INFLUX_PORT")
 InfluxUser = os.getenv("INFLUX_USER")
 InfluxPass = os.getenv("INFLUX_PASS")
 
-if InfluxURL == None or InfluxPort == None or InfluxUser == None or InfluxPass == None:
+if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
     offlineMode = True
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
@@ -199,11 +199,11 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
             if obs[ii]["value"]==0:
                 obs[ii]["value"] = None
 
-            if obs[ii]["value"] == None:
+            if obs[ii]["value"] is None:
                 obs[ii+1]["value"] = None ## rate on next step not valid
                 continue
 
-            if xcur==None:
+            if xcur is None:
                 xcur = obs[ii]["value"]
 
             if obs[ii]["value"] > xcur:
@@ -212,7 +212,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
             else:
                 xcur = obs[ii]["value"]
 
-            if obs[ii+1]["value"]==None or obs[ii]["value"]==None:
+            if obs[ii+1]["value"] is None or obs[ii]["value"] is None:
                 obs[ii+1]["value"] = None
             else:
                 obs[ii+1]["value"] -= obs[ii]["value"] ## change to rate
@@ -229,7 +229,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         df.reset_index(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
 
-        obs = json.loads(df.to_json(orient='records')) #This is ugly buut seems to avoid return NaN rather then null - originaly used pd.DataFrame.to_dict(df,orient="records")
+        obs = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originaly used pd.DataFrame.to_dict(df,orient="records")
 
     out["obs"] = obs
 
