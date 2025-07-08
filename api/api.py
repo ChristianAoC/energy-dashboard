@@ -114,18 +114,18 @@ def query_pandas(m, from_time, to_time):
 ## agg - aggregation as accepted by pandas time aggregation - raw leave data alone (str)
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
-    ## set come constants
+    # set some constants
     max_time_interval = dt.timedelta(days=3650)
 
-    ## convert to UTC for influx
+    # convert to UTC for influx
     from_time = from_time.astimezone(dt.timezone.utc)
     to_time = to_time.astimezone(dt.timezone.utc)
 
-    ## check time limits
+    # check time limits
     if to_time - from_time > max_time_interval:
         from_time = to_time - max_time_interval
 
-    ## set the basic output
+    # set the basic output
     out = {
         "uuid": m["meter_id_clean"],
         #"label": m["serving"], #use serving revised because this is way too lengthy
@@ -140,12 +140,12 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         if m["raw_uuid"] is None: ## can't get data
             return out
 
-        ## format query
+        # format query
         qry = 'SELECT * as value FROM "SEED"."autogen"."' + m["raw_uuid"] + \
             '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
             ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
 
-        ## create client for influx
+        # create client for influx
         client = InfluxDBClient(host = InfluxURL,
                                 port = InfluxPort,
                                 username = InfluxUser,
@@ -153,7 +153,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
         result = client.query(qry)
 
-        ## get as list of dictionaries
+        # get as list of dictionaries
         obs = list(result.get_points())
 
     else:
@@ -179,7 +179,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     if len(obs)==0:
         return out
 
-    ## standarise the value based on resolution and format time
+    # standardise the value based on resolution and format time
     if m["resolution"] is not None:
         kappa = m["unit_conversion_factor"] / m["resolution"]
         rho = m["resolution"]
