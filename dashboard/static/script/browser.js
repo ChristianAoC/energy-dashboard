@@ -174,11 +174,19 @@ function meterSelected() {
 
 	if (selMeter != "") {
 		for( let i = 0; i < devices.length; i++ ) {
-			if (devices[i]["meter_clean_id"] == selMeter) {
-				console.log(devices[i])
+			if (devices[i]["meter_id_clean"] == selMeter) {
+				console.log(devices[i]["class"])
+				if (devices[i]["class"] == "Cumulative") {
+					document.getElementById("cumultorate").disabled = false;
+					document.getElementById("alreadyrate").hidden = true;
+				} else {
+					document.getElementById("cumultorate").disabled = true;
+					document.getElementById("alreadyrate").hidden = false;
+				}
 			}
 		};
-	};		
+	};
+
 	redrawPlot();
 };
 
