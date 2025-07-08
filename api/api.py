@@ -59,6 +59,8 @@ cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
 cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
+benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
+
 anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
@@ -805,12 +807,22 @@ def summary():
 
     units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
 
+    with open(benchmark_data_file, "r") as f:
+        benchmark_data = json.load(f)
+
     data = {}
     for b in buildings:
+        building_response = {}
+
         # Only include building level meters (main meters)
         b["meters"][:] = [m for m in b["meters"] if m["building_level_meter"]]
 
-        building_response = {}
+        benchmark_category = b.get("benchmark_category")
+        if benchmark_category is None:
+            if b["usage"] not in ["Residential", "Split Use", "Non Res"]:
+                benchmark_category = "academic other"
+            else:
+                benchmark_category = b["usage"]
 
         for m in b.pop("meters", []):
             meter_type = m["meter_type"].lower()
@@ -834,7 +846,8 @@ def summary():
                 if meter_type == "heat" and x['unit'] == "kWh":
                     usage *= 1e-3  # to MWh
                 elif meter_type == "heat" and x['unit'] == "kW":
-                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3) # presume 10 minute data, round to nearest kWh
+                    # presume 10 minute data, round to nearest kWh
+                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
                 else:
                     continue
 
@@ -846,9 +859,16 @@ def summary():
             if meter_type not in building_response:
                 building_response[meter_type] = {}
 
+            benchmark = None
+            if meter_type in ["gas", "heat"]:
+                benchmark = benchmark_data[benchmark_category]["fossil"]
+            elif meter_type == "electricity":
+                benchmark = benchmark_data[benchmark_category]["electricity"]
+
             building_response[meter_type][m["meter_id_clean"]] = {
                 "EUI": eui,
-                "consumption": usage
+                "consumption": usage,
+                "benchmark": benchmark
             }
 
         data[b["building_code"]] = building_response
