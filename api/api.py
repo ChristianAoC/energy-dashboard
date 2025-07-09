@@ -743,28 +743,44 @@ def hc_meta():
 ##         "electricity": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
-##                 "consumption": consumption
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
 ##             },
 ##             ...
 ##         },
 ##         "gas": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
-##                 "consumption": consumption
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
 ##             },
 ##             ...
 ##         },
 ##         "heat": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
-##                 "consumption": consumption
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
 ##             },
 ##             ...
 ##         },
 ##         "water": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
-##                 "consumption": conumption
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
 ##             },
 ##             ...
 ##         }
