@@ -101,6 +101,12 @@ def getUserLevel():
         return 0
     return make_response(user.get_user_level(email, sessionID))
 
+
+@dashboard_bp.route('/admin/users')
+@required_user_level("USER_LEVEL_ADMIN")
+def listUsers():
+    return user.list_users()
+
 ###########################################################
 ###               context functionality                 ###
 ###########################################################
