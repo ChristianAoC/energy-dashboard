@@ -5,9 +5,9 @@
 <title>{{ config.SITE_NAME }}</title>
 
 <!-- CSS files (external and own, just main for all pages) -->
-<link rel="stylesheet" type="text/css" href="style/ext/jquery.datetimepicker.min.css" />
-<link rel="stylesheet" type="text/css" href="style/ext/jquery-ui.min.css" />
-<link rel="stylesheet" type="text/css" href="style/main.css" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery.datetimepicker.min.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery-ui.min.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/main.css') }}" />
 
 {% if devices %}
 <script>
@@ -25,25 +25,31 @@
 </script>
 
 <!-- exernal JS files -->
-<script type="text/javascript" src="script/ext/jquery-3.7.1.min.js"></script>
-<script type="text/javascript" src="script/ext/jquery-ui.min.js"></script>
-<script type="text/javascript" src="script/ext/d3.v7.min.js"></script>
-<script type="text/javascript" src="script/ext/jquery.datetimepicker.full.min.js"></script>
-<script type='text/javascript' src='script/ext/plotly-2.32.0.min.js'></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery-3.7.1.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery-ui.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/d3.v7.min.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery.datetimepicker.full.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/plotly-2.32.0.min.js') }}"></script>
 
-<script type='text/javascript' src='data/benchmarks.js'></script>
+<script type='text/javascript' src="{{ url_for('static', filename='data/benchmarks.js') }}"></script>
 
 <!-- own JS files -->
-<script type="text/javascript" src="script/dataloader.js"></script>
-<script type="text/javascript" src="script/auth.js"></script>
-<script type="text/javascript" src="script/popup-context.js"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/dataloader.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/auth.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/popup-context.js') }}"></script>
 {% block head -%}
 {% endblock -%}
 </head>
 <body>
     <div id="nav-parent">
     <nav id="nav-top-bar">
-    <script type="text/javascript" src="script/navtopbar.js"></script>
+    <script>
+    const STATIC_URLS = {
+        logo: "{{ url_for('static', filename='gfx/logo.png') }}",
+        settings: "{{ url_for('static', filename='gfx/settings.png') }}"
+    };
+    </script>
+    <script type="text/javascript" src="{{ url_for('static', filename='script/navtopbar.js') }}"></script>
     </nav>
     </div>
 
@@ -64,7 +70,7 @@
     -->
     
     <div id="comment-bubble" class="hidden" onclick="commentBubbleClicked()">
-        <img src="gfx/comment-bubble.png" alt="Comment bubble" width="32" />
+        <img src="{{ url_for('static', filename='gfx/comment-bubble.png') }}" alt="Comment bubble" width="32" />
         <span id="comment-tooltiptext">Add a comment!</span>
         <div id="comment-tooltipmodeengaged" class="hidden"><b>Edit mode:</b><br>Click on an element<br>to add a comment.</div>
     </div>

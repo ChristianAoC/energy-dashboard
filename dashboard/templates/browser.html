@@ -1,9 +1,9 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="style/start.css" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/start.css') }}" />
 
-<script type='text/javascript' src="script/browser.js"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/browser.js') }}"></script>
 {% endblock %}
 
 {% block content %}
@@ -64,11 +64,18 @@
 
 <br><br>
 
-<button class="b-button" id="download-button"><img src="gfx/download.png" width="24" alt="Download" /> &nbsp; Download CSV</button>
-
+<button class="b-button" id="download-button">
+	<img src="{{ url_for('static', filename='gfx/download.png') }}" width="24" alt="Download" /> &nbsp; Download CSV
+</button>
 </div>
 
 <!-- end of side bar -->
+
+<script>
+  const appConfig = {
+    loadingGifUrl: "{{ url_for('static', filename='gfx/loading.gif') }}"
+  };
+</script>
 
 <div id="start-content">
 

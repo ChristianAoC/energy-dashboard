@@ -1,10 +1,10 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="style/settings.css" />
-<link rel="stylesheet" type="text/css" href="style/ext/datatables.min.css">
-<script type="text/javascript" src="script/ext/dataTables.js"></script>
-<script type="text/javascript" src="script/settings.js"></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/settings.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/dataTables.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/settings.js') }}"></script>
 {% endblock %}
 
 {% block content %}

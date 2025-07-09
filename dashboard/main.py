@@ -7,7 +7,7 @@ from functools import wraps
 
 dashboard_bp = Blueprint('dashboard_bp'
     , __name__,
-    static_url_path='',
+    static_url_path='/static',
     template_folder='templates',
     static_folder='static')
 

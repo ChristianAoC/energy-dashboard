@@ -9,24 +9,24 @@
 </script>
 {% endif %}
 
-<link rel="stylesheet" type="text/css" href="style/ext/datatables.min.css">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
 <!--
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/r/bs-3.3.5/dt-1.10.9/datatables.min.css">
 -->
-<link rel="stylesheet" type="text/css" href="style/health-check.css" />
-<link rel="stylesheet" type="text/css" href="style/ext/buttons.dataTables.min.css" />
-<link rel="stylesheet" type="text/css" href="style/ext/dataTables.dataTables.min.css" />
-<link rel="stylesheet" type="text/css" href="style/ext/select2.min.css" />
-<script type="text/javascript" src="script/ext/dataTables.js"></script>
-<script type="text/javascript" src="script/health-check.js"></script>
-<script type='text/javascript' src='script/ext/dataTables.buttons.min.js'></script>
-<script type='text/javascript' src='script/ext/buttons.dataTables.min.js'></script>
-<script type='text/javascript' src='script/ext/select2.min.js'></script>
-<script type='text/javascript' src='script/ext/jszip.min.js'></script>
-<script type='text/javascript' src='script/ext/pdfmake.min.js'></script>
-<script type='text/javascript' src='script/ext/vfs_fonts.js'></script>
-<script type='text/javascript' src='script/ext/buttons.html5.min.js'></script>
-<script type='text/javascript' src='script/ext/buttons.print.min.js'></script>
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/health-check.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/buttons.dataTables.min.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/dataTables.dataTables.min.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/select2.min.css') }}" />
+<script type="text/javascript" src="{{ url_for('static', filename='script/ext/dataTables.js') }}"></script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/health-check.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/dataTables.buttons.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/buttons.dataTables.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/select2.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/jszip.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/pdfmake.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/vfs_fonts.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/buttons.html5.min.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/buttons.print.min.js') }}"></script>
 <meta name="viewport" content="width=device-width" />
 {% endblock %}
 
