@@ -98,11 +98,29 @@ def getUserLevel():
     sessionID = request.args.get('SessionID')
     email = request.args.get('email')
     if email == None or email == "" or sessionID == None or sessionID == "":
-        return 0
+        return "Couldn't get user level or session"
     return make_response(user.get_user_level(email, sessionID))
 
+@dashboard_bp.route("/admin/set_user_level", methods=['POST'])
+@required_user_level("USER_LEVEL_ADMIN")
+def setUserLevel():
+    data = request.get_json()
+    if not data:
+        return "No JSON data received"
+    email = data.get('email')
+    level = data.get('level')    
+    if email == None or level == None:
+        return "No email or level specified"
+    userChange = user.get_user(email)
+    userChange["level"] = level
+    return make_response(user.update_user(userChange))
 
-@dashboard_bp.route('/admin/users')
+@dashboard_bp.route('/admin/delete_user')
+@required_user_level("USER_LEVEL_ADMIN")
+def deleteUser():
+    return user.delete_user()
+
+@dashboard_bp.route('/admin/list_users')
 @required_user_level("USER_LEVEL_ADMIN")
 def listUsers():
     return user.list_users()

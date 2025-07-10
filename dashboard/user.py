@@ -88,15 +88,19 @@ def update_user(u, login=False):
         for i, user in enumerate(users):
             if user.get("email") == u["email"]:
                 if login:
-                    user["logincount"] = user.get("logincount", 0) + 1
-                for key in u:
-                    user[key] = u[key]
-                users[i] = user
+                    #user["logincount"] = user.get("logincount", 0) + 1
+                    u["logincount"] = user.get("logincount", 0) + 1
+                else:
+                    u["logincount"] = u.get("logincount", user.get("logincount", 0))
+                #for key in u:
+                #    user[key] = u[key]
+                #users[i] = user
+                users[i] = u
                 found = True
                 break
 
         if not found:
-            u["logincount"] = 1
+            u["logincount"] = 0
             users.append(u)
 
         # Write to temp file and atomically replace
@@ -208,11 +212,15 @@ def check_code(email, code):
                         u["sessions"] = []
                     u["sessions"].append(session)
                     update_user(u, True)
+                    print("success")
+                    print(u)
                     return (True, sessionid)
                 else:
                     u.pop("code")
                     u.pop("codetime")
                     update_user(u)
+                    print("success2")
+                    print(u)
                     return (False, "Code outdated. Generate a new login token!")
             else:
                 u.pop("code")

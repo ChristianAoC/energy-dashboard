@@ -2,7 +2,7 @@ document.addEventListener("click", function (e) {
     if (e.target.matches(".btn-delete")) {
         const email = e.target.dataset.email;
         if (confirm(`Delete user ${email}?`)) {
-            fetch(`/admin-delete-user`, {
+            fetch(`/admin/delete_user`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -23,7 +23,7 @@ document.addEventListener("change", function (e) {
         const newLevel = parseInt(e.target.value);
         const email = e.target.dataset.email;
 
-        fetch('/admin-set-user-level', {
+        fetch('/admin/set_user_level', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, level: newLevel })
@@ -43,7 +43,7 @@ document.addEventListener("change", function (e) {
 });
 
 $(document).ready( function () {
-    fetch('/admin/users')
+    fetch('/admin/list_users')
         .then(response => {
             if (!response.ok) throw new Error("Not authorized");
             return response.json();
