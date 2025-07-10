@@ -158,6 +158,9 @@ def login_request(email):
             "email": email,
             "level": current_app.config["DEFAULT_USER_LEVEL"]
         }
+        # first user becomes admin!
+        if len(list_users()) == 0:
+            u["level"] = 5
 
     u["code"] = code
     u["codetime"] = datetime.today().timestamp()
