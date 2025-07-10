@@ -1,11 +1,11 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="style/start.css" />
-<link rel="stylesheet" type="text/css" href="style/slider.css" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/start.css') }}" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/slider.css') }}" />
 
-<script type='text/javascript' src="script/slider.js"></script>
-<script type='text/javascript' src='script/benchmark.js'></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/slider.js') }}"></script>
+<script type='text/javascript' src="{{ url_for('static', filename='script/benchmark.js') }}"></script>
 {% endblock %}
 
 {% block content %}

@@ -7,7 +7,7 @@ from functools import wraps
 
 dashboard_bp = Blueprint('dashboard_bp'
     , __name__,
-    static_url_path='',
+    static_url_path='/static',
     template_folder='templates',
     static_folder='static')
 
@@ -100,6 +100,12 @@ def getUserLevel():
     if email == None or email == "" or sessionID == None or sessionID == "":
         return 0
     return make_response(user.get_user_level(email, sessionID))
+
+
+@dashboard_bp.route('/admin/users')
+@required_user_level("USER_LEVEL_ADMIN")
+def listUsers():
+    return user.list_users()
 
 ###########################################################
 ###               context functionality                 ###

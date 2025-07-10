@@ -56,7 +56,7 @@
             <input type="text" for="context-type-other" id="context-other-text" name="context-other-text" maxlength="64" />
         </div>
         <div id="gc-recurring-label" class="gc-grid-element">
-            <!--<img id="info-repeat" src="gfx/info.png" alt="info" />-->
+            <!--<img id="info-repeat" src="{{ url_for('static', filename='gfx/info.png') }}" alt="info" />-->
             <span id="info-repeat">Repeats<br>every:<div id="info-repeat-tooltip">Event repeats indefinitely, with first occurence as specified in "start".</div></span>
             <br><br>
             <input type="number" id="recurring-number" name="recurring-number" min="1" max="99999" value="1" />

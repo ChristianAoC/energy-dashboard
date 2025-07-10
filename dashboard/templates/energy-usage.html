@@ -1,7 +1,7 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="style/energy-usage.css" />
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/energy-usage.css') }}" />
 {% endblock %}
 
 {% block content %}

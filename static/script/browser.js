@@ -119,7 +119,7 @@ function redrawPlot() {
 		"&to_rate=" + toRate;
 	if (agg != "None") uri += "&aggregate=" + agg + "H";
 
-    document.getElementById('b-plot').innerHTML = "<img src='gfx/loading.gif' alt='Loading...' />";
+	document.getElementById('b-plot').innerHTML = `<img src='${appConfig.loadingGifUrl}' alt='Loading...' />`;
 	document.getElementById('b-plot-header').innerHTML = selMeter;
 	
 	callApiJSON( uri ).then((data) => {
