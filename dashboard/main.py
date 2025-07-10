@@ -115,10 +115,19 @@ def setUserLevel():
     userChange["level"] = level
     return make_response(user.update_user(userChange))
 
-@dashboard_bp.route('/admin/delete_user')
+@dashboard_bp.route('/admin/delete_user', methods=['POST'])
 @required_user_level("USER_LEVEL_ADMIN")
 def deleteUser():
-    return user.delete_user()
+    data = request.get_json()
+    if not data:
+        return "No JSON data received"
+    email = data.get('email')
+    if email == None:
+        return "No email specified"
+    result = user.delete_user(email)
+    if not result:
+        return make_response("Couldn't remove user "+email)
+    return make_response("Successfully removed user "+email)
 
 @dashboard_bp.route('/admin/list_users')
 @required_user_level("USER_LEVEL_ADMIN")

@@ -10,7 +10,6 @@ document.addEventListener("click", function (e) {
                 body: JSON.stringify({ email })
             }).then(res => {
                 if (res.ok) {
-                    alert("User deleted.");
                     location.reload();
                 }
             });
@@ -33,7 +32,6 @@ document.addEventListener("change", function (e) {
             return res.json();
         })
         .then(data => {
-            console.log("Level updated:", data);
         })
         .catch(err => {
             alert("Error updating user level");
@@ -83,7 +81,7 @@ $(document).ready( function () {
                     {
                         data: null, title: "Actions",
                         render: function (u, type, row) {
-                            return `<button class="btn-delete" data-email="${u.email}">Delete (TBD)</button>`;
+                            return `<button class="btn-delete" data-email="${u.email}">Delete</button>`;
                         }
                     }                ]
             })
