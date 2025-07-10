@@ -83,15 +83,18 @@ async function getCommonData() {
         const [
             // TODO add here later: scoreSummary and usage
             devices,
-            masterlist
+            masterlist,
+            summary
         ] = await Promise.all([
             callApiJSON('/api/devices'),
-            callApiJSON('/api/usageoffline')
+            callApiJSON('/api/usageoffline'),
+            callApiJSON('/api/summary')
         ]);
 
         return {
             devices,
-            masterlist
+            masterlist,
+            summary
         };
     } catch (err) {
         console.error("Error loading common data", err);
