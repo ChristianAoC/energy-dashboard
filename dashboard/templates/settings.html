@@ -2,6 +2,8 @@
 
 {% block head %}
 <link rel="stylesheet" type="text/css" href="style/settings.css" />
+<link rel="stylesheet" type="text/css" href="style/ext/datatables.min.css">
+<script type="text/javascript" src="script/ext/dataTables.js"></script>
 <script type="text/javascript" src="script/settings.js"></script>
 {% endblock %}
 
@@ -9,16 +11,26 @@
 
 <div id="settings-container">
 
-<br>
-
-<h3>Settings</h3>
-
-<br>
+<h2>Settings</h2>
 
 {% if user %}
 
-Logged in as {{user["email"]}}.<br><br>
+Logged in as {{ user.email | tojson | safe }}.<br><br>
 <button type="button" onclick="logout()" class="auth" id="button-logout">Logout</button>
+
+{% if user.level == 5 %}
+
+<br>
+<h2>List of Users</h2>
+
+<script>
+    const currentUserEmail = "{{ user.email | safe }}";
+</script>
+<div id="usersTableContainer">
+    <table id="usersTable">
+    </table>
+</div>
+{% endif %}
 
 {% else %}
 
