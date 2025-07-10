@@ -25,7 +25,7 @@ InfluxPort = os.getenv("INFLUX_PORT")
 InfluxUser = os.getenv("INFLUX_USER")
 InfluxPass = os.getenv("INFLUX_PASS")
 
-if InfluxURL == None or InfluxPort == None or InfluxUser == None or InfluxPass == None:
+if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
     offlineMode = True
 
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
@@ -58,6 +58,8 @@ if not os.path.exists(meter_snapshots_files):
 cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
 cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
+
+benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
 anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
 meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
@@ -114,18 +116,18 @@ def query_pandas(m, from_time, to_time):
 ## agg - aggregation as accepted by pandas time aggregation - raw leave data alone (str)
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
-    ## set come constants
+    # set some constants
     max_time_interval = dt.timedelta(days=3650)
 
-    ## convert to UTC for influx
+    # convert to UTC for influx
     from_time = from_time.astimezone(dt.timezone.utc)
     to_time = to_time.astimezone(dt.timezone.utc)
 
-    ## check time limits
+    # check time limits
     if to_time - from_time > max_time_interval:
         from_time = to_time - max_time_interval
 
-    ## set the basic output
+    # set the basic output
     out = {
         "uuid": m["meter_id_clean"],
         #"label": m["serving"], #use serving revised because this is way too lengthy
@@ -140,12 +142,12 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         if m["raw_uuid"] is None: ## can't get data
             return out
 
-        ## format query
+        # format query
         qry = 'SELECT * as value FROM "SEED"."autogen"."' + m["raw_uuid"] + \
             '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
             ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
 
-        ## create client for influx
+        # create client for influx
         client = InfluxDBClient(host = InfluxURL,
                                 port = InfluxPort,
                                 username = InfluxUser,
@@ -153,7 +155,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
 
         result = client.query(qry)
 
-        ## get as list of dictionaries
+        # get as list of dictionaries
         obs = list(result.get_points())
 
     else:
@@ -179,7 +181,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
     if len(obs)==0:
         return out
 
-    ## standarise the value based on resolution and format time
+    # standardise the value based on resolution and format time
     if m["resolution"] is not None:
         kappa = m["unit_conversion_factor"] / m["resolution"]
         rho = m["resolution"]
@@ -199,11 +201,11 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
             if obs[ii]["value"]==0:
                 obs[ii]["value"] = None
 
-            if obs[ii]["value"] == None:
+            if obs[ii]["value"] is None:
                 obs[ii+1]["value"] = None ## rate on next step not valid
                 continue
 
-            if xcur==None:
+            if xcur is None:
                 xcur = obs[ii]["value"]
 
             if obs[ii]["value"] > xcur:
@@ -212,7 +214,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
             else:
                 xcur = obs[ii]["value"]
 
-            if obs[ii+1]["value"]==None or obs[ii]["value"]==None:
+            if obs[ii+1]["value"] is None or obs[ii]["value"] is None:
                 obs[ii+1]["value"] = None
             else:
                 obs[ii+1]["value"] -= obs[ii]["value"] ## change to rate
@@ -229,7 +231,7 @@ def query_time_series(m, from_time, to_time, agg="raw", to_rate=False):
         df.reset_index(inplace=True)
         df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
 
-        obs = json.loads(df.to_json(orient='records')) #This is ugly buut seems to avoid return NaN rather then null - originaly used pd.DataFrame.to_dict(df,orient="records")
+        obs = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originaly used pd.DataFrame.to_dict(df,orient="records")
 
     out["obs"] = obs
 
@@ -504,8 +506,13 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
-def clean_meter_cache_file_name(file_name: str):
-    file_name.replace("/", "_")
+def clean_file_name(file_name: str):
+    file_name = file_name.replace("/", "_")
+    file_name = file_name.replace("\\", "_")
+    file_name = file_name.replace(" ", "_")
+    file_name = file_name.replace(".", "_")
+    file_name = file_name.replace("?", "_")
+    file_name = file_name.replace(",", "_")
     return file_name
 
 ## Generate the cache for the provided meter
@@ -515,7 +522,7 @@ def clean_meter_cache_file_name(file_name: str):
 def generate_meter_cache(m: dict, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
     print(f"Started: {m['meter_id_clean']}")
     try:
-        file_name = clean_meter_cache_file_name(f"{m['meter_id_clean']}.json")
+        file_name = clean_file_name(f"{m['meter_id_clean']}.json")
 
         # Health Check Score Cache
         meter_health_score_file = os.path.join(meter_health_score_files, file_name)
@@ -597,7 +604,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
-            clean_meter_name = clean_meter_cache_file_name(m['meter_id_clean'])
+            clean_meter_name = clean_file_name(m['meter_id_clean'])
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
             if thread_name == "Mtr_Cache_Gen_":
                 # If the meter doesn't have a meter_id_clean attribute, skip it as it is needed to generate cache
@@ -707,108 +714,168 @@ def hc_meta():
     except:
         return {}
 
-## Return summary of the energy usage over all buildings with main meters and mazemap ids
+## Create usage summary of meters
+##
+## Only returns meters that are attached to a building.
+## Only includes buildings with a valid floor area at least one meter.
 ##
 ## Parameters:
-## from_time - options inital date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 7 days before to_time
+## from_time - options initial date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 7 days before to_time
 ## to_time - options final observation time in YYYY-mm-dd format (summary of usage upto 23:59 of this date) - default current date
+##
 ## Return:
-## json format time series data
+## json object:
+## {
+##     "building_code": {
+##         "electricity": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
+##             },
+##             ...
+##         },
+##         "gas": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
+##             },
+##             ...
+##         },
+##         "heat": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
+##             },
+##             ...
+##         },
+##         "water": {
+##             "meter_id_clean": {
+##                 "EUI": EUI,
+##                 "consumption": consumption,
+##                 "benchmark": {
+##                     "good": good_benchmark,
+##                     "typical": typical_benchmark
+##                 }
+##             },
+##             ...
+##         }
+##     },
+##     ...
+## }
+##
 ## Example:
 ## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
 def summary():
-    try:
-        to_time = request.args["to_time"] # this is url decoded
-        to_time = dt.datetime.combine(
-            dt.datetime.strptime(to_time,"%Y-%m-%d"),
-            dt.datetime.max.time())
-    except:
-        to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time()) ## check
+    if not offlineMode:
+        to_time = request.args.get("to_time")
+        if to_time is not None:
+            to_time = dt.datetime.combine(dt.datetime.strptime(to_time, "%Y-%m-%d"), dt.datetime.max.time())
+        else:
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
 
-    try:
-        from_time = request.args["from_time"]
-        from_time = dt.datetime.combine(
-            dt.datetime.strptime(from_time,"%Y-%m-%d"),
-            dt.datetime.min.time()) ## check
-    except:
-        from_time = to_time - dt.timedelta(days=7) + dt.timedelta(seconds=1)
+        from_time = request.args.get("from_time")
+        if from_time is not None:
+            from_time = dt.datetime.combine(dt.datetime.strptime(from_time,"%Y-%m-%d"), dt.datetime.min.time())
+        else:
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
+    else:
+        with open(anon_data_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
 
+        to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
 
-    ## trim out buildings with no mazemap id
-    buildings = [x for x in BUILDINGS() if x["maze_map_label"]]
+        if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
 
-    ## trim out meters that aren't building
+    ## trim out buildings with no building meters
+    buildings = [x for x in BUILDINGS() if len(x["meters"]) > 0]
+
+    # trim out buildings with no floor area / invalid floor area
+    buildings = [x for x in buildings if x["floor_area"]]
+    buildings = [x for x in buildings if type(x["floor_area"]) is int]
+
+    units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
+
+    with open(benchmark_data_file, "r") as f:
+        benchmark_data = json.load(f)
+
+    data = {}
     for b in buildings:
+        building_response = {}
+
+        # Only include building level meters (main meters)
         b["meters"][:] = [m for m in b["meters"] if m["building_level_meter"]]
 
-    ## trim out buildings with no building meters        
-    buildings[:] = [x for x in buildings if len(x["meters"])>0] ## remove buildings with no principle sensors
+        benchmark_category = b.get("benchmark_category")
+        if benchmark_category is None:
+            if b["usage"] not in ["Residential", "Split Use", "Non Res"]:
+                benchmark_category = "academic other"
+            else:
+                benchmark_category = b["usage"]
 
-    ## process each building into correct format - slow...
-    for b in buildings:
+        for m in b.pop("meters", []):
+            meter_type = m["meter_type"].lower()
 
-        ## process the energy usage
-        for ii in ['gas','electricity','heat','water']:
-            b[ii] = {'sensor_label':[],'sensor_uuid':[],'usage':None,'eui':None, 'unit': None, 'eui_annual': None}
-            if ii == "gas":
-                b[ii]['unit'] = "m3"
-            elif ii == "electricity":
-                b[ii]['unit'] = "kWh"
-            elif ii == "heat":
-                b[ii]['unit'] = "MWh"
-            elif ii == "water":
-                b[ii]['unit'] = "m3"
+            if meter_type not in units.keys():
+                continue
 
-        for s in b.pop("meters",[]):
-            v = s["meter_type"].lower()
+            x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
 
-            x = query_time_series(s, from_time, to_time, agg='876000h', to_rate=True)
+            # No data available
+            if len(x['obs']) == 0:
+                continue
 
-            b[v]['sensor_label'].append( x["label"] )
-            b[v]['sensor_uuid'].append( x['uuid'] )
+            usage = x['obs'][0]['value']
 
-            if len(x['obs']) > 0:
-                usage = x['obs'][0]['value']
+            if usage is None:
+                usage = 0
 
-                ## handle unit changes
-                if v == "gas":
-                    if x['unit'] != "m3":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for gas" )
-                elif v == "electricity":
-                    if x['unit'] != "kWh":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for electricity" )
-                elif v == "heat":
-                    if x['unit'] == "kWh":
-                        usage *= 1e-3 # to MWh
-                        x['unit'] = "MWh"
-                    if x['unit'] == "kW":
-                        usage = round(usage * 1e-3 * (1.0/6.0),3 ) ## presume 10 minute data, round to nearest kWh
-                        x['unit'] = "MWh"
-                    if x['unit'] != "MWh":
-                        print( x["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for heat" )
-                elif v == "water":
-                    if x['unit'] != "m3":
-                        print( s["meter_id_clean"] + ": " + x['unit'] + " is an unknown unit for water" )
-
-
-                if b[v]['usage'] is None:
-                    b[v]['usage'] = usage
+            # handle unit changes
+            if x['unit'] != units[meter_type]:
+                if meter_type == "heat" and x['unit'] == "kWh":
+                    usage *= 1e-3  # to MWh
+                elif meter_type == "heat" and x['unit'] == "kW":
+                    # presume 10 minute data, round to nearest kWh
+                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
                 else:
-                    b[v]['usage'] += usage
+                    continue
 
-        ## process EUI
-        if b["floor_area"] is not None:
-            for ii in ['gas','electricity','heat','water']:
-                if b[ii]["usage"] is not None:
-                    ## raw EUI
-                    x = b[ii]["usage"] / b["floor_area"]
-                    b[ii]["eui"] = float(f"{x:.2g}")
-                    ## annual equivilent
-                    x *= dt.timedelta(days=365) / (to_time - from_time)
-                    b[ii]["eui_annual"] = float(f"{x:.2g}")
+            # process EUI
+            x = usage / b["floor_area"]
+            eui = float(f"{x:.2g}")
 
-    return make_response(jsonify( buildings ), 200)
+            # Create utility entries on occurrence so that the response is smaller
+            if meter_type not in building_response:
+                building_response[meter_type] = {}
+
+            benchmark = None
+            if meter_type in ["gas", "heat"]:
+                benchmark = benchmark_data[benchmark_category]["fossil"]
+            elif meter_type == "electricity":
+                benchmark = benchmark_data[benchmark_category]["electricity"]
+
+            building_response[meter_type][m["meter_id_clean"]] = {
+                "EUI": eui,
+                "consumption": usage,
+                "benchmark": benchmark
+            }
+
+        data[b["building_code"]] = building_response
+    return make_response(jsonify(data), 200)
 
 ## Return the meters, optionally trimming by planon or meter_id_clean
 ##
