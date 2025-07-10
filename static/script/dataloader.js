@@ -49,54 +49,6 @@ if (typeof masterList !== 'undefined') {
     narrowML = masterList;
 }
 
-// units for buildings/tabs overview since they're the same across all meters can't get from individual ML arrays
-// needs plain units as alternative because Plotly can't parse HTML symbols in legend
-var unitsCons = {
-    "electricity" : "kWh",
-    "gas" : "m&sup3;",
-    "heat" : "MWh",
-    "water" : "m&sup3;"
-};
-var unitsConsPlain = {
-    "electricity" : "kWh",
-    "gas" : "m3",
-    "heat" : "MWh",
-    "water" : "m3"
-};
-var unitsEUI = {
-    "electricity" : "kWh/m&sup2;",
-    "gas" : "m&sup3;/m&sup2;",
-    "heat" : "MWh/m&sup2;",
-    "water" : "m&sup3;/m&sup2;"
-};
-var unitsEUIPlain = {
-    "electricity" : "kWh/m2",
-    "gas" : "m3/m2",
-    "heat" : "MWh/m2",
-    "water" : "m3/m2"
-};
-
-function calcIntensity(cons, days, sqm, buildingID) {
-    if (sqm == "") {
-        for (m of masterList) {
-            if (m[varNameMLBuildingID] == buildingID) {
-                sqm = parseInt(m[varNameMLFloorSize]);
-            }
-        }
-    }
-
-    if (sqm == "" && buildingID == "") {
-        return false;
-    }
-
-    let factor = 365/days;
-    return Math.round( ( cons * factor ) / sqm );
-}
-
-var sizes;
-var elecUse, gasUse, heatUse, waterUse;
-var elecEUI, gasEUI, heatEUI, waterEUI;
-
 // need this frequently, strangely JS has no native function for this
 function capFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
@@ -104,20 +56,6 @@ function capFirst(str) {
 
 function uncapFirst(str) {
     return str.charAt(0).toLowerCase() + str.slice(1);
-};
-
-
-function addMasterListBenchmarks() {
-    var benchmarksCibse = benchmarksCibseFile;
-    for (m of masterList) {
-        if (!["Residential", "Split Use", "Non Res"].includes(m["usage"])) { continue; }
-        m["electricity"]["bm_good"] = benchmarksCibse[m["usage"]]["electricity"]["good"];
-        m["electricity"]["bm_typical"] = benchmarksCibse[m["usage"]]["electricity"]["typical"];
-        m["gas"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
-        m["gas"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
-        m["heat"]["bm_good"] = benchmarksCibse[m["usage"]]["fossil"]["good"];
-        m["heat"]["bm_typical"] = benchmarksCibse[m["usage"]]["fossil"]["typical"];
-    }
 };
 
 // function to call api for json.

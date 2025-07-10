@@ -286,7 +286,6 @@ function getNewSummary() {
 
     callApiJSON( uri ).then((data) => {
         masterList = data;
-        addMasterListBenchmarks();
         originalMasterList = masterList;
         getSliderRanges();
         document.getElementById("loading-text").classList.add("hidden");
