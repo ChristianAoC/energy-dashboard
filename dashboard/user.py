@@ -96,7 +96,7 @@ def update_user(u, login=False):
                 break
 
         if not found:
-            u["logincount"] = 0
+            u["logincount"] = 1
             users.append(u)
 
         # Write to temp file and atomically replace
