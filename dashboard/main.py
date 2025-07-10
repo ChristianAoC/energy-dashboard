@@ -28,7 +28,7 @@ def index():
 
 @dashboard_bp.route("/favicon.ico")
 def getFavicon():
-    return send_file('dashboard/static/gfx/favicon.ico')
+    return send_file('static/gfx/favicon.ico')
 
 ###########################################################
 ###                  user management                    ###
