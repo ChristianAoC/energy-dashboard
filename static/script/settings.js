@@ -2,7 +2,7 @@ document.addEventListener("click", function (e) {
     if (e.target.matches(".btn-delete")) {
         const email = e.target.dataset.email;
         if (confirm(`Delete user ${email}?`)) {
-            fetch(`/admin-delete-user`, {
+            fetch(`/admin/delete_user`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -10,7 +10,6 @@ document.addEventListener("click", function (e) {
                 body: JSON.stringify({ email })
             }).then(res => {
                 if (res.ok) {
-                    alert("User deleted.");
                     location.reload();
                 }
             });
@@ -23,7 +22,7 @@ document.addEventListener("change", function (e) {
         const newLevel = parseInt(e.target.value);
         const email = e.target.dataset.email;
 
-        fetch('/admin-set-user-level', {
+        fetch('/admin/set_user_level', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, level: newLevel })
@@ -33,7 +32,6 @@ document.addEventListener("change", function (e) {
             return res.json();
         })
         .then(data => {
-            console.log("Level updated:", data);
         })
         .catch(err => {
             alert("Error updating user level");
@@ -43,7 +41,7 @@ document.addEventListener("change", function (e) {
 });
 
 $(document).ready( function () {
-    fetch('/admin/users')
+    fetch('/admin/list_users')
         .then(response => {
             if (!response.ok) throw new Error("Not authorized");
             return response.json();
@@ -83,7 +81,7 @@ $(document).ready( function () {
                     {
                         data: null, title: "Actions",
                         render: function (u, type, row) {
-                            return `<button class="btn-delete" data-email="${u.email}">Delete (TBD)</button>`;
+                            return `<button class="btn-delete" data-email="${u.email}">Delete</button>`;
                         }
                     }                ]
             })

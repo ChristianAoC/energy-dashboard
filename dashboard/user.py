@@ -88,10 +88,10 @@ def update_user(u, login=False):
         for i, user in enumerate(users):
             if user.get("email") == u["email"]:
                 if login:
-                    user["logincount"] = user.get("logincount", 0) + 1
-                for key in u:
-                    user[key] = u[key]
-                users[i] = user
+                    u["logincount"] = user.get("logincount", 0) + 1
+                else:
+                    u["logincount"] = u.get("logincount", user.get("logincount", 0))
+                users[i] = u
                 found = True
                 break
 
@@ -208,11 +208,15 @@ def check_code(email, code):
                         u["sessions"] = []
                     u["sessions"].append(session)
                     update_user(u, True)
+                    print("success")
+                    print(u)
                     return (True, sessionid)
                 else:
                     u.pop("code")
                     u.pop("codetime")
                     update_user(u)
+                    print("success2")
+                    print(u)
                     return (False, "Code outdated. Generate a new login token!")
             else:
                 u.pop("code")
@@ -224,7 +228,41 @@ def check_code(email, code):
         return (False, "No code found. Generate a new login token.")
 
 def delete_user(email):
-    tbd = True
+    if not email:
+        return False
+
+    lock_file = users_file + ".lock"
+
+    if not os.path.isfile(users_file):
+        return False
+
+    if not acquire_lock(lock_file, timeout=5):
+        print("Could not acquire lock.")
+        return False
+
+    try:
+        with open(users_file, "r", encoding="utf-8", errors="replace") as f:
+            users = json.load(f)
+
+        new_users = [user for user in users if user.get("email") != email]
+
+        if len(new_users) == len(users):
+            # No user found to delete
+            return False
+
+        tempfile = os.path.join(os.path.dirname(users_file), str(uuid.uuid4()))
+        with open(tempfile, "w", encoding="utf-8", errors="replace") as tmp:
+            json.dump(new_users, tmp, indent=4)
+        os.replace(tempfile, users_file)
+
+        return True
+
+    except Exception as e:
+        print("Error deleting user:", e)
+        return False
+
+    finally:
+        release_lock(lock_file)
 
 def list_users():
     try:
