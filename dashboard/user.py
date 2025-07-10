@@ -5,9 +5,29 @@ import re
 import random
 import json
 import uuid
+import time
 from datetime import datetime
 
 users_file = "data/users.json"
+
+# lock file functions to make sure no concurrent changes lead to data loss
+def acquire_lock(lockfile, timeout=5):
+    start = time.time()
+    while True:
+        try:
+            fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            os.close(fd)
+            return True
+        except FileExistsError:
+            if time.time() - start > timeout:
+                return False
+            time.sleep(0.01)  # wait and retry
+
+def release_lock(lockfile):
+    try:
+        os.remove(lockfile)
+    except FileNotFoundError:
+        pass
 
 # get current user from JSON DB
 def get_user(email = None):
@@ -44,47 +64,55 @@ def get_user_level(email, sessionid):
     return 0
 
 # save/update user entry in DB
-# login - update the login counter
+# login - update the login counter (when admin changes settings, this is false)
 def update_user(u, login=False):
-    # minimum requirement - user element has an email, else throw
     if "email" not in u:
         return False
 
+    lock_file = users_file + ".lock"
+
+    # Ensure users file exists
     if not os.path.isfile(users_file):
         with open(users_file, "w", encoding="utf-8") as f:
             f.write("[]")
 
+    if not acquire_lock(lock_file, timeout=5):
+        print("Could not acquire lock.")
+        return False
+
     try:
-        with open(users_file, "r", encoding="utf-8", errors="replace") as f:
+        with open(users_file, "r", encoding="utf-8") as f:
             users = json.load(f)
+
         found = False
         for i, user in enumerate(users):
-            if "email" in u and user["email"] == u["email"]:
-                found = True
+            if user.get("email") == u["email"]:
+                if login:
+                    user["logincount"] = user.get("logincount", 0) + 1
                 for key in u:
                     user[key] = u[key]
-                if login == True:
-                    u["logincount"] = u["logincount"] + 1
-                users[i] = u
+                users[i] = user
+                found = True
+                break
 
-        # user not found, add new and return
         if not found:
             u["logincount"] = 0
             users.append(u)
-    except:
+
+        # Write to temp file and atomically replace
+        tempfile = os.path.join(os.path.dirname(users_file), str(uuid.uuid4()))
+        with open(tempfile, "w", encoding="utf-8") as tmp:
+            json.dump(users, tmp, indent=4)
+        os.replace(tempfile, users_file)
+
+        return users
+
+    except Exception as e:
+        print("Error updating user:", e)
         return False
 
-    tempfile = os.path.join(os.path.dirname(users_file), str(uuid.uuid4()))
-    try:
-        with open(tempfile, 'w') as outfile:
-            json.dump(users, outfile, indent=4)
-        try:
-            os.replace(tempfile, users_file)
-        except Exception as e:
-            return False
-    except Exception as e:
-        return False
-    return users
+    finally:
+        release_lock(lock_file)
 
 # login request or add user to JSON if not exist already
 def login_request(email):
