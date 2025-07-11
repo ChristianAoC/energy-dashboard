@@ -6,8 +6,6 @@ getCommonData().then((common) => {
     window.devices = common.devices;
     window.masterlist = common.masterlist;
     window.summary = common.summary;
-    console.log(summary);
-    console.log(masterlist);
 });
 
 $(document).ready( function () {
