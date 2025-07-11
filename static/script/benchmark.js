@@ -61,8 +61,8 @@ function redrawGraph() {
     // add x-axis title
     if (document.getElementById("toggleGraph").checked) {
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
-            " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) +
-            " [" + unitsEUIPlain[activeTab] + "], scaled up to annual based on " +
+            " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) + " for " +
+            //" [" + unitsEUIPlain[activeTab] + "], scaled up to annual based on " +
             dateDiff + " days (starting " +
             document.getElementById("sb-start-date").value + ")";
 
@@ -111,8 +111,8 @@ function redrawGraph() {
         pLayoutGraph["shapes"] = benchmarkLines;
     } else {
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
-            " " + uncapFirst($('label[for="toggleGraph"]')[0].firstElementChild.innerHTML) +
-            " [" + unitsConsPlain[activeTab] + "], over " +
+            " " + uncapFirst($('label[for="toggleGraph"]')[0].firstElementChild.innerHTML) + " for " +
+            //" [" + unitsConsPlain[activeTab] + "], over " +
             dateDiff + " days (starting " +
             document.getElementById("sb-start-date").value + ")";
     }
@@ -278,7 +278,6 @@ function getNewSummary() {
 
     callApiJSON( uri ).then((data) => {
         masterList = data;
-        addMasterListBenchmarks();
         originalMasterList = masterList;
         getSliderRanges();
         document.getElementById("loading-text").classList.add("hidden");

@@ -5,6 +5,7 @@ let contextMarkers = [];
 getCommonData().then((common) => {
     window.devices = common.devices;
     window.masterlist = common.masterlist;
+    window.summary = common.summary;
 });
 
 $(document).ready( function () {
@@ -286,7 +287,6 @@ function getNewSummary() {
 
     callApiJSON( uri ).then((data) => {
         masterList = data;
-        addMasterListBenchmarks();
         originalMasterList = masterList;
         getSliderRanges();
         document.getElementById("loading-text").classList.add("hidden");

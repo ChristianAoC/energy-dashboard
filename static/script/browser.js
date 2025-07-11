@@ -1,22 +1,4 @@
-//let hierarchy = ""; // TODO api call here once it's done
-let hierarchy = {
-	"MC210":{
-		"electricity":[
-			"MC210_L01_M11_R2052",
-			"MC210_L01_M12_R0"
-		],
-		"gas":[],
-		"heat":[
-			"MC210-L02/M14R45099"
-		],
-		"water":[
-			"MC210_L01_M10_R2048",
-			"MC210-L02/M27R45099",
-			"MC210-L01/M16R999"
-		]
-	},
-	"AP001": []
-};
+let hierarchy = "";
 
 let pConfigPopup = {
     displayModeBar: false
@@ -154,6 +136,8 @@ function buildingSelected() {
 	let selBuilding = document.getElementById("select-building").value;
 	let selectType = document.getElementById("select-type");
 	selectType.innerHTML = "<option value=''>--Select--</option>";
+	let selectMeter = document.getElementById("select-meter");
+	selectMeter.innerHTML = "<option value=''>--Select--</option>";
 
 	if (selBuilding !== "") {
 		selectPopulator("select-type", Object.keys(hierarchy[selBuilding]));
@@ -191,7 +175,7 @@ function meterSelected() {
 	redrawPlot();
 };
 
-$(document).ready( function () {
+$(document).ready(async function () {
 	commentParent = "device-data";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
@@ -202,7 +186,12 @@ $(document).ready( function () {
     sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
     document.getElementById('sb-end-date').value = sideBarEndDate;
 
-	selectPopulator("select-building", Object.keys(hierarchy));
+    hierarchy = await callApiJSON('/api/meter_hierarchy');
+    if (hierarchy) {
+        selectPopulator("select-building", Object.keys(hierarchy));
+    } else {
+        console.error("Failed to load hierarchy data");
+    }
 
 	// TODO implement a cumultorate filter
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);
