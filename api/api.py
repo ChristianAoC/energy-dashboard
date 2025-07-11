@@ -1326,3 +1326,94 @@ def hierarchy():
         data[b["building_code"]] = building_response
 
     return make_response(jsonify(data), 200)
+
+## Parameters:
+## to_time - options final observation time in YYYY-MM-DD format (meter health up to 23:59 of this date) - default current date
+## from_time - options initial date YYYY-MM-DD format (meter health from 00:00 of this date) - default 7 days before to_time
+##
+## [
+##     {
+##         building_id:[
+##             0: [meter_clean_id],
+##             1: [meter_clean_id],
+##             2: [meter_clean_id],
+##             3: [meter_clean_id],
+##             4: [meter_clean_id],
+##             5: [meter_clean_id]
+##         ],
+##         ...
+##     }
+## ]
+##
+## Example:
+## http://127.0.0.1:5000/api/health_score
+@api_bp.route('/health_score')
+def health_score():
+    if not offlineMode:
+        to_time = request.args.get("to_time")
+        if to_time is not None:
+            to_time = dt.datetime.combine(dt.datetime.strptime(to_time, "%Y-%m-%d"), dt.datetime.max.time())
+        else:
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
+
+        from_time = request.args.get("from_time")
+        if from_time is not None:
+            from_time = dt.datetime.combine(dt.datetime.strptime(from_time,"%Y-%m-%d"), dt.datetime.min.time())
+        else:
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
+    else:
+        with open(anon_data_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
+
+        to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+
+        if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
+            from_time = to_time - dt.timedelta(days=7, seconds=1)
+
+    days = (to_time.date() - from_time.date()).days
+
+    data = {}
+    for b in BUILDINGS():
+        building_response = {
+            0: [],
+            1: [],
+            2: [],
+            3: [],
+            4: [],
+            5: []
+        }
+
+        for m in b.pop("meters", []):
+            clean_meter_name = clean_file_name(m['meter_id_clean'])
+            meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")
+
+            if not os.path.exists(meter_health_score_file):
+                continue
+
+            with open(meter_health_score_file, "r") as f:
+                meter_health_scores = json.load(f)
+
+            health_scores = []
+
+            for offset in range(days):
+                date_entry = (from_time + dt.timedelta(days=offset)).isoformat().split("T")[0]
+                if date_entry not in meter_health_scores:
+                    continue
+                health_scores.append(meter_health_scores[date_entry])
+
+            total_score = 0
+            for score in health_scores:
+                total_score += score
+
+            average_score = total_score//len(health_scores)
+
+            if average_score > 5:
+                average_score = 5
+            elif average_score < 0:
+                average_score = 0
+
+            building_response[average_score].append(clean_meter_name)
+
+        data[b["building_code"]] = building_response
+    return make_response(jsonify(data), 200)
