@@ -1,5 +1,3 @@
-let healthcheckTable;
-
 let hctColumns = [
     {data: "meter_id_clean", title: "Meter ID", defaultContent: '', filterType: 'text', visible: true },
     {data: "meter_type", title: "Type", defaultContent: '', filterType: 'multi-select', visible: true },
@@ -77,13 +75,88 @@ let hctColumns = [
     {data: null, title: "Comments", defaultContent: '', filterType: 'text', visible: true }
 ]
 
+function setupFilters(api) {
+    const headerRow = $('#healthcheckTable thead tr').first();
+    $('#healthcheckTable thead tr.filters').remove(); // remove old filters
+    const filterRow = $('<tr class="filters"></tr>');
+
+    // Append one <th> per visible column
+    api.columns().every(function () {
+        if (this.visible()) {
+            filterRow.append('<th></th>');
+        }
+    });
+    headerRow.after(filterRow);
+
+    // Now populate filters
+    let visibleIndex = 0;
+    api.columns().every(function () {
+        const column = this;
+        const colIdx = column.index();
+        const config = hctColumns[colIdx];
+        const filterType = config.filterType || 'text';
+        const title = $('<div>').html(config.title).text(); // strip HTML
+
+        if (!column.visible()) return;
+
+        const cell = $('.filters th').eq(visibleIndex);
+
+        if (filterType === 'multi-select') {
+            let uniqueVals = [];
+
+            column.data().each(function (d) {
+                const val = (d || "").toString().trim();
+                if (val && !uniqueVals.includes(val)) {
+                    uniqueVals.push(val);
+                }
+            });
+
+            const select = $('<select multiple class="dt-filter"></select>');
+            uniqueVals.sort().forEach(opt => {
+                select.append(`<option value="${opt}">${opt}</option>`);
+            });
+
+            $(cell).html(select);
+            select.select2({ placeholder: `Select ${title}`, width: '100%' });
+
+            select.on('change', function () {
+                const selected = $(this).val();
+                if (selected && selected.length > 0) {
+                    column.search(selected.join('|'), true, false).draw();
+                } else {
+                    column.search('').draw();
+                }
+            });
+        }
+
+        else if (filterType === 'text') {
+            $(cell).html(`<input type="text" class="dt-filter" placeholder="Filter ${title}" style="width: 100%;" />`);
+            $('input', cell).on('keyup change clear', function () {
+                if (column.search() !== this.value) {
+                    column.search(this.value).draw();
+                }
+            });
+        }
+
+        else {
+            $(cell).empty();
+        }
+
+        visibleIndex++;
+    });
+}
+
 $(document).ready( function () {
     document.getElementById("comment-bubble").classList.remove("hidden");
     commentParent = "healthcheckTable";
 
-    $('#healthcheckTable thead tr').clone(true).addClass('filters').appendTo('#healthcheckTable thead');
+    let filterRow = $('<tr class="filters"></tr>');
+    hctColumns.forEach(() => {
+        filterRow.append('<th></th>');
+    });
+    $('#healthcheckTable thead').append(filterRow);
 
-    healthcheckTable = $('#healthcheckTable').DataTable({
+    let healthcheckTable = $('#healthcheckTable').DataTable({
         data: hc_latest,
 		pageLength: 25,
         lengthMenu: [
@@ -122,72 +195,20 @@ $(document).ready( function () {
         initComplete: function () {
             const api = this.api();
 
-            api.columns().every(function (colIdx) {
-                const column = this;
-                const cell = $('.filters th').eq(colIdx);
-                const title = cell.text();
-                const filterType = hctColumns[colIdx].filterType || 'text';
-                
-                if (filterType === 'multi-select') {
-                    let uniqueVals = [];
+            setupFilters(api); // <- run once on init
 
-                    column.data().each(function (d) {
-                        const val = (d || "").toString().trim().toLowerCase(); // normalize to lowercase
-                        if (val && !uniqueVals.includes(val)) {
-                            uniqueVals.push(val);
-                        }
-                    });
-
-                    // Optionally title-case for display:
-                    const titleCase = str => str.charAt(0).toUpperCase() + str.slice(1);
-                    uniqueVals = uniqueVals.map(v => ({ raw: v, label: titleCase(v) }));
-
-                    const select = $('<select multiple class="dt-filter"></select>');
-                    uniqueVals.forEach(opt => {
-                        select.append(`<option value="${opt.raw}">${opt.label}</option>`);
-                    });
-
-                    $(cell).html(select);
-                    const select2 = select.select2({ placeholder: `Select ${title}` });
-
-                    select.on('change', function () {
-                        const selected = $(this).val();
-                        if (selected && selected.length > 0) {
-                            column.search(selected.join('|'), true, false).draw(); // regex OR match
-                        } else {
-                            column.search('').draw();
-                        }
-                    });
-                }
-
-                else if (filterType === 'text') {
-                    $(cell).html(`<input type="text" class="dt-filter" placeholder="Filter ${title}" style="width: 100%;" />`);
-                }
-
-                else if (filterType === 'none') {
-                    $(cell).html('');
-                }
-
-                // For single-value input/select filters
-                if (filterType !== 'multi-select') {
-                    $('input, select', cell).on('keyup change clear', function () {
-                        const val = this.value;
-                        if (api.column(colIdx).search() !== val) {
-                            api.column(colIdx).search(val).draw();
-                        }
-                    });
-                }
+            // Rebuild filters every time visibility changes
+            api.on('column-visibility', function () {
+                setupFilters(api);
             });
-                    
-            // Initialize buttons and append them to a custom container
+
+            // Export buttons
             new $.fn.dataTable.Buttons(api, {
                 buttons: ['copy', 'csv', 'excel', 'pdf', 'print']
             });
 
-            // Append to a custom div after the table
             $(api.table().container())
                 .after('<div id="export-buttons" style="margin-top: 1em;"></div>');
-
             $(api.buttons().container()).appendTo('#export-buttons');
         }
     });
@@ -198,7 +219,8 @@ $(document).ready( function () {
     
             let columnIdx = e.target.getAttribute('data-column');
             let column = healthcheckTable.column(columnIdx);
-            column.visible(!column.visible());
+            let isVisible = !column.visible();
+            column.visible(isVisible);
 
             // Also toggle the visibility of the filter cell in the filters row
             let filterCell = document.querySelector(`#healthcheckTable thead tr.filters th:nth-child(${parseInt(columnIdx)+1})`);
