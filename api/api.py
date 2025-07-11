@@ -9,6 +9,8 @@ import threading
 import math
 import dashboard.user as user
 from functools import wraps
+import models
+from database import db
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
@@ -1417,3 +1419,24 @@ def health_score():
 
         data[b["building_code"]] = building_response
     return make_response(jsonify(data), 200)
+
+@api_bp.route('/test_create_meter_record')
+def create_meter_record_test():
+    with open("data/internal_meta/meters_all.json") as f:
+        meter = json.load(f)[0]
+
+    new_meter = models.Meter(
+        meter["meter_id_clean"],
+        meter["raw_uuid"],
+        meter["meter_location"],
+        meter["building_level_meter"],
+        meter["meter_type"],
+        meter["class"],
+        meter["units_after_conversion"],
+        meter["resolution"],
+        meter["unit_conversion_factor"],
+        meter["tenant"])
+    db.session.add(new_meter)
+    db.session.commit()
+
+    return make_response("OK", 200)
