@@ -1420,23 +1420,31 @@ def health_score():
         data[b["building_code"]] = building_response
     return make_response(jsonify(data), 200)
 
-@api_bp.route('/test_create_meter_record')
-def create_meter_record_test():
-    with open("data/internal_meta/meters_all.json") as f:
-        meter = json.load(f)[0]
+@api_bp.route('/populate_database')
+def populate_database():
+    for meter in METERS():
+        # Some entries in meters_all.json are broken - skip them
+        if "Column10" in meter.keys():
+            continue
 
-    new_meter = models.Meter(
-        meter["meter_id_clean"],
-        meter["raw_uuid"],
-        meter["meter_location"],
-        meter["building_level_meter"],
-        meter["meter_type"],
-        meter["class"],
-        meter["units_after_conversion"],
-        meter["resolution"],
-        meter["unit_conversion_factor"],
-        meter["tenant"])
-    db.session.add(new_meter)
-    db.session.commit()
+        # We don't currently handle Oil meters
+        if meter["meter_type"] == "Oil":
+            continue
+
+        new_meter = models.Meter(
+            meter["meter_id_clean"],
+            meter["raw_uuid"],
+            meter["meter_location"],
+            meter["building_level_meter"],
+            meter["meter_type"],
+            meter["class"],
+            meter["units_after_conversion"],
+            meter["resolution"],
+            meter["unit_conversion_factor"],
+            meter.get("tenant", False) # Offline data doesn't specify tenant as those meters have been removed
+        )
+
+        db.session.add(new_meter)
+        db.session.commit()
 
     return make_response("OK", 200)
