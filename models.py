@@ -17,8 +17,9 @@ class Meter(db.Model):
     resolution = db.Column(db.Float) # Some of the resolutions in the dataset are null (and existing code handles these cases)
     scaling_factor = db.Column(db.Float, nullable=False, default=1)
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
+    building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
 
-    def __init__(self, meter_id_clean: str, raw_uuid: str, meter_name: str, building_level_meter: bool, utility_type: str, reading_type: str, units: str, resolution: float, unit_conversion_factor: float, tenant: bool):
+    def __init__(self, meter_id_clean: str, raw_uuid: str, meter_name: str, building_level_meter: bool, utility_type: str, reading_type: str, units: str, resolution: float, unit_conversion_factor: float, tenant: bool, building: str):
         self.id = meter_id_clean
         self.SEED_uuid = raw_uuid
         self.name = meter_name
@@ -35,10 +36,25 @@ class Meter(db.Model):
         self.resolution = resolution
         self.scaling_factor = unit_conversion_factor
         self.invoiced = tenant
+        self.building_id = building
+
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'SEED_uuid': self.SEED_uuid,
+            'name': self.name,
+            'main': self.main,
+            'utility_type': self.utility_type,
+            'reading_type': self.reading_type,
+            'units': self.units,
+            'resolution': self.resolution,
+            'scaling_factor': self.scaling_factor,
+            'invoiced': self.invoiced,
+            'building_id': self.building_id
+        }
 
 
 occupancy_type_check_constraint = "occupancy_type IN ('sport', 'lecture theatre', 'library', 'catering', 'administration', 'academic bio', 'academic arts', 'academic physics', 'academic engineering', 'academic other', 'Residential', 'Non Res', 'Split Use')"
-
 class Building(db.Model):
     id = db.Column(db.String(20), primary_key=True)
     name = db.Column(db.String(75), nullable=False, unique=True)
@@ -55,11 +71,11 @@ class Building(db.Model):
             occupancy_type = "academic other"
         self.occupancy_type = occupancy_type
 
-class BuildingMeterRelationship(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
-    meter_id = db.Column(db.String, db.ForeignKey("meter.id"), nullable=False)
-
-    def __init__(self, building_id: str, meter_id: str):
-        self.building_id = building_id
-        self.meter_id = meter_id
+    def to_dict(self):
+        return {
+            'id': self.id,
+            'name': self.name,
+            'floor_area': self.floor_area,
+            'year_built': self.year_built,
+            'occupancy_type': self.occupancy_type,
+        }
