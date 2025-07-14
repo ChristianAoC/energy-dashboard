@@ -67,7 +67,8 @@ class Building(db.Model):
         self.name = building_name
         self.floor_area = floor_area
         self.year_built = year_built
-        if occupancy_type == "Unknown":
+
+        if occupancy_type == "Unknown" or occupancy_type is None:
             occupancy_type = "academic other"
         self.occupancy_type = occupancy_type
 
