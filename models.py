@@ -3,6 +3,7 @@ from sqlalchemy import CheckConstraint
 
 
 class Meter(db.Model):
+    # ID is the meter_clean_id from the input data
     id = db.Column(db.String(30), primary_key=True)
     SEED_uuid = db.Column(db.String(36), unique=True) # Allowed to be null for offline data
 
