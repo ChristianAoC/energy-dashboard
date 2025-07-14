@@ -1447,4 +1447,24 @@ def populate_database():
         db.session.add(new_meter)
         db.session.commit()
 
+    for building in BUILDINGS():
+        new_building = models.Building(
+            building["building_code"],
+            building["building_name"],
+            building["floor_area"],
+            building["year_built"],
+            building["usage"]
+        )
+
+        db.session.add(new_building)
+        db.session.commit()
+
+        for meter in building["meters"]:
+            new_relation = models.BuildingMeterRelationship(
+                meter["meter_id_clean"],
+                building["building_code"]
+            )
+
+            db.session.add(new_relation)
+            db.session.commit()
     return make_response("OK", 200)
