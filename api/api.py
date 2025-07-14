@@ -1326,6 +1326,18 @@ def health_score():
 
 @api_bp.route('/populate_database')
 def populate_database():
+    for building in BUILDINGS():
+        new_building = models.Building(
+            building["building_code"],
+            building["building_name"],
+            building["floor_area"],
+            building["year_built"],
+            building["usage"]
+        )
+
+        db.session.add(new_building)
+        db.session.commit()
+
     for meter in METERS():
         # Some entries in meters_all.json are broken - skip them
         if "Column10" in meter.keys():
@@ -1345,30 +1357,11 @@ def populate_database():
             meter["units_after_conversion"],
             meter["resolution"],
             meter["unit_conversion_factor"],
-            meter.get("tenant", False) # Offline data doesn't specify tenant as those meters have been removed
+            meter.get("tenant", False), # Offline data doesn't specify tenant as those meters have been removed
+            meter.get("building", None)
         )
 
         db.session.add(new_meter)
         db.session.commit()
 
-    for building in BUILDINGS():
-        new_building = models.Building(
-            building["building_code"],
-            building["building_name"],
-            building["floor_area"],
-            building["year_built"],
-            building["usage"]
-        )
-
-        db.session.add(new_building)
-        db.session.commit()
-
-        for meter in building["meters"]:
-            new_relation = models.BuildingMeterRelationship(
-                meter["meter_id_clean"],
-                building["building_code"]
-            )
-
-            db.session.add(new_relation)
-            db.session.commit()
     return make_response("OK", 200)
