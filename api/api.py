@@ -284,7 +284,7 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: dict = {}):
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []):
     if offlineMode:
         # Offline data is recorded at 1 hour intervals
         xcount = int((to_time - from_time).total_seconds()//3600) - 1
@@ -292,7 +292,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         # Live data is recorded at 10 minute intervals
         xcount = int((to_time - from_time).total_seconds()//600) - 1
 
-    out = {}
+    # Bring SQL update output back in line with the original output (instead of just returning calculated values
+    out = m.to_dict()
 
     # time series for this meter
     if not offlineMode:
@@ -306,13 +307,16 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
             m_obs.drop(m_obs[m_obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
             m_obs.drop(m_obs[m_obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+        except FileNotFoundError as e:
+            print(f"Offline data: {e.filename} does not exist")
+            return None
         except:
             out["HC_count"] = 0
             out["HC_count_perc"] = "0%"
             out["HC_score"] = 0
 
             # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs[m.id] = out
+            all_outputs.append(out)
             return out
 
     # count values. if no values, stop
@@ -322,7 +326,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         out["HC_score"] = 0
 
         # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-        all_outputs[m.id] = out
+        all_outputs.append(out)
         return out
 
     out["HC_count_perc"] = round(100 * out["HC_count"] / xcount, 2)
@@ -344,7 +348,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     diffcount = m_obs["diffs"].count().sum()
     if diffcount == 0:
         # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-        all_outputs[m.id] = out
+        all_outputs.append(out)
         return out
 
     # count positive, negative, and no increase
@@ -421,14 +425,14 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     out["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
     if ignz_count == 0:
         # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-        all_outputs[m.id] = out
+        all_outputs.append(out)
         return out
     out["HC_outliers_ignz_perc"] = round(100 * out["HC_outliers_ignz"] / ignz_count, 2)
     if out["HC_outliers_ignz_perc"] > 100:
         out["HC_outliers_ignz_perc"] = 100
     out["HC_outliers_ignz_perc"] = str(out["HC_outliers_ignz_perc"]) + "%"
-    
-    all_outputs[m.id] = out
+
+    all_outputs.append(out)
     return out
 
 ## Creates a list with the information required to fill in the missing cache entries for the given cache data
@@ -1030,16 +1034,16 @@ def last_meter_obs():
 
     return make_response(jsonify(out), 200)
 
-def get_health(args, returning=False):
-    #if offlineMode == True:
-    #    return "Offline mode, can't get meters"
-        #return make_response("Offline mode, can't get meters", 500)
+def get_health(args, returning=False, app=None):
+    # Because this function can be run in a separate thread, we need to
+    if app is not None:
+        app.app_context().push()
 
     try:
         uuids = args["uuid"] # this is url decoded
         uuids = uuids.split(";")
     except:
-        uuids = [x.id for x in models.Meter.query.with_entities(models.Meter.id).all()]
+        uuids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
 
     try:
         to_time = args["to_time"] # this is url decoded
@@ -1065,23 +1069,18 @@ def get_health(args, returning=False):
         fmt = "json"
 
     ## load and trim meters
-    meters = models.Meter.query.filter(models.Meter.id.in_(uuids)).all()
+    meters = db.session.execute(db.select(models.Meter).where(
+            models.Meter.id.in_(uuids),
+            models.Meter.id is not None
+        )
+    ).scalars().all()
 
     start_time = time.time()
 
     threads = []
-    out = {}
+    out = []
     for m in meters:
-        thread_name = f"HC_{m.id}"
-        if thread_name == "HC_":
-            # If the meter doesn't have a meter_id_clean attribute, skip it
-            # If we don't, it will only get skipped later in the code - may as well do it now!
-            m["HC_count"] = 0
-            m["HC_count_perc"] = "0%"
-            m["HC_score"] = 0
-            continue
-
-        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=thread_name, daemon=True))
+        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
         threads[-1].start()
 
     # Wait for all threads to complete
@@ -1089,13 +1088,13 @@ def get_health(args, returning=False):
         t.join()
 
     proc_time = (time.time() - start_time)
-    print("--- Health check took %s seconds ---" % proc_time)
+    # print("--- Health check took %s seconds ---" % proc_time)
 
     # save cache, but only if it's a "default" query
-    if not bool(list(set(args) & set(["date_range", "from_time", "to_time", "uuid"]))):
+    if set(args).isdisjoint({"date_range", "from_time", "to_time", "uuid"}):
         try:
             with open(hc_latest_file, "w") as f:
-                json.dump(out.values(), f)
+                json.dump(out, f)
             try:
                 hc_meta = {
                     "filename": os.path.basename(hc_latest_file),
@@ -1112,6 +1111,7 @@ def get_health(args, returning=False):
                 print("Error trying to save metadata for latest HC cache")
         except:
             print("Error trying to save current health check in cache")
+
     if returning:
         return out
 
@@ -1153,7 +1153,7 @@ def meter_health_internal(args):
                 updateOngoing = True
         if not updateOngoing:
             # TODO: at the moment can't build new HC from offline (would need to be done in query_pandas)!
-            thread = threading.Thread(target=get_health, args=(args,), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(args,False,current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
         if hc_cache and len(hc_cache) > 2:
             return hc_cache
