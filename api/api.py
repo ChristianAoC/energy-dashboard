@@ -140,7 +140,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 
     obs = []
 
-    if not offlineMode and not anonMode:
+    if not offlineMode:
         if m.SEED_uuid is None: # can't get data
             return out
 
@@ -162,14 +162,9 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 
     else:
         try:
-            if anonMode:
-                f = open('data/anon/'+m.id+'.json',)
-                obs = json.load(f)
-                f.close()
-            if offlineMode:
-                f = open('data/offline/'+m.id+'.json',)
-                obs = json.load(f)
-                f.close()
+            f = open('data/offline/'+m.id+'.json',)
+            obs = json.load(f)
+            f.close()
 
             obs = pd.DataFrame.from_dict(obs)
             obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
@@ -250,17 +245,7 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
         return None
 
     # if offline, last obs is simply last line of file
-    if anonMode == True:
-        try:
-            f = open('date/sample/'+m.id+'.json',)
-        except:
-            return make_response("Anon mode and can't open/find a file for this UUID", 500)
-        obs = json.load(f)
-        f.close()
-        if len(obs) > 0:
-            return obs[-1]["time"]
-
-    if offlineMode == True:
+    if offlineMode:
         try:
             f = open('date/offline/'+m.id+'.json',)
         except:
@@ -314,9 +299,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         m_obs = query_pandas(m, from_time, to_time)
     else:
         try:
-            if offlineMode:
-                with open(f"data/offline/{m.id}.json", "r") as f:
-                    obs = json.load(f)
+            with open(f"data/offline/{m.id}.json", "r") as f:
+                obs = json.load(f)
 
             m_obs = pd.DataFrame.from_dict(obs)
             m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
