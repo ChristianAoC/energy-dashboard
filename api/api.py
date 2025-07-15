@@ -71,18 +71,18 @@ usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
 ## #################################################################
 ## constants - should not be changed later in code
 def METERS():
-    if anonMode == True:
+    if offlineMode:
         return json.load(open(meters_anon_file))
     return json.load(open(meters_file))
 
 def BUILDINGS():
-    if anonMode == True:
+    if offlineMode:
         return json.load(open(buildings_anon_file))
     return json.load(open(buildings_file))
 
 # offline file needed so the UI doesn't wait for the API call to compute sample usage
 def BUILDINGSWITHUSAGE():
-    if anonMode == True:
+    if offlineMode:
         return json.load(open(usage_anon_file))
     return json.load(open(buildings_usage_file))
 
@@ -1339,29 +1339,33 @@ def populate_database():
         db.session.commit()
 
     for meter in METERS():
-        # Some entries in meters_all.json are broken - skip them
-        if "Column10" in meter.keys():
-            continue
+        try:
+            # Some entries in meters_all.json are broken - skip them
+            if "Column10" in meter.keys():
+                continue
 
-        # We don't currently handle Oil meters
-        if meter["meter_type"] == "Oil":
-            continue
+            # We don't currently handle Oil meters
+            if meter["meter_type"] == "Oil":
+                continue
 
-        new_meter = models.Meter(
-            meter["meter_id_clean"],
-            meter["raw_uuid"],
-            meter["meter_location"],
-            meter["building_level_meter"],
-            meter["meter_type"],
-            meter["class"],
-            meter["units_after_conversion"],
-            meter["resolution"],
-            meter["unit_conversion_factor"],
-            meter.get("tenant", False), # Offline data doesn't specify tenant as those meters have been removed
-            meter.get("building", None)
-        )
+            new_meter = models.Meter(
+                meter["meter_id_clean"],
+                meter.get("raw_uuid", None), # If offline then there won't be a raw_uuid value - this should be handled elsewhere
+                meter["serving_revised"], # Switched to serving_revised from meter_location
+                meter["building_level_meter"],
+                meter["meter_type"],
+                meter["class"],
+                meter["units_after_conversion"],
+                meter["resolution"],
+                meter["unit_conversion_factor"],
+                meter.get("tenant", False), # Offline data doesn't specify tenant as those meters have been removed
+                meter.get("building", None) # Allow unassigned meters
+            )
 
-        db.session.add(new_meter)
-        db.session.commit()
+            db.session.add(new_meter)
+            db.session.commit()
+        except Exception as e:
+            print(e)
+            print(meter)
 
     return make_response("OK", 200)
