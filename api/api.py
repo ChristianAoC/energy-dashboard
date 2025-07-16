@@ -1049,7 +1049,11 @@ def get_health(args, returning=False, app=None):
         to_time = args["to_time"] # this is url decoded
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
     except:
-        to_time = dt.datetime.now(dt.timezone.utc)
+        if offlineMode:
+            with open(anon_data_meta_file, "r") as f:
+                to_time = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        else:
+            to_time = dt.datetime.now(dt.timezone.utc)
 
     try:
         date_range = int(args["date_range"]) # this is url decoded
@@ -1060,7 +1064,13 @@ def get_health(args, returning=False, app=None):
         from_time = args["from_time"] # this is url decoded
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
     except:
-        from_time = to_time - dt.timedelta(days=date_range)
+        if offlineMode:
+            with open(anon_data_meta_file, "r") as f:
+                from_time = dt.datetime.strptime(json.load(f)['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+            date_range = min((to_time - from_time).days, date_range)
+            from_time = to_time - dt.timedelta(days=date_range)
+        else:
+            from_time = to_time - dt.timedelta(days=date_range)
 
     # TODO: Should this be implemented or removed?
     try:
@@ -1137,12 +1147,18 @@ def meter_health_internal(args):
 
     # if "default" call, check if there's a cache
     hc_cache = hc_latest()
+    # What does the 2nd statement do?
     if len(args) == 0 or list(args.keys()) == ["hidden"]:
         if hc_cache and len(hc_cache) > 2:
             try:
                 hc_meta = json.load(open(hc_meta_file))
-                cache_age = dt.datetime.now(dt.timezone.utc).timestamp() - hc_meta["to_time"]
-                if (cache_age < 3600 * hc_update_time and int(hc_meta["date_range"]) == 30 and int(hc_meta["meters"]) > 1000):
+                if offlineMode:
+                    with open(anon_data_meta_file, "r") as f:
+                        latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+                else:
+                    latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
+                cache_age = latest_data_date - hc_meta["to_time"]
+                if cache_age < 3600 * hc_update_time and int(hc_meta["date_range"]) == 30 and int(hc_meta["meters"]) > 1000:
                     return hc_cache
             except:
                 print("Error reading meta file, skipping cache")
