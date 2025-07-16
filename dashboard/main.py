@@ -178,7 +178,7 @@ def benchmark():
 @dashboard_bp.route("/browser.html")
 def browser():
     # data needed: health_score_summary, [usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    return render_template('browser.html', devices = api_bp.devices(), masterlist = api_bp.usageoffline())
+    return render_template('browser.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline())
 
 @dashboard_bp.route("/health-check.html")
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
