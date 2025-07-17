@@ -11,7 +11,7 @@ from datetime import datetime
 users_file = "data/users.json"
 
 # lock file functions to make sure no concurrent changes lead to data loss
-def acquire_lock(lockfile, timeout=5):
+def acquire_lock(lockfile: str, timeout: int = 5) -> bool:
     start = time.time()
     while True:
         try:
@@ -23,32 +23,34 @@ def acquire_lock(lockfile, timeout=5):
                 return False
             time.sleep(0.01)  # wait and retry
 
-def release_lock(lockfile):
+def release_lock(lockfile: str) -> None:
     try:
         os.remove(lockfile)
     except FileNotFoundError:
         pass
 
 # get current user from JSON DB
-def get_user(email = None):
+def get_user(email: str|None = None) -> dict|None:
     if email == None:
         try:
             cookies = request.cookies
             email = cookies["Email"]
         except:
-            return False
+            return None
 
     if not os.path.isfile(users_file):
-        return False
+        return None
+    
     with open(users_file, "r", encoding="utf-8", errors="replace") as f:
         users = json.load(f)
+    
     for u in users:
         if "email" in u and u["email"] == email:
             return u
-    return False
+    return None
 
 # get user level - used to check access level
-def get_user_level(email, sessionid):
+def get_user_level(email: str, sessionid: str) -> int:
     if os.path.isfile(users_file):
         with open(users_file, "r", encoding="utf-8", errors="replace") as f:
             users = json.load(f)
@@ -65,7 +67,7 @@ def get_user_level(email, sessionid):
 
 # save/update user entry in DB
 # login - update the login counter (when admin changes settings, this is false)
-def update_user(u, login=False):
+def update_user(u: dict, login: bool = False) -> bool:
     if "email" not in u:
         return False
 
@@ -105,7 +107,7 @@ def update_user(u, login=False):
             json.dump(users, tmp, indent=4)
         os.replace(tempfile, users_file)
 
-        return users
+        return True
 
     except Exception as e:
         print("Error updating user:", e)
@@ -115,9 +117,10 @@ def update_user(u, login=False):
         release_lock(lock_file)
 
 # login request or add user to JSON if not exist already
-def login_request(email):
+def login_request(email: str) -> tuple:
     if len(email.split('@')) < 2:
-        return "Invalid email"
+        return ("Invalid email", 400)
+    
     if current_app.config["DEMO_EMAIL_DOMAINS"] != None:
         demo_domains = []
         raw_demo = current_app.config["DEMO_EMAIL_DOMAINS"]
@@ -136,24 +139,24 @@ def login_request(email):
             }
             added = update_user(u)
             if not added:
-                return "Could not generate demo user."
-            return [True, email, sessionID, "Demo user "+email.split('@')[0]+" created and logged in, refresh page!"]
+                return ("Could not generate demo user.", 500)
+            return ([True, email, sessionID, "Demo user "+email.split('@')[0]+" created and logged in, refresh page!"], 200)
 
     if not re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email):
-        return "Email entered doesn't seem to be a valid address!"
+        return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
     raw_required = current_app.config["REQUIRED_EMAIL_DOMAINS"]
     if raw_required:
         required_domains = [x.strip() for x in raw_required.split(",")]
     if len(required_domains) != 0 and email.split('@')[1] not in required_domains:
-        return "Email needs to have one of those domains: "+", ".join(required_domains)
+        return ("Email needs to have one of those domains: "+", ".join(required_domains), 400)
 
     u = get_user(email)
     code = random.randrange(100000,999999)
 
     # user not in DB, create new
-    if (u == False):
+    if (u is None):
         u = {
             "email": email,
             "level": current_app.config["DEFAULT_USER_LEVEL"]
@@ -166,68 +169,72 @@ def login_request(email):
     u["codetime"] = datetime.today().timestamp()
     added = update_user(u)
     if not added:
-        return "Could not generate a login token for this user."
-    else:
-        codeurl  = str(request.url_root)
-        codeurl += "verify_login?email=" + email
-        codeurl += "&code=" + str(code)
+        return ("Could not generate a login token for this user.", 500)
 
-        mailtext  = "You requested a login token for:\t\n\t\n"
-        mailtext += current_app.config["SITE_NAME"] + "\t\n\t\n"
-        mailtext += "Copy/paste the following URL into your browser:\t\n\t\n"
-        mailtext += codeurl + "\t\n\t\n"
-        mailtext += "This code is valid for one hour."
+    codeurl  = str(request.url_root)
+    codeurl += "verify_login?email=" + email
+    codeurl += "&code=" + str(code)
 
-        mailhtml = "<html><head></head><body>" + mailtext + "</body></html>"
-        mailhtml = mailhtml.replace("Copy/paste", "<a href='"+codeurl+"' target='_blank'>Click here</a> or copy/paste", )
-        mailhtml = mailhtml.replace("\n", "<br>", )
+    mailtext  = "You requested a login token for:\t\n\t\n"
+    mailtext += current_app.config["SITE_NAME"] + "\t\n\t\n"
+    mailtext += "Copy/paste the following URL into your browser:\t\n\t\n"
+    mailtext += codeurl + "\t\n\t\n"
+    mailtext += "This code is valid for one hour."
 
-        if current_app.config["SMTP_ENABLED"]:
-            mail.send_email(email, current_app.config["SITE_NAME"]+" Access Code", mailtext, mailhtml)
-            return "Login token generated, check your mail."
-        else:
-            print("Mail sending off until everything else works. Post this URL into the browser:")
-            print(codeurl)
-            return "Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails."
+    mailhtml = "<html><head></head><body>" + mailtext + "</body></html>"
+    mailhtml = mailhtml.replace("Copy/paste", "<a href='"+codeurl+"' target='_blank'>Click here</a> or copy/paste", )
+    mailhtml = mailhtml.replace("\n", "<br>", )
 
-def check_code(email, code):
+    if current_app.config["SMTP_ENABLED"]:
+        mail.send_email(email, current_app.config["SITE_NAME"]+" Access Code", mailtext, mailhtml)
+        return ("Login token generated, check your mail.", 200)
+
+    print("Mail sending off until everything else works. Post this URL into the browser:")
+    print(codeurl)
+    return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 503)
+
+def check_code(email: str, code: str) -> tuple:
     u = get_user(email)
-    if "code" in u:
-        if u["code"] == int(code):
-            if "codetime" in u:
-                if datetime.today().timestamp() - u["codetime"] < 3600:
-                    u.pop("code")
-                    u.pop("codetime")
-                    sessionid = str(uuid.uuid4())
-                    u["lastlogin"] = datetime.now().strftime("%Y-%m-%d")
-                    session = {
-                        "id": sessionid,
-                        "lastseen": datetime.now().strftime("%Y-%m-%d")
-                    }
-                    if "sessions" not in u:
-                        u["sessions"] = []
-                    u["sessions"].append(session)
-                    update_user(u, True)
-                    print("success")
-                    print(u)
-                    return (True, sessionid)
-                else:
-                    u.pop("code")
-                    u.pop("codetime")
-                    update_user(u)
-                    print("success2")
-                    print(u)
-                    return (False, "Code outdated. Generate a new login token!")
-            else:
-                u.pop("code")
-                update_user(u)
-                return (False, "Code found, but no timestamp. Generate a new login token.")
-        else:
-            return (False, "Wrong code. Did you click the right link?")
-    else:
+    
+    if u is None:
+        return (False, "User doesn't exist. Generate a new login token")
+    
+    if "code" not in u:
         return (False, "No code found. Generate a new login token.")
+    
+    if u["code"] != int(code):
+        return (False, "Wrong code. Did you click the right link?")
+    
+    if "codetime" not in u:
+        u.pop("code")
+        update_user(u)
+        return (False, "Code found, but no timestamp. Generate a new login token.")
+    
+    if datetime.today().timestamp() - u["codetime"] >= 3600:
+        u.pop("code")
+        u.pop("codetime")
+        update_user(u)
+        print("success2")
+        print(u)
+        return (False, "Code outdated. Generate a new login token!")
 
-def delete_user(email):
+    u.pop("code")
+    u.pop("codetime")
+    sessionid = str(uuid.uuid4())
+    u["lastlogin"] = datetime.now().strftime("%Y-%m-%d")
+    session = {
+        "id": sessionid,
+        "lastseen": datetime.now().strftime("%Y-%m-%d")
+    }
+    if "sessions" not in u:
+        u["sessions"] = []
+    u["sessions"].append(session)
+    update_user(u, True)
+    print("success")
+    print(u)
+    return (True, sessionid)
+
+def delete_user(email: str) -> bool:
     if not email:
         return False
 
@@ -264,10 +271,9 @@ def delete_user(email):
     finally:
         release_lock(lock_file)
 
-def list_users():
+def list_users() -> list:
     try:
         with open(users_file, "r", encoding="utf-8", errors="replace") as f:
             return json.load(f)
     except:
         return []
-
