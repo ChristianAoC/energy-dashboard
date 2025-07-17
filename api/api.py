@@ -11,6 +11,7 @@ import dashboard.user as user
 from functools import wraps
 import models
 from database import db
+from sqlalchemy import not_
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
@@ -41,10 +42,10 @@ buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWith
 if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
     offlineMode = True
 
-if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
-    os.mkdir(os.path.join(DATA_DIR, "health_check"))
-hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
-hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
+# if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
+#     os.mkdir(os.path.join(DATA_DIR, "health_check"))
+# hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
+# hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
 
 if not offlineMode:
     meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
@@ -284,7 +285,7 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []):
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []) -> dict|None:
     if offlineMode:
         # Offline data is recorded at 1 hour intervals
         xcount = int((to_time - from_time).total_seconds()//3600) - 1
@@ -292,7 +293,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         # Live data is recorded at 10 minute intervals
         xcount = int((to_time - from_time).total_seconds()//600) - 1
 
-    # Bring SQL update output back in line with the original output (instead of just returning calculated values
+    # Bring SQL update output back in line with the original output (instead of just returning calculated values)
     out = m.to_dict()
 
     # time series for this meter
@@ -473,7 +474,7 @@ def cache_items(days: int, existing_cache: dict, data_start_time: dt.datetime, d
 ## cache_file - The cache file to be updated
 ## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
 ## data_end_time - The latest date that there is data for (Current time if online)
-def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datetime, data_end_time: dt.datetime) -> bool:
+def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datetime|None, data_end_time: dt.datetime) -> bool:
     if not os.path.exists(cache_file):
         return False
 
@@ -532,8 +533,12 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 meter_health_scores = {}
 
         for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
-            score = process_meter_health(m, cache_item[1], cache_item[2])['HC_score']
-            meter_health_scores.update({cache_item[0].isoformat(): score})
+            score = process_meter_health(m, cache_item[1], cache_item[2])
+            if score is None:
+                # Something happended to the offline data since running cache_validity_checker, quit thread
+                print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                return
+            meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
 
         with open(meter_health_score_file, "w") as f:
             json.dump(meter_health_scores, f)
@@ -592,7 +597,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         data_end_time = dt.datetime.now(dt.timezone.utc)
 
     # Don't need to filter id by not null as id is primary key and therefore not null
-    meters = models.Meter.query.all()
+    meters = db.session.execute(db.select(models.Meter)).scalars().all()
 
     n = 20 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
@@ -684,7 +689,7 @@ def health():
 ## Helper function needed for accessing raw list of all meters in other blueprint
 @api_bp.route('/devices')
 def devices():
-    data = [meter.to_dict() for meter in models.Meter.query.all()]
+    data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
     return make_response(jsonify(data), 200)
 
 ## Helper function needed for accessing quick usage list so UI doesn't delay too much
@@ -696,20 +701,31 @@ def usageoffline():
 ## Return the latest health check table so we're not waiting for ages
 @api_bp.route('/hc_latest')
 def hc_latest():
-    try:
-        hc_cache = json.load(open(hc_latest_file))
-        return hc_cache
-    except:
-        return []
+    hc_cache = []
+    hc_data = db.session.execute(db.select(models.HealthCheck)).scalars().all()
+    for entry in hc_data:
+        hc_cache.append(entry.to_dict())
+
+    return hc_cache
+    # try:
+    #     hc_cache = json.load(open(hc_latest_file))
+    #     return hc_cache
+    # except:
+    #     return []
 
 ## Health check cache meta
 @api_bp.route('/hc_meta')
 def hc_meta():
-    try:
-        hc_meta = json.load(open(hc_meta_file))
-        return hc_meta
-    except:
+    hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+    if hc_meta is None:
         return {}
+
+    return hc_meta.to_dict()
+    # try:
+    #     hc_meta = json.load(open(hc_meta_file))
+    #     return hc_meta
+    # except:
+    #     return {}
 
 ## Create usage summary of meters
 ##
@@ -798,10 +814,13 @@ def summary():
         if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
             from_time = to_time - dt.timedelta(days=7, seconds=1)
 
-    buildings = models.Building.query.join(models.Meter).filter(
-        models.Meter.building_id.isnot(None)).filter(
-        models.Building.floor_area.isnot(None)).all()
-    
+    buildings = db.session.execute(
+        db.select(models.Building)
+        .join(models.Meter)
+        .where(not_(models.Meter.building_id.is_(None)))
+        .where(not_(models.Building.floor_area.is_(None)))
+    ).scalars().all()
+
     units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
 
     with open(benchmark_data_file, "r") as f:
@@ -811,7 +830,11 @@ def summary():
     for b in buildings:
         building_response = {}
 
-        meters = models.Meter.query.filter(models.Meter.building_id == b.id).filter(models.Meter.main).all()
+        meters = db.session.execute(
+            db.select(models.Meter)
+            .where(models.Meter.building_id == b.id)
+            .where(models.Meter.main)
+        ).scalars().all()
 
         for m in meters:
             meter_type = m.utility_type
@@ -897,13 +920,13 @@ def meter():
     except:
         lastobs = None
 
-    meters = models.Meter.query
+    statement = db.select(models.Meter)
     if planon is not None:
-        meters = meters.filter(models.Meter.building_id.in_(planon))
+        statement = statement.where(models.Meter.building_id.in_(planon))
     elif uuid is not None:
-        meters = meters.filter(models.Meter.id.in_(uuid))
-
-    meters = [meter.to_dict() for meter in meters.all()]
+        statement = statement.where(models.Meter.id.in_(uuid))
+    
+    meters = [meter.to_dict() for meter in db.session.execute(statement).scalars().all()]
 
     to_time = dt.datetime.now(dt.timezone.utc)
     from_time = to_time - dt.timedelta(days=1)
@@ -966,7 +989,10 @@ def meter_obs():
     except:
         to_rate = True
 
-    meters = models.Meter.query.filter(models.Meter.id.in_(uuids)).all()
+    meters = db.session.execute(
+        db.select(models.Meter)
+        .where(models.Meter.id.in_(uuids))
+    ).scalars().all()
 
     out = dict.fromkeys(uuids)
 
@@ -1025,7 +1051,10 @@ def last_meter_obs():
     except:
         from_time = to_time - dt.timedelta(days=7)
 
-    meters = models.Meter.query.filter(models.Meter.id.in_(uuids)).all()
+    meters = db.session.execute(
+            db.select(models.Meter)
+            .where(models.Meter.id.in_(uuids))
+        ).scalars().all()
 
     out = dict.fromkeys(uuids)
 
@@ -1090,6 +1119,7 @@ def get_health(args, returning=False, app=None):
     threads = []
     out = []
     for m in meters:
+        print(m.id)
         threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
         threads[-1].start()
 
@@ -1103,11 +1133,14 @@ def get_health(args, returning=False, app=None):
     # save cache, but only if it's a "default" query
     if set(args).isdisjoint({"date_range", "from_time", "to_time", "uuid"}):
         try:
-            with open(hc_latest_file, "w") as f:
-                json.dump(out, f)
+            # with open(hc_latest_file, "w") as f:
+            #     json.dump(out, f)
+            for meter in out:
+                update_health_check(meter)
+
             try:
                 hc_meta = {
-                    "filename": os.path.basename(hc_latest_file),
+                    # "filename": os.path.basename(hc_latest_file), # Not needed for database
                     "meters": len(out),
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
@@ -1115,15 +1148,37 @@ def get_health(args, returning=False, app=None):
                     "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
                     "processing_time": proc_time
                 }
-                with open(hc_meta_file, "w") as f:
-                    json.dump(hc_meta, f)
-            except:
+
+                existing_hc_meta = db.session.execute(db.select(models.HealthCheck)).scalar_one_or_none()
+                if existing_hc_meta is None:
+                    new_hc_meta = models.HealthCheckMeta(hc_meta)
+                    db.session.add(new_hc_meta)
+                else:
+                    existing_hc_meta.update(hc_meta)
+                db.session.commit()
+                # with open(hc_meta_file, "w") as f:
+                #     json.dump(hc_meta, f)
+            except Exception as e:
                 print("Error trying to save metadata for latest HC cache")
-        except:
+                print(e)
+        except Exception as e:
             print("Error trying to save current health check in cache")
+            print(e)
 
     if returning:
         return out
+
+def update_health_check(values: dict):
+    existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["id"])).scalar_one_or_none()
+    print("="*20)
+    print(values)
+    if existing_hc is None:
+        new_hc = models.HealthCheck(meter_id=values["id"], hc_data=values)
+        print(new_hc.to_dict())
+        db.session.add(new_hc)
+    else:
+        existing_hc.update(values)
+    db.session.commit()
 
 ## Create health check of meters (requested by IES)
 ##
@@ -1142,35 +1197,40 @@ def meter_health():
     return make_response(jsonify(meter_health_internal(request.args)), 200)
 
 # this is the same but doesn't return a response as we need the pure JSON for the template
+# TODO: does this need a route?
 @api_bp.route('/meter_health_internal')
 def meter_health_internal(args):
-
     # if "default" call, check if there's a cache
     hc_cache = hc_latest()
+
     # What does the 2nd statement do?
     if len(args) == 0 or list(args.keys()) == ["hidden"]:
         if hc_cache and len(hc_cache) > 2:
             try:
-                hc_meta = json.load(open(hc_meta_file))
+                meta = hc_meta()
                 if offlineMode:
                     with open(anon_data_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-                cache_age = latest_data_date - hc_meta["to_time"]
-                if cache_age < 3600 * hc_update_time and int(hc_meta["date_range"]) == 30 and int(hc_meta["meters"]) > 1000:
+                cache_age = latest_data_date - meta["to_time"]
+                if cache_age < 3600 * hc_update_time and int(meta["date_range"]) == 30 and int(meta["meters"]) > 1000:
                     return hc_cache
             except:
                 print("Error reading meta file, skipping cache")
 
+        # Implement a lock here instead of this
         updateOngoing = False
         for th in threading.enumerate():
             if th.name == "updateMainHC":
                 updateOngoing = True
         if not updateOngoing:
             # TODO: at the moment can't build new HC from offline (would need to be done in query_pandas)!
-            thread = threading.Thread(target=get_health, args=(args,False,current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
+
+        # TODO: let front end know that we are serving stale cache so that it knows to send another request later
+        # Could be done with a custom header (eg: X-Cache-State: stale and X-Cache-State: fresh) and maybe a header telling the frontend how long to wait (could guesstimate this from number of meters)
         if hc_cache and len(hc_cache) > 2:
             return hc_cache
         else:
@@ -1207,13 +1267,22 @@ def meter_health_internal(args):
 ## }
 @api_bp.route('/meter_hierarchy')
 def hierarchy():
-    # trim out buildings with no building meters
-    buildings = models.Building.query.join(models.Meter).filter(models.Meter.building_id.isnot(None)).all()
+    buildings = db.session.execute(
+        db.select(models.Building)
+        .join(models.Meter)
+        .where(not_(models.Meter.building_id.is_(None))
+    )).scalars().all()
 
     data = {}
     for b in buildings:
         building_response = {}
-        meters = models.Meter.query.filter(models.Meter.building_id == b.id).filter(models.Meter.main).all()
+        
+        meters = db.session.execute(
+            db.select(models.Meter)
+            .where(models.Meter.building_id == b.id)
+            .where(models.Meter.main)
+        ).scalars().all()
+        
         for m in meters:
             meter_type = m.utility_type
             if meter_type not in ['gas', 'electricity', 'heat', 'water']:
@@ -1249,6 +1318,7 @@ def hierarchy():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/health_score
+# TODO: This doesn't seem to work with offline data
 @api_bp.route('/health_score')
 def health_score():
     if not offlineMode:
@@ -1275,7 +1345,11 @@ def health_score():
 
     days = (to_time.date() - from_time.date()).days
 
-    buildings = models.Building.query.join(models.Meter).filter(models.Meter.building_id.isnot(None))
+    buildings = db.session.execute(
+        db.select(models.Building)
+        .join(models.Meter)
+        .where(not_(models.Meter.building_id.is_(None)))
+    ).scalars().all()
 
     data = {}
     for b in buildings:
@@ -1287,8 +1361,12 @@ def health_score():
             4: [],
             5: []
         }
-
-        meters = models.Meter.query.filter(models.Meter.building_id == b.id).filter(models.Meter.main).all()
+        
+        meters = db.session.execute(
+            db.select(models.Meter)
+            .where(models.Meter.building_id == b.id)
+            .where(models.Meter.main)
+        ).scalars().all()
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
