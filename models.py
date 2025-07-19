@@ -79,8 +79,9 @@ class Building(db.Model):
     year_built = db.Column(db.Integer)
     
     occupancy_type = db.Column(db.String(11), CheckConstraint(occupancy_type_check_constraint), nullable=False)
+    maze_map_label = db.Column(db.JSON)
 
-    def __init__(self, building_code: str, building_name: str, floor_area: int, year_built: int, occupancy_type: str):
+    def __init__(self, building_code: str, building_name: str, floor_area: int, year_built: int, occupancy_type: str, maze_map_label: list):
         self.id = building_code
         self.name = building_name
         self.floor_area = floor_area
@@ -89,14 +90,17 @@ class Building(db.Model):
         if occupancy_type == "Unknown" or occupancy_type is None:
             occupancy_type = "academic other"
         self.occupancy_type = occupancy_type
+        
+        self.maze_map_label = maze_map_label
 
     def to_dict(self):
         return {
-            'id': self.id,
-            'name': self.name,
-            'floor_area': self.floor_area,
-            'year_built': self.year_built,
-            'occupancy_type': self.occupancy_type,
+            "id": self.id,
+            "name": self.name,
+            "floor_area": self.floor_area,
+            "year_built": self.year_built,
+            "occupancy_type": self.occupancy_type,
+            "maze_map_label": self.maze_map_label
         }
     
     def __repr__(self) -> str:

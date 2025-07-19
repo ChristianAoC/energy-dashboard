@@ -1410,7 +1410,8 @@ def populate_database():
             building["building_name"],
             building["floor_area"],
             building["year_built"],
-            building["usage"]
+            building["usage"],
+            building["maze_map_label"]
         )
 
         db.session.add(new_building)
