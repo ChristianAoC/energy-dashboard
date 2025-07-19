@@ -287,8 +287,15 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
 ## to_time - time to get data to (datetime)
 def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []) -> dict|None:
     if offlineMode:
+        try:
+            with open(anon_data_meta_file, "r") as f:
+                anon_data_meta = json.load(f)
+            interval = anon_data_meta.get("interval", 60) * 60
+        except:
+            interval = 3600
+
         # Offline data is recorded at 1 hour intervals
-        xcount = int((to_time - from_time).total_seconds()//3600) - 1
+        xcount = int((to_time - from_time).total_seconds()//interval) - 1
     else:
         # Live data is recorded at 10 minute intervals
         xcount = int((to_time - from_time).total_seconds()//600) - 1
