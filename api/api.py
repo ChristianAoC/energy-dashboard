@@ -981,6 +981,8 @@ def meter_obs():
 
     try:
         agg = request.args["aggregate"] # this is url decoded
+        if agg == "0H" or agg == "0h":
+            agg = "raw"
     except:
         agg = "raw"
 
