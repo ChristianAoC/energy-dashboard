@@ -20,8 +20,8 @@ EXPOSE 5050
 
 # Set file permissions for writable files/folders
 RUN mkdir /app/data && \
-    touch /app/users.json /app/context.json && \
-    chmod -R 777 /app/users.json /app/context.json /app/data
+    touch /app/data/users.json /app/data/context.json && \
+    chmod -R 777 /app/data
 
 # Default command to run the app
 CMD ["python", "app.py"]
