@@ -516,7 +516,6 @@ def clean_file_name(file_name: str):
     file_name = file_name.replace("/", "_")
     file_name = file_name.replace("\\", "_")
     file_name = file_name.replace(" ", "_")
-    file_name = file_name.replace(".", "_")
     file_name = file_name.replace("?", "_")
     file_name = file_name.replace(",", "_")
     return file_name
