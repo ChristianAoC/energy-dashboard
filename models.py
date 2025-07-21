@@ -266,3 +266,97 @@ class HealthCheckMeta(db.Model):
 
     def __repr__(self) -> str:
         return f"<HealthCheckMeta {self.id}>"
+
+class UtilityData(db.Model):
+    building_id = db.Column(db.String, db.ForeignKey("building.id"), primary_key=True)
+
+    # Electricity
+    electricity_eui = db.Column(db.Integer)
+    electricity_eui_annual = db.Column(db.Integer)
+    electricity_meter_ids = db.Column(db.JSON)
+    electricity_usage = db.Column(db.Integer)
+
+    # Gas
+    gas_eui = db.Column(db.Integer)
+    gas_eui_annual = db.Column(db.Integer)
+    gas_meter_ids = db.Column(db.JSON)
+    gas_usage = db.Column(db.Integer)
+    
+    # Heat
+    heat_eui = db.Column(db.Integer)
+    heat_eui_annual = db.Column(db.Integer)
+    heat_meter_ids = db.Column(db.JSON)
+    heat_usage = db.Column(db.Integer)
+    
+    # Water
+    water_eui = db.Column(db.Integer)
+    water_eui_annual = db.Column(db.Integer)
+    water_meter_ids = db.Column(db.JSON)
+    water_usage = db.Column(db.Integer)
+
+    def __init__(self, building_id: str, electricity: dict, gas: dict, heat: dict, water: dict):
+        self.building_id = building_id
+        self.update(electricity, gas, heat, water)
+    
+    def update(self, electricity: dict, gas: dict, heat: dict, water: dict):
+        # Electricity
+        self.electricity_eui = electricity["eui"]
+        self.electricity_eui_annual = electricity["eui_annual"]
+        self.electricity_meter_ids = electricity["meter_ids"]
+        self.electricity_usage = electricity["usage"]
+
+        # Gas
+        self.gas_eui = gas["eui"]
+        self.gas_eui_annual = gas["eui_annual"]
+        self.gas_meter_ids = gas["meter_ids"]
+        self.gas_usage = gas["usage"]
+        
+        # Heat
+        self.heat_eui = heat["eui"]
+        self.heat_eui_annual = heat["eui_annual"]
+        self.heat_meter_ids = heat["meter_ids"]
+        self.heat_usage = heat["usage"]
+        
+        # Water
+        self.water_eui = water["eui"]
+        self.water_eui_annual = water["eui_annual"]
+        self.water_meter_ids = water["meter_ids"]
+        self.water_usage = water["usage"]
+
+    def to_dict(self):
+        building_dict = db.session.execute(db.select(Building).where(Building.id == self.building_id)).scalar_one_or_none()
+        if building_dict is None:
+            return {}
+        
+        building_dict = building_dict.to_dict()
+        
+        return {
+            **building_dict,
+            "electricity": {
+                "eui": self.electricity_eui,
+                "eui_annual": self.electricity_eui_annual,
+                "meter_id": self.electricity_meter_ids,
+                "usage": self.electricity_usage
+            },
+            "gas": {
+                "eui": self.gas_eui,
+                "eui_annual": self.gas_eui_annual,
+                "meter_id": self.gas_meter_ids,
+                "usage": self.gas_usage
+            },
+            "heat": {
+                "eui": self.heat_eui,
+                "eui_annual": self.heat_eui_annual,
+                "meter_id": self.heat_meter_ids,
+                "usage": self.heat_usage
+            },
+            "water": {
+                "eui": self.water_eui,
+                "eui_annual": self.water_eui_annual,
+                "meter_id": self.water_meter_ids,
+                "usage": self.water_usage
+            }
+        }
+    
+    def __repr__(self) -> str:
+        return f"<UtilityData {self.building_id}>"

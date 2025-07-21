@@ -712,7 +712,8 @@ def devices():
 # Leaving this here using the old BUILDINGSWITHUSAGE() function until we can find a way to do this with from the db
 @api_bp.route('/usageoffline')
 def usageoffline():
-    return BUILDINGSWITHUSAGE()
+    data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
+    return make_response(jsonify(data), 200)
 
 ## Return the latest health check table so we're not waiting for ages
 @api_bp.route('/hc_latest')
@@ -1449,5 +1450,42 @@ def populate_database():
         except Exception as e:
             print(e)
             print(meter)
+    
+    if os.path.exists(buildings_usage_file):
+        for building in BUILDINGSWITHUSAGE():
+            try:
+                new_building_usage = models.UtilityData(
+                    building["building_code"],
+                    electricity={
+                        "eui": building["electricity"]["eui"],
+                        "eui_annual": building["electricity"]["eui_annual"],
+                        "meter_ids": building["electricity"]["sensor_uuid"],
+                        "usage": building["electricity"]["usage"]
+                    },
+                    gas={
+                        "eui": building["gas"]["eui"],
+                        "eui_annual": building["gas"]["eui_annual"],
+                        "meter_ids": building["gas"]["sensor_uuid"],
+                        "usage": building["gas"]["usage"]
+                    },
+                    heat={
+                        "eui": building["heat"]["eui"],
+                        "eui_annual": building["heat"]["eui_annual"],
+                        "meter_ids": building["heat"]["sensor_uuid"],
+                        "usage": building["heat"]["usage"]
+                    },
+                    water={
+                        "eui": building["water"]["eui"],
+                        "eui_annual": building["water"]["eui_annual"],
+                        "meter_ids": building["water"]["sensor_uuid"],
+                        "usage": building["water"]["usage"]
+                    }
+                )
+                
+                db.session.add(new_building_usage)
+                db.session.commit()
+            except Exception as e:
+                print(e)
+                print(building)
 
     return make_response("OK", 200)
