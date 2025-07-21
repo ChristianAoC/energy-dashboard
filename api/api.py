@@ -24,8 +24,8 @@ load_dotenv()
 val = os.getenv("OFFLINE_MODE", "True")
 offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
 
-val = os.getenv("ANON_MODE", "True")
-anonMode = val.strip().lower() in ("1", "true", "yes", "on")
+# val = os.getenv("ANON_MODE", "True")
+# anonMode = val.strip().lower() in ("1", "true", "yes", "on")
 
 InfluxURL = os.getenv("INFLUX_URL")
 InfluxPort = os.getenv("INFLUX_PORT")
@@ -73,6 +73,7 @@ cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
 benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
+offline_meta_file = os.path.join(DATA_DIR, "meta", "offline_data.json")
 offline_data_files = os.path.join(DATA_DIR, "offline")
 
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
@@ -300,7 +301,7 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
 def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []) -> dict|None:
     if offlineMode:
         try:
-            with open(anon_data_meta_file, "r") as f:
+            with open(offline_meta_file, "r") as f:
                 anon_data_meta = json.load(f)
             interval = anon_data_meta.get("interval", 60) * 60
         except:
@@ -606,7 +607,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         return
 
     if offlineMode:
-        with open(anon_data_meta_file, "r") as f:
+        with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
         data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
         data_end_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
@@ -823,7 +824,7 @@ def summary():
         else:
             from_time = to_time - dt.timedelta(days=7, seconds=1)
     else:
-        with open(anon_data_meta_file, "r") as f:
+        with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
 
         to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
@@ -1099,7 +1100,7 @@ def get_health(args, returning=False, app=None):
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
     except:
         if offlineMode:
-            with open(anon_data_meta_file, "r") as f:
+            with open(offline_meta_file, "r") as f:
                 to_time = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
         else:
             to_time = dt.datetime.now(dt.timezone.utc)
@@ -1114,7 +1115,7 @@ def get_health(args, returning=False, app=None):
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
     except:
         if offlineMode:
-            with open(anon_data_meta_file, "r") as f:
+            with open(offline_meta_file, "r") as f:
                 from_time = dt.datetime.strptime(json.load(f)['start_time'], "%Y-%m-%dT%H:%M:%S%z")
             date_range = min((to_time - from_time).days, date_range)
             from_time = to_time - dt.timedelta(days=date_range)
@@ -1229,7 +1230,7 @@ def meter_health_internal(args):
             try:
                 meta = hc_meta()
                 if offlineMode:
-                    with open(anon_data_meta_file, "r") as f:
+                    with open(offline_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
@@ -1354,7 +1355,7 @@ def health_score():
         else:
             from_time = to_time - dt.timedelta(days=7, seconds=1)
     else:
-        with open(anon_data_meta_file, "r") as f:
+        with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
 
         to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
