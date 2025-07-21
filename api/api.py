@@ -43,14 +43,6 @@ meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
 buildings_usage_file = os.path.join(DATA_DIR, "input", 'UniHierarchyWithUsage.json')
 
-# if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
-#     offlineMode = True
-
-# if not os.path.exists(os.path.join(DATA_DIR, "cache", "health_check")):
-#     os.mkdir(os.path.join(DATA_DIR, "cache", "health_check"))
-# hc_latest_file = os.path.join(DATA_DIR, "cache", "health_check", 'hc_latest.json')
-# hc_meta_file = os.path.join(DATA_DIR, "cache", "health_check", 'hc_meta.json')
-
 if not offlineMode:
     meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
     meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
@@ -709,7 +701,6 @@ def devices():
     return make_response(jsonify(data), 200)
 
 ## Helper function needed for accessing quick usage list so UI doesn't delay too much
-# Leaving this here using the old BUILDINGSWITHUSAGE() function until we can find a way to do this with from the db
 @api_bp.route('/usageoffline')
 def usageoffline():
     data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
@@ -1229,7 +1220,6 @@ def meter_health_internal(args):
             if th.name == "updateMainHC":
                 updateOngoing = True
         if not updateOngoing:
-            # TODO: at the moment can't build new HC from offline (would need to be done in query_pandas)!
             thread = threading.Thread(target=get_health, args=(args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
 
@@ -1322,7 +1312,6 @@ def hierarchy():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/health_score
-# TODO: This doesn't seem to work with offline data
 @api_bp.route('/health_score')
 def health_score():
     if not offlineMode:

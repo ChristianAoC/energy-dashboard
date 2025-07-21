@@ -63,6 +63,7 @@ def delete_context(contextID):
     os.replace(tempfile, filename)
     return "success"
 
+# TODO: What is happening in this function - result/context is overwritten in each iteration
 def get_context(args):
     if not os.path.isfile(filename):
         return "Context file missing"
