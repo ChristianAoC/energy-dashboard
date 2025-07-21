@@ -72,10 +72,8 @@ cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
 benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
-anon_data_meta_file = os.path.join(DATA_DIR, "meta_anon", "anon_data_meta.json")
-meters_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_meters.json')
-buildings_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_buildings.json')
-usage_anon_file = os.path.join(DATA_DIR, "meta_anon", 'anon_usage.json')
+offline_data_files = os.path.join(DATA_DIR, "offline")
+
 
 ## #################################################################
 ## constants - should not be changed later in code
@@ -171,9 +169,8 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 
     else:
         try:
-            f = open('data/offline/'+m.id+'.json',)
-            obs = json.load(f)
-            f.close()
+            with open(os.path.join(offline_data_files, f"{m.id}.json"), "r") as f:
+                obs = json.load(f)
 
             obs = pd.DataFrame.from_dict(obs)
             obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
@@ -256,11 +253,11 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
     # if offline, last obs is simply last line of file
     if offlineMode:
         try:
-            f = open('date/offline/'+m.id+'.json',)
+            with open(f"data/offline/{m.id}.json", "r") as f:
+                obs = json.load(f)
         except:
             return make_response("Offline mode and can't open/find a file for this UUID", 500)
-        obs = json.load(f)
-        f.close()
+        
         if len(obs) > 0:
             return obs[-1]["time"]
 
