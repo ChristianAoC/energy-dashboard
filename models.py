@@ -197,6 +197,8 @@ class HealthCheck(db.Model):
         if meter_dict is None:
             return {}
         
+        meter_dict = meter_dict.to_dict()
+        
         return {
             **meter_dict,
             "HC_count": self.count,
