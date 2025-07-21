@@ -836,8 +836,8 @@ def summary():
     buildings = db.session.execute(
         db.select(models.Building)
         .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None)))
-        .where(not_(models.Building.floor_area.is_(None)))
+        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
+        .where(not_(models.Building.floor_area.is_(None))) # type: ignore
     ).scalars().all()
 
     units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
@@ -941,9 +941,9 @@ def meter():
 
     statement = db.select(models.Meter)
     if planon is not None:
-        statement = statement.where(models.Meter.building_id.in_(planon))
+        statement = statement.where(models.Meter.building_id.in_(planon)) # type: ignore
     elif uuid is not None:
-        statement = statement.where(models.Meter.id.in_(uuid))
+        statement = statement.where(models.Meter.id.in_(uuid)) # type: ignore
     
     meters = [meter.to_dict() for meter in db.session.execute(statement).scalars().all()]
 
@@ -1012,7 +1012,7 @@ def meter_obs():
 
     meters = db.session.execute(
         db.select(models.Meter)
-        .where(models.Meter.id.in_(uuids))
+        .where(models.Meter.id.in_(uuids)) # type: ignore
     ).scalars().all()
 
     out = dict.fromkeys(uuids)
@@ -1031,8 +1031,7 @@ def meter_obs():
             return Response(
                 csv,
                 mimetype="text/csv",
-                headers={"Content-disposition":
-                         "attachment; filename=mydata.csv"})
+                headers={"Content-disposition": "attachment; filename=mydata.csv"})
         except:
             return make_response("Unable to make csv file",500)
 
@@ -1074,7 +1073,7 @@ def last_meter_obs():
 
     meters = db.session.execute(
             db.select(models.Meter)
-            .where(models.Meter.id.in_(uuids))
+            .where(models.Meter.id.in_(uuids)) # type: ignore
         ).scalars().all()
 
     out = dict.fromkeys(uuids)
@@ -1130,7 +1129,7 @@ def get_health(args, returning=False, app=None):
 
     ## load and trim meters
     meters = db.session.execute(db.select(models.Meter).where(
-            models.Meter.id.in_(uuids),
+            models.Meter.id.in_(uuids), # type: ignore
             models.Meter.id is not None
         )
     ).scalars().all()
@@ -1291,7 +1290,7 @@ def hierarchy():
     buildings = db.session.execute(
         db.select(models.Building)
         .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None))
+        .where(not_(models.Meter.building_id.is_(None)) # type: ignore
     )).scalars().all()
 
     data = {}
@@ -1369,7 +1368,7 @@ def health_score():
     buildings = db.session.execute(
         db.select(models.Building)
         .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None)))
+        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
     ).scalars().all()
 
     data = {}
