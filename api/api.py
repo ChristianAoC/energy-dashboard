@@ -540,7 +540,6 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
     try:
         file_name = clean_file_name(f"{m.id}.json")
 
-        # Health Check Score Cache
         meter_health_score_file = os.path.join(meter_health_score_files, file_name)
         meter_health_scores = {}
         if os.path.exists(meter_health_score_file):
@@ -1137,15 +1136,12 @@ def get_health(args, returning=False, app=None):
     # save cache, but only if it's a "default" query
     if set(args).isdisjoint({"date_range", "from_time", "to_time", "uuid"}):
         try:
-            # with open(hc_latest_file, "w") as f:
-            #     json.dump(out, f)
             for meter in out:
                 update_health_check(meter)
 
             try:
                 hc_meta = {
-                    # "filename": os.path.basename(hc_latest_file), # Not needed for database
-                    "meters": len(out),
+                    "meter_count": len(out),
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
                     "date_range": date_range,
@@ -1153,15 +1149,13 @@ def get_health(args, returning=False, app=None):
                     "processing_time": proc_time
                 }
 
-                existing_hc_meta = db.session.execute(db.select(models.HealthCheck)).scalar_one_or_none()
+                existing_hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
                 if existing_hc_meta is None:
                     new_hc_meta = models.HealthCheckMeta(hc_meta)
                     db.session.add(new_hc_meta)
                 else:
                     existing_hc_meta.update(hc_meta)
                 db.session.commit()
-                # with open(hc_meta_file, "w") as f:
-                #     json.dump(hc_meta, f)
             except Exception as e:
                 print("Error trying to save metadata for latest HC cache")
                 print(e)
@@ -1169,16 +1163,15 @@ def get_health(args, returning=False, app=None):
             print("Error trying to save current health check in cache")
             print(e)
 
+    print("Completed HC update")
+    
     if returning:
         return out
 
 def update_health_check(values: dict):
     existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["id"])).scalar_one_or_none()
-    print("="*20)
-    print(values)
     if existing_hc is None:
         new_hc = models.HealthCheck(meter_id=values["id"], hc_data=values)
-        print(new_hc.to_dict())
         db.session.add(new_hc)
     else:
         existing_hc.update(values)
@@ -1205,20 +1198,26 @@ def meter_health():
 @api_bp.route('/meter_health_internal')
 def meter_health_internal(args):
     # if "default" call, check if there's a cache
-    hc_cache = hc_latest()
+    hc_cache = hc_latest().json
 
     # What does the 2nd statement do?
     if len(args) == 0 or list(args.keys()) == ["hidden"]:
         if hc_cache and len(hc_cache) > 2:
             try:
-                meta = hc_meta()
                 if offlineMode:
                     with open(offline_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-                cache_age = latest_data_date - meta["to_time"]
-                if cache_age < 3600 * hc_update_time and int(meta["date_range"]) == 30 and int(meta["meters"]) > 1000:
+                
+                no_meters = len(db.session.execute(db.select(models.Meter)).all())
+                
+                meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+                if meta is None:
+                    raise Exception
+                
+                cache_age = latest_data_date - meta.to_time
+                if cache_age < 3600 * hc_update_time and meta.date_range == 30 and no_meters > 1000:
                     return hc_cache
             except:
                 print("Error reading meta file, skipping cache")
