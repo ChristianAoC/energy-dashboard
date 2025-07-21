@@ -12,6 +12,7 @@ from functools import wraps
 import models
 from database import db
 from sqlalchemy import not_
+import sys
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
@@ -38,6 +39,13 @@ hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
 meters_file = os.path.join(DATA_DIR, "internal_meta", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchy.json')
 buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWithUsage.json')
+
+if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
+    print("\n" + "="*20)
+    print("\tERROR: You are runnning in offline mode without any offline data!")
+    print("\tPlease place your data in ./data/offline/")
+    print("\n" + "="*20)
+    sys.exit(1)
 
 if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
     offlineMode = True
