@@ -1,4 +1,6 @@
 from flask import Blueprint, jsonify, make_response, request, Response, json, current_app
+from sqlalchemy import not_
+
 import datetime as dt
 import pandas as pd
 from influxdb import InfluxDBClient
@@ -7,12 +9,13 @@ import os
 import time
 import threading
 import math
-import dashboard.user as user
 from functools import wraps
-import models
-from database import db
-from sqlalchemy import not_
 import sys
+
+from database import db
+import models
+import dashboard.user as user
+
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
 
