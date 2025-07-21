@@ -146,8 +146,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     # set the basic output
     out = {
         "uuid": m.id,
-        #"label": m["serving"], #use serving revised because this is way too lengthy
-        # "label": m["serving_revised"],
+        "label": m.name,
         "obs": [],
         "unit": m.units
     }
