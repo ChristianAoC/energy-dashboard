@@ -719,31 +719,17 @@ def usageoffline():
 ## Return the latest health check table so we're not waiting for ages
 @api_bp.route('/hc_latest')
 def hc_latest():
-    hc_cache = []
-    hc_data = db.session.execute(db.select(models.HealthCheck)).scalars().all()
-    for entry in hc_data:
-        hc_cache.append(entry.to_dict())
-
-    return hc_cache
-    # try:
-    #     hc_cache = json.load(open(hc_latest_file))
-    #     return hc_cache
-    # except:
-    #     return []
+    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
+    return make_response(jsonify(hc_cache), 200)
 
 ## Health check cache meta
 @api_bp.route('/hc_meta')
 def hc_meta():
     hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
     if hc_meta is None:
-        return {}
+        return make_response(jsonify({}), 500)
 
-    return hc_meta.to_dict()
-    # try:
-    #     hc_meta = json.load(open(hc_meta_file))
-    #     return hc_meta
-    # except:
-    #     return {}
+    return make_response(jsonify(hc_meta.to_dict()), 200)
 
 ## Create usage summary of meters
 ##
