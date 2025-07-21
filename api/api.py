@@ -40,15 +40,13 @@ meters_file = os.path.join(DATA_DIR, "internal_meta", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchy.json')
 buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWithUsage.json')
 
-if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
-    print("\n" + "="*20)
-    print("\tERROR: You are runnning in offline mode without any offline data!")
-    print("\tPlease place your data in ./data/offline/")
-    print("\n" + "="*20)
-    sys.exit(1)
 
-if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
-    offlineMode = True
+
+
+
+
+
+
 
 # if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
 #     os.mkdir(os.path.join(DATA_DIR, "health_check"))
@@ -74,6 +72,12 @@ benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
 offline_data_files = os.path.join(DATA_DIR, "offline")
 
+if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
+    print("\n" + "="*20)
+    print("\tERROR: You are runnning in offline mode without any offline data!")
+    print("\tPlease place your data in ./data/offline/")
+    print("\n" + "="*20)
+    sys.exit(1)
 
 ## #################################################################
 ## constants - should not be changed later in code
