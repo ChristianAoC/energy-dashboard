@@ -39,29 +39,24 @@ DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data')
 
 hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
 
-meters_file = os.path.join(DATA_DIR, "internal_meta", 'meters_all.json')
-buildings_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchy.json')
-buildings_usage_file = os.path.join(DATA_DIR, "internal_meta", 'UniHierarchyWithUsage.json')
+meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
+buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
+buildings_usage_file = os.path.join(DATA_DIR, "input", 'UniHierarchyWithUsage.json')
 
+# if not os.path.isfile(meters_file) or not os.path.isfile(buildings_file):
+#     offlineMode = True
 
-
-
-
-
-
-
-
-# if not os.path.exists(os.path.join(DATA_DIR, "health_check")):
-#     os.mkdir(os.path.join(DATA_DIR, "health_check"))
-# hc_latest_file = os.path.join(DATA_DIR, "health_check", 'hc_latest.json')
-# hc_meta_file = os.path.join(DATA_DIR, "health_check", 'hc_meta.json')
+# if not os.path.exists(os.path.join(DATA_DIR, "cache", "health_check")):
+#     os.mkdir(os.path.join(DATA_DIR, "cache", "health_check"))
+# hc_latest_file = os.path.join(DATA_DIR, "cache", "health_check", 'hc_latest.json')
+# hc_meta_file = os.path.join(DATA_DIR, "cache", "health_check", 'hc_meta.json')
 
 if not offlineMode:
-    meter_health_score_files = os.path.join(DATA_DIR, "meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "meter_snapshots")
+    meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
 else:
-    meter_health_score_files = os.path.join(DATA_DIR, "offline_meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "offline_meter_snapshots")
+    meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
+    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
 if not os.path.exists(meter_health_score_files):
     os.mkdir(meter_health_score_files)
 if not os.path.exists(meter_snapshots_files):
@@ -75,6 +70,10 @@ benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
 offline_meta_file = os.path.join(DATA_DIR, "meta", "offline_data.json")
 offline_data_files = os.path.join(DATA_DIR, "offline")
+
+meters_anon_file = os.path.join(DATA_DIR, "input", 'anon_meters.json')
+buildings_anon_file = os.path.join(DATA_DIR, "input", 'anon_buildings.json')
+usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
