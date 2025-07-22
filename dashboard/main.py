@@ -203,8 +203,8 @@ def browser():
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_check():
     # data needed: [health_score_summary, usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    hc_latest = api_bp.meter_health_internal(request.args)
-    if len(hc_latest) > 0:
+    hc_latest = api_bp.meter_health().json
+    if len(hc_latest) > 0: # type: ignore
         return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = hc_latest, hc_meta = api_bp.hc_meta().json, context = context.view_all())
     else:
         return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = api_bp.devices().json, hc_meta = api_bp.hc_meta().json, context = context.view_all())

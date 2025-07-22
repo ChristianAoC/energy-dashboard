@@ -1176,21 +1176,23 @@ def update_health_check(values: dict):
 ##
 ## Return:
 ## json format time series data
+##
+## Return Headers:
+## X-Cache-State: either 'stale' or 'fresh'
+##
 ## Example:
 ## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=7
 @api_bp.route('/meter_health')
 def meter_health():
-    return make_response(jsonify(meter_health_internal(request.args)), 200)
-
-# this is the same but doesn't return a response as we need the pure JSON for the template
-# TODO: does this need a route?
-@api_bp.route('/meter_health_internal')
-def meter_health_internal(args):
-    # if "default" call, check if there's a cache
+    # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
+    # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters)
+    #       Alternativly, the frontend could just set timeouts with increasing intervals until it received a fresh cache
+    
+    # load existing cache
     hc_cache = hc_latest().json
 
     # What does the 2nd statement do?
-    if len(args) == 0 or list(args.keys()) == ["hidden"]:
+    if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
         if hc_cache and len(hc_cache) > 2:
             try:
                 if offlineMode:
@@ -1198,18 +1200,18 @@ def meter_health_internal(args):
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-                
-                no_meters = len(db.session.execute(db.select(models.Meter)).all())
-                
+
                 meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
                 if meta is None:
                     raise Exception
-                
+
                 cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * hc_update_time and meta.date_range == 30 and no_meters > 1000:
-                    return hc_cache
+                if cache_age < 3600 * hc_update_time and meta.date_range == 30:
+                    response = make_response(jsonify(hc_cache), 200)
+                    response.headers['X-Cache-State'] = "fresh"
+                    return response
             except:
-                print("Error reading meta file, skipping cache")
+                print("Error reading cache metadata, skipping HC cache")
 
         # Implement a lock here instead of this
         updateOngoing = False
@@ -1217,17 +1219,22 @@ def meter_health_internal(args):
             if th.name == "updateMainHC":
                 updateOngoing = True
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
 
-        # TODO: let front end know that we are serving stale cache so that it knows to send another request later
-        # Could be done with a custom header (eg: X-Cache-State: stale and X-Cache-State: fresh) and maybe a header telling the frontend how long to wait (could guesstimate this from number of meters)
         if hc_cache and len(hc_cache) > 2:
-            return hc_cache
-        else:
-            return []
+            response = make_response(jsonify(hc_cache), 200)
+            response.headers['X-Cache-State'] = "stale"
+            return response
+
+        response = make_response(jsonify([]), 500)
+        response.headers['X-Cache-State'] = "stale"
+        return response
     else:
-        return get_health(args, True)
+        health_check_data = get_health(request.args, True)
+        response = make_response(jsonify(health_check_data), 200)
+        response.headers['X-Cache-State'] = "fresh"
+        return response
 
 ## Return meter hierarchy
 ##
