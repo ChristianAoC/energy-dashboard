@@ -273,20 +273,13 @@ function fillDD(data) {
     }
 }
 
-$(document).ready( function () {
-    fetch("api/meter").then((response) => {
-        if (response.ok) {
-            return response.json()
-        } else {
-            return devices;
-        }
-    })
-    .then(data => {
-        fillDD(data);
-    })
-    .catch((error) => {
-        fillDD(devices);
-    });
+$(document).ready(async function () {
+    try {
+        const { meters } = await getData({ meters: {} });
+        fillDD(meters);
+    } catch (err) {
+        console.error("Failed to load meters for context popup", err);
+    }
 
     // to not bloat the CSS file do this
     for (e of document.querySelectorAll("div.gc-grid-element")) {

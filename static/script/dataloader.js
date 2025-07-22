@@ -77,27 +77,88 @@ async function callApiJSON(uri) {
     }
 };
 
-// data loader to call required JSON objects for a given page
-async function getCommonData() {
-    try {
-        const [
-            // TODO add here later: scoreSummary and usage
-            devices,
-            masterlist,
-            summary
-        ] = await Promise.all([
-            callApiJSON('/api/devices'),
-            callApiJSON('/api/usageoffline'),
-            callApiJSON('/api/summary')
-        ]);
+// A map of data keys to base endpoints
+const apiEndpoints = {
+    // Provides a list of meters for each health_score per building
+    // params: to_time, from_time
+    healthScore: '/api/health_score',
 
-        return {
-            devices,
-            masterlist,
-            summary
-        };
+    // Simple static list of buildings as JSON hierarchy (formerly "masterlist" without usage)
+    // no params
+    hierarchy: '/api/meter_hierarchy',
+
+    // Summary of usage as pet buildings and their main meters (formerly "masterlist" with usage)
+    // params: to_time, from_time
+    summary: '/api/summary',
+
+    // Health check - detailed stats analysis for each meter (or one if ID given)
+    // params: id, to_time, from_time, date_range
+    meterHealth: '/api/meter_health',
+
+    // Health check meta info
+    // no params
+    hcMeta: '/api/hc_meta',
+
+    // Return time series data for given meter/time
+    // params: id, to_time, from_time, format, aggregate, to_rate
+    obs: '/api/meter_obs',
+
+    // List of all meters (formerly "devices", endpoint to be renamed to /meters)
+    // params: planon, uuid, lastobs
+    meters: '/api/devices'
+};
+
+/**
+ * Build a URL with query parameters from a base endpoint.
+ * @param {string} baseUrl 
+ * @param {Object} params (optional) key/value pairs
+ */
+function buildUrl(baseUrl, params = {}) {
+    const url = new URL(baseUrl, window.location.origin);
+    Object.entries(params).forEach(([key, value]) => {
+        url.searchParams.set(key, value);
+    });
+    return url.toString();
+}
+
+/**
+ * Fetch multiple data keys, each optionally with params.
+ * 
+ * @param {Object} requests - e.g.
+ *   {
+ *     devices: true,
+ *     masterlist: { from_time: '2024-01-01', to_time: '2024-01-31' },
+ *     benchmarks: { category: 'A' }
+ *   }
+ */
+async function getData(requests = {}, forceReload = false) {
+    try {
+        const keys = Object.keys(requests);
+        const promises = keys.map(key => {
+            const baseUrl = apiEndpoints[key];
+            if (!baseUrl) throw new Error(`Unknown data key: ${key}`);
+
+            const params = requests[key] === true ? {} : requests[key];
+            let url = buildUrl(baseUrl, params);
+
+            // optional cache-busting
+            if (forceReload) {
+                const sep = url.includes('?') ? '&' : '?';
+                url += `${sep}_=${Date.now()}`;
+            }
+
+            return callApiJSON(url, false);
+        });
+
+        const results = await Promise.all(promises);
+
+        // Build response object
+        return keys.reduce((acc, key, idx) => {
+            acc[key] = results[idx];
+            return acc;
+        }, {});
     } catch (err) {
-        console.error("Error loading common data", err);
+        console.error('Error in getData', err);
         return {};
     }
-}
+};
