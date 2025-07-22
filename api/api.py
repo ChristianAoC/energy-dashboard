@@ -653,12 +653,6 @@ def devices():
     data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
     return make_response(jsonify(data), 200)
 
-## Helper function needed for accessing quick usage list so UI doesn't delay too much
-@api_bp.route('/usageoffline')
-def usageoffline():
-    data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
-    return make_response(jsonify(data), 200)
-
 ## Health check cache meta
 @api_bp.route('/hc_meta')
 def hc_meta():
@@ -754,6 +748,10 @@ def summary():
 
         if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
             from_time = to_time - dt.timedelta(days=7, seconds=1)
+
+    # TODO: Load from cache if it's not stale
+    #       This is going to require modification to how the database is structured (meta table)
+    # cache = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
 
     buildings = db.session.execute(
         db.select(models.Building)
