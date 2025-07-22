@@ -1115,7 +1115,7 @@ def meter_health():
 ##     ...
 ## }
 @api_bp.route('/meter_hierarchy')
-def hierarchy():
+def meter_hierarchy():
     buildings = db.session.execute(
         db.select(models.Building)
         .join(models.Meter)
