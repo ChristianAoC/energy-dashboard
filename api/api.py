@@ -237,50 +237,6 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     out["obs"] = obs
     return out
 
-## Get time of last observation
-## m - meter
-## to_time - time to get data to (datetime)
-## from_time - time to get data from (datetime)
-def query_last_obs_time(m: models.Meter, to_time, from_time):
-    if m.id is None:
-        return None
-
-    # if offline, last obs is simply last line of file
-    if offlineMode:
-        try:
-            with open(f"data/offline/{m.id}.json", "r") as f:
-                obs = json.load(f)
-        except:
-            return make_response("Offline mode and can't open/find a file for this meter", 500)
-        
-        if len(obs) > 0:
-            return obs[-1]["time"]
-
-    ustr = '"SEED"."autogen"."' + m.SEED_uuid + '"'
-    ## convert to_time to correct time zone
-    to_time = to_time.astimezone(dt.timezone.utc)
-    from_time = from_time.astimezone(dt.timezone.utc)
-
-    ## form query
-    qry = 'SELECT LAST(value) FROM ' + ustr + ' WHERE time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
-        ' AND time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
-
-    ## create client for influx
-    client = InfluxDBClient(host = InfluxURL,
-                            port = InfluxPort,
-                            username = InfluxUser,
-                            password = InfluxPass)
-
-    result = client.query(qry)
-    out = list(result.get_points())
-    if len(out) > 0:
-        out = out[0]['time']
-        out = out[:-1] + '+0000'
-    else:
-        out = None
-
-    return out
-
 ## Retrieve data from influx and process it for meter health
 ## m - a meter object
 ## from_time - time to get data from (datetime)
@@ -703,12 +659,6 @@ def usageoffline():
     data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
     return make_response(jsonify(data), 200)
 
-## Return the latest health check table so we're not waiting for ages
-@api_bp.route('/hc_latest')
-def hc_latest():
-    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
-    return make_response(jsonify(hc_cache), 200)
-
 ## Health check cache meta
 @api_bp.route('/hc_meta')
 def hc_meta():
@@ -876,58 +826,6 @@ def summary():
         data[b.id] = building_response
     return make_response(jsonify(data), 200)
 
-## Return the meters, optionally trimming by planon or meter_id_clean
-##
-## Parameters:
-## planon - planon codes to filter by
-## id - meter unique id to filter by
-## lastobs - supply last obs data (slow if not limited to few meters)
-##
-## Return:
-## json format time series data
-##
-## Example:
-## http://127.0.0.1:5000/api/meter
-## http://127.0.0.1:5000/api/meter?id=AP001_L01_M2
-## http://127.0.0.1:5000/api/meter?lastobs=true
-## http://127.0.0.1:5000/api/meter?id=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/meter?is_weather=true
-@api_bp.route('/meter')
-def meter():
-    try:
-        planon = request.args["planon"] # this is url decoded
-        planon = planon.split(";")
-    except:
-        planon = None
-
-    try:
-        meter_id = request.args["id"] # this is url decoded
-        meter_id = meter_id.split(";")
-    except:
-        meter_id = None
-
-    try:
-        lastobs = request.args["lastobs"].lower() # this is url decoded
-    except:
-        lastobs = None
-
-    statement = db.select(models.Meter)
-    if planon is not None:
-        statement = statement.where(models.Meter.building_id.in_(planon)) # type: ignore
-    elif meter_id is not None:
-        statement = statement.where(models.Meter.id.in_(meter_id)) # type: ignore
-    
-    meters = [meter.to_dict() for meter in db.session.execute(statement).scalars().all()]
-
-    to_time = dt.datetime.now(dt.timezone.utc)
-    from_time = to_time - dt.timedelta(days=1)
-
-    if lastobs == "true":
-        for m in meters:
-            m["last_obs_time"] = query_last_obs_time(m, to_time, from_time)
-
-    return make_response(jsonify( meters ), 200)
-
 ## time series of data for a given sensor
 ##
 ## Parameters:
@@ -1009,51 +907,6 @@ def meter_obs():
 
     else:
         return make_response(jsonify(out), 200)
-
-## get last observation before the specified time
-##
-## Parameters:
-## id - meter id
-## to_time - final observation time, defaults to current time
-##
-## Return:
-## json dictionary of last time or null is no observations
-## Example:
-## http://127.0.0.1:5000/api/last_meter_obs?id=AP001_L01_M2
-## http://127.0.0.1:5000/api/last_meter_obs?id=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/last_meter_obs?id=WTHR_0
-## http://127.0.0.1:5000/api/last_meter_obs?id=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
-@api_bp.route('/last_meter_obs')
-def last_meter_obs():
-    try:
-        meter_ids = request.args["id"] # this is url decoded
-        meter_ids = meter_ids.split(";")
-    except:
-        return make_response("Bad meter id supplied", 500)
-
-    try:
-        to_time = request.args["to_time"] # this is url decoded
-        to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z",)
-    except:
-        to_time = dt.datetime.now(dt.timezone.utc)
-
-    try:
-        from_time = request.args["from_time"] # this is url decoded
-        from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
-    except:
-        from_time = to_time - dt.timedelta(days=7)
-
-    meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.id.in_(meter_ids)) # type: ignore
-        ).scalars().all()
-
-    out = dict.fromkeys(meter_ids)
-
-    for m in meters:
-        out[m.id] = query_last_obs_time(m, to_time, from_time)
-
-    return make_response(jsonify(out), 200)
 
 def get_health(args, returning=False, app=None):
     # Because this function can be run in a separate thread, we need to
@@ -1189,7 +1042,7 @@ def meter_health():
     #       Alternativly, the frontend could just set timeouts with increasing intervals until it received a fresh cache
     
     # load existing cache
-    hc_cache = hc_latest().json
+    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
 
     # What does the 2nd statement do?
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
