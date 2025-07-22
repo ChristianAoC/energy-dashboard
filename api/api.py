@@ -137,7 +137,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 
     # set the basic output
     out = {
-        "uuid": m.id,
+        "id": m.id,
         "label": m.name,
         "obs": [],
         "unit": m.units
@@ -242,9 +242,6 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## to_time - time to get data to (datetime)
 ## from_time - time to get data from (datetime)
 def query_last_obs_time(m: models.Meter, to_time, from_time):
-
-    ## convert uuid to string for query
-    ##ustr = ",".join(['"SEED"."autogen"."'+x+'"' for x in uuid])
     if m.id is None:
         return None
 
@@ -254,7 +251,7 @@ def query_last_obs_time(m: models.Meter, to_time, from_time):
             with open(f"data/offline/{m.id}.json", "r") as f:
                 obs = json.load(f)
         except:
-            return make_response("Offline mode and can't open/find a file for this UUID", 500)
+            return make_response("Offline mode and can't open/find a file for this meter", 500)
         
         if len(obs) > 0:
             return obs[-1]["time"]
@@ -883,7 +880,7 @@ def summary():
 ##
 ## Parameters:
 ## planon - planon codes to filter by
-## uuid - meter unique code to filter by
+## id - meter unique id to filter by
 ## lastobs - supply last obs data (slow if not limited to few meters)
 ##
 ## Return:
@@ -891,9 +888,9 @@ def summary():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/meter
-## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter?id=AP001_L01_M2
 ## http://127.0.0.1:5000/api/meter?lastobs=true
-## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter?id=AP001_L01_M2;AP080_L01_M5
 ## http://127.0.0.1:5000/api/meter?is_weather=true
 @api_bp.route('/meter')
 def meter():
@@ -904,10 +901,10 @@ def meter():
         planon = None
 
     try:
-        uuid = request.args["uuid"] # this is url decoded
-        uuid = uuid.split(";")
+        meter_id = request.args["id"] # this is url decoded
+        meter_id = meter_id.split(";")
     except:
-        uuid = None
+        meter_id = None
 
     try:
         lastobs = request.args["lastobs"].lower() # this is url decoded
@@ -917,8 +914,8 @@ def meter():
     statement = db.select(models.Meter)
     if planon is not None:
         statement = statement.where(models.Meter.building_id.in_(planon)) # type: ignore
-    elif uuid is not None:
-        statement = statement.where(models.Meter.id.in_(uuid)) # type: ignore
+    elif meter_id is not None:
+        statement = statement.where(models.Meter.id.in_(meter_id)) # type: ignore
     
     meters = [meter.to_dict() for meter in db.session.execute(statement).scalars().all()]
 
@@ -934,7 +931,7 @@ def meter():
 ## time series of data for a given sensor
 ##
 ## Parameters:
-## uuid - meter uuid
+## id - meter id
 ## to_time - final observation time, defaults to current time
 ## from_time - first observation time, defaults to 7 days ago
 ## format - use csv if required otherwise returns json
@@ -945,16 +942,16 @@ def meter():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/meter_obs?uuid=WTHR_0
+## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter_obs?id=WTHR_0
 @api_bp.route('/meter_obs')
 def meter_obs():
     try:
-        uuids = request.args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
+        meter_ids = request.args["id"] # this is url decoded
+        meter_ids = meter_ids.split(";")
     except:
-        return make_response("Bad uuid supplied", 500)
+        return make_response("Bad meter id supplied", 500)
 
     try:
         to_time = request.args["to_time"] # this is url decoded
@@ -987,10 +984,10 @@ def meter_obs():
 
     meters = db.session.execute(
         db.select(models.Meter)
-        .where(models.Meter.id.in_(uuids)) # type: ignore
+        .where(models.Meter.id.in_(meter_ids)) # type: ignore
     ).scalars().all()
 
-    out = dict.fromkeys(uuids)
+    out = dict.fromkeys(meter_ids)
 
     for m in meters:
         out[m.id] = query_time_series(m, from_time, to_time, agg=agg, to_rate=to_rate)
@@ -1001,7 +998,7 @@ def meter_obs():
             ## repackage data as csv and return
             for k in out.keys():
                 for obs in out[k]["obs"]:
-                    csv += out[k]["uuid"] + ',' + out[k]["unit"] + "," + obs["time"] + ',' + str(obs["value"]) + '\n'
+                    csv += out[k]["id"] + ',' + out[k]["unit"] + "," + obs["time"] + ',' + str(obs["value"]) + '\n'
 
             return Response(
                 csv,
@@ -1016,23 +1013,23 @@ def meter_obs():
 ## get last observation before the specified time
 ##
 ## Parameters:
-## uuid - meter uuid
+## id - meter id
 ## to_time - final observation time, defaults to current time
 ##
 ## Return:
 ## json dictionary of last time or null is no observations
 ## Example:
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=WTHR_0
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
+## http://127.0.0.1:5000/api/last_meter_obs?id=AP001_L01_M2
+## http://127.0.0.1:5000/api/last_meter_obs?id=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/last_meter_obs?id=WTHR_0
+## http://127.0.0.1:5000/api/last_meter_obs?id=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
 @api_bp.route('/last_meter_obs')
 def last_meter_obs():
     try:
-        uuids = request.args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
+        meter_ids = request.args["id"] # this is url decoded
+        meter_ids = meter_ids.split(";")
     except:
-        return make_response("Bad uuid supplied", 500)
+        return make_response("Bad meter id supplied", 500)
 
     try:
         to_time = request.args["to_time"] # this is url decoded
@@ -1048,10 +1045,10 @@ def last_meter_obs():
 
     meters = db.session.execute(
             db.select(models.Meter)
-            .where(models.Meter.id.in_(uuids)) # type: ignore
+            .where(models.Meter.id.in_(meter_ids)) # type: ignore
         ).scalars().all()
 
-    out = dict.fromkeys(uuids)
+    out = dict.fromkeys(meter_ids)
 
     for m in meters:
         out[m.id] = query_last_obs_time(m, to_time, from_time)
@@ -1064,10 +1061,10 @@ def get_health(args, returning=False, app=None):
         app.app_context().push()
 
     try:
-        uuids = args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
+        meter_ids = args["id"] # this is url decoded
+        meter_ids = meter_ids.split(";")
     except:
-        uuids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
+        meter_ids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
 
     try:
         to_time = args["to_time"] # this is url decoded
@@ -1104,7 +1101,7 @@ def get_health(args, returning=False, app=None):
 
     ## load and trim meters
     meters = db.session.execute(db.select(models.Meter).where(
-            models.Meter.id.in_(uuids), # type: ignore
+            models.Meter.id.in_(meter_ids), # type: ignore
             models.Meter.id is not None
         )
     ).scalars().all()
@@ -1126,7 +1123,7 @@ def get_health(args, returning=False, app=None):
     # print("--- Health check took %s seconds ---" % proc_time)
 
     # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "uuid"}):
+    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
         try:
             for meter in out:
                 update_health_check(meter)
@@ -1172,7 +1169,7 @@ def update_health_check(values: dict):
 ## Create health check of meters (requested by IES)
 ##
 ## Parameters:
-## uuid - gauge id (planon style) or missing for all gauges
+## id - meter id or missing for all gauges
 ## to_time - final observation time, defaults to current time
 ## from_time - first observation time, defaults to 30 days ago
 ## date_range - how far back we want to check in days (ignored if from_time is given)
@@ -1180,7 +1177,7 @@ def update_health_check(values: dict):
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/api/meter_health?uuid=AP001_L01_M2&date_range=7
+## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=7
 @api_bp.route('/meter_health')
 def meter_health():
     return make_response(jsonify(meter_health_internal(request.args)), 200)
