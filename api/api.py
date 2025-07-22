@@ -648,8 +648,8 @@ def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
-@api_bp.route('/devices')
-def devices():
+@api_bp.route('/meters')
+def meters():
     data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
     return make_response(jsonify(data), 200)
 
