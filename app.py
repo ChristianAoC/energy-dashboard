@@ -10,7 +10,9 @@ from api.api import api_bp
 from dashboard.main import dashboard_bp
 from dotenv import load_dotenv
 
+import database
 app = Flask(__name__)
+database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
 

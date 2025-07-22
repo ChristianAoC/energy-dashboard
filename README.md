@@ -41,7 +41,8 @@ docker build -t energy-dashboard .
 
 docker run --env-file /path/on/host/.env \
   -v /path/on/host/data:/app/data \
-  -d -p 80:5000 energy-dashboard```
+  -d -p 80:5000 energy-dashboard
+```
 
 Make sure the paths to your .env file and data directories are correct, default data is present, and both ports 80 and 5000 are open in your firewall.
 
