@@ -656,7 +656,7 @@ def meters():
 ## Health check cache meta
 @api_bp.route('/hc_meta')
 def hc_meta():
-    hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+    hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
     if hc_meta is None:
         return make_response(jsonify({}), 500)
 
@@ -727,6 +727,8 @@ def hc_meta():
 ## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
 def summary():
+    start_time = time.time()
+    
     if not offlineMode:
         to_time = request.args.get("to_time")
         if to_time is not None:
@@ -749,80 +751,136 @@ def summary():
         if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
             from_time = to_time - dt.timedelta(days=7, seconds=1)
 
-    # TODO: Load from cache if it's not stale
-    #       This is going to require modification to how the database is structured (meta table)
-    # cache = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
-
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
-        .where(not_(models.Building.floor_area.is_(None))) # type: ignore
-    ).scalars().all()
-
-    units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
-
-    with open(benchmark_data_file, "r") as f:
-        benchmark_data = json.load(f)
-
-    data = {}
-    for b in buildings:
-        building_response = {}
-
-        meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.building_id == b.id)
-            .where(models.Meter.main)
+    valid_cache = True
+    cache_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+    try:
+        if cache_meta is None:
+            raise Exception
+        
+        if offlineMode:
+            with open(offline_meta_file, "r") as f:
+                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+        else:
+            latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
+        cache_age = latest_data_date - cache_meta.to_time
+        if cache_age >= 3600 * hc_update_time:
+            valid_cache = False
+    except:
+        valid_cache = False
+    
+    if valid_cache:
+        data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
+    else:
+        # Generate new data
+        cache_result = not set(request.args).isdisjoint({"from_time", "to_time"})
+    
+        buildings = db.session.execute(
+            db.select(models.Building)
+            .join(models.Meter)
+            .where(not_(models.Meter.building_id.is_(None))) # type: ignore
+            .where(not_(models.Building.floor_area.is_(None))) # type: ignore
         ).scalars().all()
 
-        for m in meters:
-            meter_type = m.utility_type
+        units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
 
-            if meter_type not in units.keys():
-                continue
+        with open(benchmark_data_file, "r") as f:
+            benchmark_data = json.load(f)
 
-            # TODO: calculate agg number from time diff
-            x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
+        data = {}
+        for b in buildings:
+            building_response = {}
 
-            # No data available
-            if len(x['obs']) == 0:
-                continue
+            meters = db.session.execute(
+                db.select(models.Meter)
+                .where(models.Meter.building_id == b.id)
+                .where(models.Meter.main)
+            ).scalars().all()
 
-            usage = x['obs'][0]['value']
+            for m in meters:
+                meter_type = m.utility_type
 
-            if usage is None:
-                usage = 0
-
-            # handle unit changes
-            if x['unit'] != units[meter_type]:
-                if meter_type == "heat" and x['unit'] == "kWh":
-                    usage *= 1e-3  # to MWh
-                elif meter_type == "heat" and x['unit'] == "kW":
-                    # presume 10 minute data, round to nearest kWh
-                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
-                else:
+                if meter_type not in units.keys():
                     continue
 
-            # process EUI
-            eui = float(f"{(usage / b.floor_area):.2g}")
+                # TODO: calculate agg number from time diff
+                x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
 
-            # Create utility entries on occurrence so that the response is smaller
-            if meter_type not in building_response:
-                building_response[meter_type] = {}
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
 
-            benchmark = None
-            if meter_type in ["gas", "heat"]:
-                benchmark = benchmark_data[b.occupancy_type]["fossil"]
-            elif meter_type == "electricity":
-                benchmark = benchmark_data[b.occupancy_type]["electricity"]
+                usage = x['obs'][0]['value']
 
-            building_response[meter_type][m.id] = {
-                "EUI": eui,
-                "consumption": usage,
-                "benchmark": benchmark
+                if usage is None:
+                    usage = 0
+
+                # handle unit changes
+                if x['unit'] != units[meter_type]:
+                    if meter_type == "heat" and x['unit'] == "kWh":
+                        usage *= 1e-3  # to MWh
+                    elif meter_type == "heat" and x['unit'] == "kW":
+                        # presume 10 minute data, round to nearest kWh
+                        usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
+                    else:
+                        continue
+
+                # process EUI
+                eui = float(f"{(usage / b.floor_area):.2g}")
+
+                # Create utility entries on occurrence so that the response is smaller
+                if meter_type not in building_response:
+                    building_response[meter_type] = {}
+
+                benchmark = None
+                if meter_type in ["gas", "heat"]:
+                    benchmark = benchmark_data[b.occupancy_type]["fossil"]
+                elif meter_type == "electricity":
+                    benchmark = benchmark_data[b.occupancy_type]["electricity"]
+
+                building_response[meter_type][m.id] = {
+                    "EUI": eui,
+                    "consumption": usage,
+                    "benchmark": benchmark
+                }
+            
+            if cache_result:
+                existing_summary = db.session.execute(db.select(models.UtilityData).where(models.UtilityData.building_id == b.id)).scalar_one_or_none()
+                if existing_summary is None:
+                    new_hc = models.UtilityData(
+                        building_id=b.id,
+                        electricity=building_response.get("electricity", {}),
+                        gas=building_response.get("gas", {}),
+                        heat=building_response.get("heat", {}),
+                        water=building_response.get("water", {})
+                    )
+                    db.session.add(new_hc)
+                else:
+                    existing_summary.update(building_response)
+                db.session.commit()
+            
+            data[b.id] = building_response
+        
+        end_time = time.time()
+        
+        if cache_result:
+            existing_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+            
+            new_meta = {
+                "to_time": to_time.timestamp(),
+                "from_time": from_time.timestamp(),
+                "timestamp": dt.datetime.now().timestamp(),
+                "processing_time": end_time - start_time
             }
-
-        data[b.id] = building_response
+            
+            if existing_meta is None:
+                building_usage_cache_meta = models.CacheMeta(
+                    "usage_summary",
+                    new_meta
+                )
+                db.session.add(building_usage_cache_meta)
+            else:
+                existing_meta.update(new_meta)
+            db.session.commit()
     return make_response(jsonify(data), 200)
 
 ## time series of data for a given sensor
@@ -982,17 +1040,15 @@ def get_health(returning=False, app=None):
 
             try:
                 hc_meta = {
-                    "meter_count": len(out),
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
-                    "date_range": date_range,
                     "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
                     "processing_time": proc_time
                 }
 
-                existing_hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+                existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                 if existing_hc_meta is None:
-                    new_hc_meta = models.HealthCheckMeta(hc_meta)
+                    new_hc_meta = models.CacheMeta("health_check", hc_meta)
                     db.session.add(new_hc_meta)
                 else:
                     existing_hc_meta.update(hc_meta)
@@ -1053,7 +1109,7 @@ def meter_health():
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
 
-                meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+                meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                 if meta is None:
                     raise Exception
 
@@ -1252,6 +1308,7 @@ def health_score():
     return make_response(jsonify(data), 200)
 
 @api_bp.route('/populate_database')
+@required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
     for building in BUILDINGS():
         new_building = models.Building(
@@ -1296,41 +1353,8 @@ def populate_database():
             print(e)
             print(meter)
     
-    if os.path.exists(buildings_usage_file):
-        for building in BUILDINGSWITHUSAGE():
-            try:
-                new_building_usage = models.UtilityData(
-                    building["building_code"],
-                    electricity={
-                        "eui": building["electricity"]["eui"],
-                        "eui_annual": building["electricity"]["eui_annual"],
-                        "meter_ids": building["electricity"]["sensor_uuid"],
-                        "usage": building["electricity"]["usage"]
-                    },
-                    gas={
-                        "eui": building["gas"]["eui"],
-                        "eui_annual": building["gas"]["eui_annual"],
-                        "meter_ids": building["gas"]["sensor_uuid"],
-                        "usage": building["gas"]["usage"]
-                    },
-                    heat={
-                        "eui": building["heat"]["eui"],
-                        "eui_annual": building["heat"]["eui_annual"],
-                        "meter_ids": building["heat"]["sensor_uuid"],
-                        "usage": building["heat"]["usage"]
-                    },
-                    water={
-                        "eui": building["water"]["eui"],
-                        "eui_annual": building["water"]["eui_annual"],
-                        "meter_ids": building["water"]["sensor_uuid"],
-                        "usage": building["water"]["usage"]
-                    }
-                )
-                
-                db.session.add(new_building_usage)
-                db.session.commit()
-            except Exception as e:
-                print(e)
-                print(building)
-
+    # Generate usage data cache
+    # This dramatically increases the time it takes to initialise the database
+    summary()
+    
     return make_response("OK", 200)
