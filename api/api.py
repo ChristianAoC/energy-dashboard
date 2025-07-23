@@ -781,6 +781,7 @@ def summary():
             if meter_type not in units.keys():
                 continue
 
+            # TODO: calculate agg number from time diff
             x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
 
             # No data available
