@@ -68,7 +68,7 @@ function downloadMeterData(){
         format: 'csv'
     });
 
-    const uri = `${apiEndpoints.meterObs}?${params.toString()}`;
+    const uri = `${apiEndpoints.obs}?${params.toString()}`;
 
     // create an invisible link to trigger download
     const element = document.createElement('a');
