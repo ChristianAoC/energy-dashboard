@@ -1251,6 +1251,7 @@ def health_score():
         else:
             from_time = to_time - dt.timedelta(days=7, seconds=1)
     else:
+        # TODO: use given parameters if we can - currently ignores them in offline mode
         with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
 
@@ -1307,8 +1308,11 @@ def health_score():
             for score in health_scores:
                 total_score += score
 
-            average_score = total_score//len(health_scores)
-
+            if len(health_scores) != 0:
+                average_score = total_score//len(health_scores)
+            else:
+                average_score = 0
+            
             if average_score > 5:
                 average_score = 5
             elif average_score < 0:
