@@ -1323,6 +1323,13 @@ def health_score():
         data[b.id] = building_response
     return make_response(jsonify(data), 200)
 
+## Returns the contents of meta/offline_data.json
+@api_bp.route('/offline_meta')
+def offline_meta():
+    with open(offline_meta_file, "r") as f:
+        data = json.load(f)
+    return make_response(jsonify(data), 200)
+
 @api_bp.route('/populate_database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
