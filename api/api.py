@@ -977,19 +977,19 @@ def meter_obs():
     else:
         return make_response(jsonify(out), 200)
 
-def get_health(returning=False, app=None):
+def get_health(args, returning=False, app=None):
     # Because this function can be run in a separate thread, we need to
     if app is not None:
         app.app_context().push()
 
     try:
-        meter_ids = request.args["id"] # this is url decoded
+        meter_ids = args["id"] # this is url decoded
         meter_ids = meter_ids.split(";")
     except:
         meter_ids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
 
     try:
-        to_time = request.args["to_time"] # this is url decoded
+        to_time = args["to_time"] # this is url decoded
         to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
     except:
         if offlineMode:
@@ -999,12 +999,12 @@ def get_health(returning=False, app=None):
             to_time = dt.datetime.now(dt.timezone.utc)
 
     try:
-        date_range = int(request.args["date_range"]) # this is url decoded
+        date_range = int(args["date_range"]) # this is url decoded
     except:
         date_range = 30
 
     try:
-        from_time = request.args["from_time"] # this is url decoded
+        from_time = args["from_time"] # this is url decoded
         from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
     except:
         if offlineMode:
@@ -1017,7 +1017,7 @@ def get_health(returning=False, app=None):
 
     # TODO: Should this be implemented or removed?
     try:
-        fmt = request.args["format"] # this is url decoded
+        fmt = args["format"] # this is url decoded
     except:
         fmt = "json"
 
@@ -1045,7 +1045,7 @@ def get_health(returning=False, app=None):
     # print("--- Health check took %s seconds ---" % proc_time)
 
     # save cache, but only if it's a "default" query
-    if set(request.args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
+    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
         try:
             for meter in out:
                 update_health_check(meter)
@@ -1139,7 +1139,7 @@ def meter_health():
             if th.name == "updateMainHC":
                 updateOngoing = True
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(False, current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
 
         if hc_cache and len(hc_cache) > 2:
@@ -1151,7 +1151,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
     else:
-        health_check_data = get_health(True)
+        health_check_data = get_health(request.args, True)
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
