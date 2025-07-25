@@ -4,6 +4,46 @@ if (typeof summaryCache !== 'undefined' && summaryCache.length > 50) {
 }
 */
 
+let metaLabels = {
+    "varNameDevSensorID": "meter_id_clean",
+    "varNameDevLastObs": "last_obs_time",
+    "varNameDevSensorType": "meter_type", // gas heat water elec
+    "varNameDevSensorLocation": "meter_location", // not in anon
+    "varNameDevMeasuringLong": "serving", // not in anon (too long)
+    "varNameDevMeasuringShort": "serving_revised",
+    "varNameDevClass": "class", // cumulative or rate
+    "varNameDevResolution": "resolution",
+//    "varNameDevUnits": "measured_units", // this is converted in the API acc. to Paul, see below
+    "varNameDevUnits": "units_after_conversion",
+    "varNameDevTenantName": "tenant_name", // not in anon
+
+  // those are new, should we add them to table?
+    "varNameDevInvoiced": "to_be_invoiced", // not in anon
+    "varNameDevMeterLevel": "meter_level",
+//    "varNameDevConfigCheckedDate": "config_checked_date",
+    "varNameDevBuildingLevelMeter": "building_level_meter",
+    "varNameDevBuilding": "building",
+//    "varNameDevAdjustmentFactor": "adjustment_factor",
+    "varNameDevParent": "parent", // not in anon
+    "varNameDevParentTwo": "parent2", // not in anon
+    "varNameDevRedundant": "redundant", // not in anon
+    "varNameDevTenant": "tenant", // not in anon
+    "varNameDevTenantID": "tenant_unit_id", // not in anon
+    "varNameDevUnitConversionFactor": "unit_conversion_factor",
+//    "varNameDevUnitsAfterConversion": "unit_after_conversion", // Paul said this is actually the returned unit
+
+// masterList variables
+    "varNameMLBuildingName": "building_name",
+    "varNameMLBuildingGroupName": "building_group_name", // not in anon
+    "varNameMLBuildingID": "building_code",
+    "varNameMLBuildingGroup": "building_group", // not in anon
+    "varNameMLMazeMapID": "maze_map_label",
+    "varNameMLFloorSize": "floor_area",
+    "varNameMLUsage": "usage", // (this is residential/non-res etc)
+    "varNameMLYearBuilt": "year_built"
+}
+
+/*
 // variable names in API/JSON/CSV responses and files
 var varNameDevSensorID = "meter_id_clean";
 var varNameDevLastObs = "last_obs_time";
@@ -48,6 +88,7 @@ if (typeof masterList !== 'undefined') {
     originalMasterList = masterList;
     narrowML = masterList;
 }
+*/
 
 // need this frequently, strangely JS has no native function for this
 function capFirst(str) {

@@ -56,7 +56,7 @@ function populateDD() {
                 curDD.push(m);
             }
         }
-    } else if (commentParent == "device-data") {
+    } else if (commentParent == "browser") {
         for (m of fullDD) {
             if (document.getElementById('b-button').dataset.sensor) {
                 curDD.push(m);
@@ -159,7 +159,7 @@ function clickCheck(e) {
     } else if (commentParent == "building-data") {
         clickedSensor = document.querySelector('input[name="sensor"]:checked').value;
 
-    } else if (commentParent == "device-data") {
+    } else if (commentParent == "browser") {
         clickedSensor = document.getElementById('b-button').dataset.sensor;
     }
 
@@ -171,7 +171,7 @@ function clickCheck(e) {
 };
 
 function getCurPageStartDate() {
-    if (["view-map", "view-list", "view-graph", "device-data"].includes(commentParent)) {
+    if (["view-map", "view-list", "view-graph", "browser"].includes(commentParent)) {
     } else {
         let setDate = new Date(Date.now());
         setDate.setDate(setDate.getDate()-7);
@@ -182,7 +182,7 @@ function getCurPageStartDate() {
 function getCurPageEndDate() {
     if (["view-map", "view-list", "view-graph"].includes(commentParent)) {
         return document.getElementById("sb-end-date").value+" 23:50";
-    } else if (["building-data", "device-data"].includes(commentParent)) {
+    } else if (["building-data", "browser"].includes(commentParent)) {
         return document.getElementById("b-end-date").value+" 23:50";
     } else {
         let setDate = new Date(Date.now());

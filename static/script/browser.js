@@ -176,7 +176,7 @@ function meterSelected() {
 };
 
 $(document).ready(async function () {
-	commentParent = "device-data";
+	commentParent = "browser";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
     let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
