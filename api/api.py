@@ -125,6 +125,7 @@ def query_pandas(m: models.Meter, from_time, to_time):
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=False):
     # set some constants
+    # TODO: Why was 10 years chosen here?
     max_time_interval = dt.timedelta(days=3650)
 
     # convert to UTC for influx
@@ -530,7 +531,7 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
 ##
-## The generation of each meter's cache is handed of to a separate thread, this dramatically speeds up cache generation
+## The generation of each meter's cache is handed off to a separate thread, this dramatically speeds up cache generation
 ## **IF** the majority of the cache is expired/missing, or if this is the first time generating the cache.
 ## If the cache has just been updated, and we haven't gone past midnight UTC, then this will likely be slower than doing
 ## everything in the request's thread.
@@ -560,7 +561,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     # Don't need to filter id by not null as id is primary key and therefore not null
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
 
-    n = 20 # Process 35 meters at a time (35 was a random number I chose)
+    n = 35 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -752,7 +753,12 @@ def summary():
             from_time = to_time - dt.timedelta(days=7, seconds=1)
 
     valid_cache = True
-    cache_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+    
+    cache_meta = db.session.execute(
+        db.select(models.CacheMeta)
+        .where(models.CacheMeta.meta_type == "usage_summary")
+    ).scalar_one_or_none()
+    
     try:
         if cache_meta is None:
             raise Exception
@@ -772,12 +778,10 @@ def summary():
         data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
     else:
         # Generate new data
-        cache_result = not set(request.args).isdisjoint({"from_time", "to_time"})
+        cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
     
         buildings = db.session.execute(
             db.select(models.Building)
-            .join(models.Meter)
-            .where(not_(models.Meter.building_id.is_(None))) # type: ignore
             .where(not_(models.Building.floor_area.is_(None))) # type: ignore
         ).scalars().all()
 
@@ -795,6 +799,9 @@ def summary():
                 .where(models.Meter.building_id == b.id)
                 .where(models.Meter.main)
             ).scalars().all()
+            
+            if len(meters) == 0:
+                continue
 
             for m in meters:
                 meter_type = m.utility_type
@@ -855,7 +862,12 @@ def summary():
                     )
                     db.session.add(new_hc)
                 else:
-                    existing_summary.update(building_response)
+                    existing_summary.update(
+                        electricity=building_response.get("electricity", {}),
+                        gas=building_response.get("gas", {}),
+                        heat=building_response.get("heat", {}),
+                        water=building_response.get("water", {})
+                    )
                 db.session.commit()
             
             data[b.id] = building_response
@@ -1355,6 +1367,6 @@ def populate_database():
     
     # Generate usage data cache
     # This dramatically increases the time it takes to initialise the database
-    summary()
+    # summary()
     
     return make_response("OK", 200)
