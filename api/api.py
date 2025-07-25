@@ -47,9 +47,9 @@ else:
     meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
     meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
 if not os.path.exists(meter_health_score_files):
-    os.mkdir(meter_health_score_files)
+    os.makedirs(meter_health_score_files)
 if not os.path.exists(meter_snapshots_files):
-    os.mkdir(meter_snapshots_files)
+    os.makedirs(meter_snapshots_files)
 
 cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
