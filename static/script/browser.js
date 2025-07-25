@@ -178,7 +178,10 @@ function meterSelected() {
 				}
 			}
 		};
-	};
+	} else {
+        document.getElementById("alreadyrate").hidden = true;
+        document.getElementById("cumultorate").disabled = true;
+    };
 
 	redrawPlot();
 };
