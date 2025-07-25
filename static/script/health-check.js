@@ -169,12 +169,12 @@ $(document).ready( function () {
         fixedHeader: true,
         columns: hctColumns,
         createdRow: function (row, data, dataIndex) {
-            $(row).attr("data-sensor", data[varNameDevSensorID]);
+            $(row).attr("data-meter", data[varNameDevSensorID]);
             $(row).addClass('colorScore'+data["HC_score"]);
 
             // check date range applies
             for (c of context) {
-                if (data[varNameDevSensorID] == c["sensor"]) {
+                if (data[varNameDevSensorID] == c["meter"]) {
                     if ($('td.lastCol', row).is(':empty')) {
                         $('td.lastCol', row).html("<b>"+c["author"].split('@')[0]+"</b>"+": "+c["comment"]);
                     } else {
@@ -265,10 +265,10 @@ $(document).ready( function () {
         cell = healthcheckTable.cell(this);
         if (commentMode) return;
         if (cell.index()["column"] == 0) {
-            viewDevice(this.closest("tr").getAttribute("data-sensor"));
+            viewDevice(this.closest("tr").getAttribute("data-meter"));
         } else if (this.classList.contains("lastCol")) {
             createContextDialog(
-                this.closest("tr").getAttribute("data-sensor"),
+                this.closest("tr").getAttribute("data-meter"),
                 new Date(hc_meta["from_time"] * 1000).toISOString().slice(0, 10)+" 00:00",
                 new Date(hc_meta["to_time"] * 1000).toISOString().slice(0, 10)+" 00:00"
             );

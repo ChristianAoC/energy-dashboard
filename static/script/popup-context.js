@@ -43,20 +43,20 @@ function populateDD() {
     var curDD = [];
 
     if (commentParent == "view-map" || commentParent == "view-list" || commentParent == "view-graph") {
-        let sensorIDs = [];
+        let meterIDs = [];
         if (commentParent == "view-graph") {
             for (m of narrowML) {
-                sensorIDs.push(...m[activeTab]["sensor_uuid"]);
+                meterIDs.push(...m[activeTab]["meter_uuid"]);
             }
         } else {
             for (m of masterList) {
                 for (t of ["electricity", "gas", "heat", "water"]) {
-                    sensorIDs.push(...m[t]["sensor_uuid"]);
+                    meterIDs.push(...m[t]["meter_uuid"]);
                 }
             }
         }
         for (m of fullDD) {
-            if (sensorIDs.includes(m.id)) {
+            if (meterIDs.includes(m.id)) {
                 curDD.push(m);
             }
         }
@@ -68,7 +68,7 @@ function populateDD() {
         }
     } else if (commentParent == "browser") {
         for (m of fullDD) {
-            if (document.getElementById('b-button').dataset.sensor) {
+            if (document.getElementById('b-button').dataset.meter) {
                 curDD.push(m);
             }
         }
@@ -79,7 +79,7 @@ function populateDD() {
     var ddList = document.getElementById("contextDD");
     ddList.innerHTML = "";
     var customE = document.createElement('option');
-    customE.text = "(Select a sensor)"
+    customE.text = "(Select a meter)"
     customE.value = "select";
     ddList.add(customE)
     for (m of curDD) {
@@ -102,7 +102,7 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
-function createContextDialog(clickedSensor, from, to) {
+function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
@@ -125,10 +125,10 @@ function createContextDialog(clickedSensor, from, to) {
 
     var ddElem = document.getElementById("contextDD");
 
-    if (clickedSensor == "" || clickedSensor == null) {
+    if (clickedMeter == "" || clickedMeter == null) {
         ddElem.value = "select";
     } else {
-        ddElem.value = clickedSensor;
+        ddElem.value = clickedMeter;
     }
 
     document.getElementById("con-start-date").value = from;
@@ -141,42 +141,42 @@ function clickCheck(e) {
         return;
     }
 
-    var clickedSensor = "";
+    var clickedMeter = "";
 
-    // add sensor pre-set
+    // add meter pre-set
     if ((commentParent == "deviceTable") || (commentParent == "healthcheckTable")) {
-        clickedSensor = e.target.closest("tr").getAttribute("data-sensor");
+        clickedMeter = e.target.closest("tr").getAttribute("data-meter");
 
     } else if (commentParent == "view-map") {
         if (clickedOn != "") {
-            clickedSensor = clickedOn;
+            clickedMeter = clickedOn;
         }
 
     } else if (commentParent == "view-list") {
         var currentDDArray = [...document.getElementById("contextDD").options].map(o => o.value);
         if (currentDDArray.includes(e.target.innerHTML)) {
-            clickedSensor = e.target.innerHTML;
+            clickedMeter = e.target.innerHTML;
         } else {
-            clickedSensor = e.target.closest("tr").getAttribute("data-sensor");
+            clickedMeter = e.target.closest("tr").getAttribute("data-meter");
         }
 
     } else if (commentParent == "view-graph") {
         if (contextMeterClicked != "") {
-            clickedSensor = contextMeterClicked;
+            clickedMeter = contextMeterClicked;
             contextMeterClicked = "";
         }
 
     } else if (commentParent == "building-data") {
-        clickedSensor = document.querySelector('input[name="sensor"]:checked').value;
+        clickedMeter = document.querySelector('input[name="meter"]:checked').value;
 
     } else if (commentParent == "browser") {
-        clickedSensor = document.getElementById('b-button').dataset.sensor;
+        clickedMeter = document.getElementById('b-button').dataset.meter;
     }
 
     var fromContext = getCurPageStartDate();
     var toContext = getCurPageEndDate();
 
-    createContextDialog(clickedSensor, fromContext, toContext)
+    createContextDialog(clickedMeter, fromContext, toContext)
     leaveCommentMode();
 };
 
@@ -214,7 +214,7 @@ function htmlEscape(text) {
 function saveContext() {
     if (commentParent == "healthcheckTable") {
         var table = $('#healthcheckTable').DataTable();
-        var rowNode = $('#healthcheckTable tbody tr[data-sensor="' + document.getElementById("contextDD").value + '"]');
+        var rowNode = $('#healthcheckTable tbody tr[data-meter="' + document.getElementById("contextDD").value + '"]');
         //var row = table.row(rowNode);
         var cellNode = rowNode.find('td.lastCol');
         var currentHTML = cellNode.html();
@@ -234,7 +234,7 @@ function saveContext() {
     }
     var toSubmit = {
         "author": (getCookie("Email") != "") ? getCookie("Email") : "(anonymous)",
-        "sensor": document.getElementById("contextDD").value,
+        "meter": document.getElementById("contextDD").value,
         "startnone": document.getElementById("none-from").checked,
         "start": document.getElementById("con-start-date").value,
         "startfuzzy": document.getElementById("fuzzy-from").checked,

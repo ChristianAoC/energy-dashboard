@@ -54,30 +54,29 @@ window.addEventListener('keydown', function (event) {
 	}
 });
 
-function downloadSensorData(){
-	var sensor = document.querySelector('input[name="sensor"]:checked').value;
-	var startDate = document.getElementById("sb-start-date").value;
-	var endDate = document.getElementById("sb-end-date").value;
-    var uri="api/meter_obs?uuid=" + sensor +
-	    "&from_time=" + encodeURIComponent(startDate) + "T00:00:00Z" +
-	    "&to_time=" + encodeURIComponent(endDate) + "T23:59:59Z" +
-        "&to_rate=false" +
-		"&format=csv"
+function downloadMeterData(){
+    const meter = document.getElementById("select-meter").value;
+    const startDate = document.getElementById("sb-start-date").value;
+    const endDate = document.getElementById("sb-end-date").value;
 
-	//creating an invisible element
-	var element = document.createElement('a');
-	element.setAttribute('href', uri);
-	element.setAttribute('download', encodeURIComponent(sensor));
+    // build query params cleanly
+    const params = new URLSearchParams({
+        uuid: meter,
+        from_time: `${startDate}T00:00:00Z`,
+        to_time:   `${endDate}T23:59:59Z`,
+        to_rate: 'false',
+        format: 'csv'
+    });
 
-	// Above code is equivalent to
-	// <a href="path of file" download="file name">
+    const uri = `${apiEndpoints.meterObs}?${params.toString()}`;
 
-	document.body.appendChild(element);
-
-	//onClick property
-	element.click();
-
-	document.body.removeChild(element);
+    // create an invisible link to trigger download
+    const element = document.createElement('a');
+    element.href = uri;
+    element.download = meter; // filename to suggest
+    document.body.appendChild(element);
+    element.click();
+    document.body.removeChild(element);
 };
 
 async function redrawPlot() {
@@ -107,7 +106,6 @@ async function redrawPlot() {
     }
 
     try {
-		console.log(params)
         const { obs } = await getData({ obs: params }, true); 
 
         if (!obs) {
@@ -242,5 +240,5 @@ $(document).ready(async function () {
     document.getElementById("select-type").addEventListener("change", typeSelected);
     document.getElementById("select-meter").addEventListener("change", meterSelected);
 
-    document.getElementById("download-button").addEventListener("click", downloadSensorData);
+    document.getElementById("download-button").addEventListener("click", downloadMeterData);
 });

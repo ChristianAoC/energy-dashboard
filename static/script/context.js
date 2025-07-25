@@ -9,7 +9,7 @@ function showContextEdit(id) {
     document.getElementById("context-container").classList.remove("hidden");
 
     populateDD();
-    document.getElementById("contextDD").value = data["sensor"];
+    document.getElementById("contextDD").value = data["meter"];
     document.getElementById("con-start-date").value = data["start"];
     document.getElementById("con-end-date").value = data["end"];
     document.getElementById("fuzzy-from").checked = data["startfuzzy"];
@@ -67,7 +67,7 @@ $(document).ready( function () {
         columns: [
             {data: "id", visible: false},
             {data: "author", title: "Author"},
-            {data: "sensor", title: "Sensor"},
+            {data: "meter", title: "Meter"},
             {data: "start", title: "Start",
                 render: function (data, type, row) {
                     if (row["startnone"] == true) {

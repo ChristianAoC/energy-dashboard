@@ -33,7 +33,7 @@ function convertMLToPlotly(barType) {
             if(narrowML[i][activeTab][toPlot] != null) {
                 x.push(Math.round(parseFloat(narrowML[i][activeTab][toPlot])));
                 y.push(narrowML[i][varNameMLBuildingName]);
-                customdata.push(narrowML[i][activeTab]["sensor_uuid"].join(';'));
+                customdata.push(narrowML[i][activeTab]["meter_uuid"].join(';'));
                 bmg.push(narrowML[i][activeTab]["bm_good"]);
                 bmt.push(narrowML[i][activeTab]["bm_typical"]);
             }
@@ -132,11 +132,11 @@ function redrawGraph() {
         }
     });
 
-    let sensors = "";
+    let meters = "";
     for (s of narrowML) {
-        sensors += s[activeTab]["sensor_uuid"].join(";")+";";
+        meters += s[activeTab]["meter_uuid"].join(";")+";";
     }
-    let uri = "getcontext?sensor="+sensors+"&start="+getCurPageStartDate()+"&end="+getCurPageEndDate();
+    let uri = "getcontext?meter="+meters+"&start="+getCurPageStartDate()+"&end="+getCurPageEndDate();
     fetch(uri, {method: 'GET'})
     .then(response => response.json())
     .then(data => {
@@ -146,7 +146,7 @@ function redrawGraph() {
         let annotations = [];
         for (e of data["context"]) {
             for (d in pData.customdata) {
-                if (e.sensor == pData.customdata[d]) {
+                if (e.meter == pData.customdata[d]) {
                     annotations.push({
                         x: pData.x[d],
                         y: pData.y[d],

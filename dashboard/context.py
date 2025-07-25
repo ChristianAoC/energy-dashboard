@@ -71,11 +71,11 @@ def get_context(args):
         context = json.load(openfile)
         timeFormat = "%Y-%m-%d %H:%M"
         for key, value in args.items():
-            if key == "sensor":
+            if key == "meter":
                 if value == "all":
                     continue
                 else:
-                    sensors = args["sensor"].split(";")
+                    meters = args["meter"].split(";")
             result = []
             for i in range(len(context)):
                 if key in context[i]:
@@ -88,8 +88,8 @@ def get_context(args):
                         #if context[i][key] == "Recurring" or context[i][key].casefold() == value.casefold():
                         if context[i][key].casefold() == value.casefold():
                             result.append(context[i])
-                    if key == "sensor":
-                        if context[i][key] in sensors:
+                    if key == "meter":
+                        if context[i][key] in meters:
                             result.append(context[i])
                     # add fuzzy logic... not sure what/how
                     if key == "start":

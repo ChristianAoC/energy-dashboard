@@ -160,7 +160,7 @@ div#context-content {
     display: grid;
     grid-template-columns: min-content auto 3.5em auto;
     grid-template-areas:
-        "gc-sensors-label gc-sensors gc-sensors gc-sensors"
+        "gc-meters-label gc-meters gc-meters gc-meters"
         "gc-datefrom-label gc-datefrom-none gc-dateto-label gc-dateto-none"
         ". gc-datefrom . gc-dateto"
         ". gc-datefromfuzzy . gc-datetofuzzy"
@@ -303,7 +303,7 @@ div#failed-div {
     background-color: #BBB;
 }
 
-#context-sensor {
+#context-meter {
     position: relative;
     display: inline-block;
 }
@@ -325,7 +325,7 @@ div#failed-div {
     display: block;
 }
 
-#context-sensor {background-color: #ddd;}
+#context-meter {background-color: #ddd;}
 
 .show {display: block;}
 
