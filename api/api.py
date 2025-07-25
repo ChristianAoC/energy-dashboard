@@ -71,6 +71,20 @@ if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     sys.exit(1)
 
+if offlineMode and not os.path.exists(offline_meta_file):
+    print("\n" + "="*20)
+    print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
+    print("\tPlease place your metadata in ./data/meta/offline_data.json")
+    print("\n" + "="*20)
+    sys.exit(1)
+
+if not os.path.exists(benchmark_data_file):
+    print("\n" + "="*20)
+    print("\tERROR: You have removed the included benchmark data!")
+    print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
+    print("\n" + "="*20)
+    sys.exit(1)
+
 ## #################################################################
 ## constants - should not be changed later in code
 def METERS():
