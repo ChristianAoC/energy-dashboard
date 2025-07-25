@@ -647,12 +647,14 @@ def health():
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
 @api_bp.route('/meters')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meters():
     data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
     return make_response(jsonify(data), 200)
 
 ## Health check cache meta
 @api_bp.route('/hc_meta')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
     hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
     if hc_meta is None:
@@ -727,6 +729,7 @@ def hc_meta():
 ## Example:
 ## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def summary():
     start_time = time.time()
     
@@ -924,6 +927,7 @@ def summary():
 ## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2;AP080_L01_M5
 ## http://127.0.0.1:5000/api/meter_obs?id=WTHR_0
 @api_bp.route('/meter_obs')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_obs():
     try:
         meter_ids = request.args["id"] # this is url decoded
@@ -1114,6 +1118,7 @@ def update_health_check(values: dict):
 ## Example:
 ## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=7
 @api_bp.route('/meter_health')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
     # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
     # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters)
@@ -1200,6 +1205,7 @@ def meter_health():
 ##     ...
 ## }
 @api_bp.route('/meter_hierarchy')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_hierarchy():
     buildings = db.session.execute(
         db.select(models.Building)
@@ -1254,6 +1260,7 @@ def meter_hierarchy():
 ## Example:
 ## http://127.0.0.1:5000/api/health_score
 @api_bp.route('/health_score')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
     if not offlineMode:
         to_time = request.args.get("to_time")
@@ -1342,6 +1349,7 @@ def health_score():
 
 ## Returns the contents of meta/offline_data.json
 @api_bp.route('/offline_meta')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     with open(offline_meta_file, "r") as f:
         data = json.load(f)
