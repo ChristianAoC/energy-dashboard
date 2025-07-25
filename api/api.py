@@ -24,9 +24,6 @@ load_dotenv()
 val = os.getenv("OFFLINE_MODE", "True")
 offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
 
-# val = os.getenv("ANON_MODE", "True")
-# anonMode = val.strip().lower() in ("1", "true", "yes", "on")
-
 InfluxURL = os.getenv("INFLUX_URL")
 InfluxPort = os.getenv("INFLUX_PORT")
 InfluxUser = os.getenv("INFLUX_USER")
