@@ -3,7 +3,7 @@ var commentParent = ""; // the main content div containing info that can be comm
 var contextMeterClicked = "";
 var fullDD = [];
 
-function commentBubbleClicked() {
+async function commentBubbleClicked() {
     if (commentMode) {
         leaveCommentMode();
     } else {
@@ -14,6 +14,16 @@ function commentBubbleClicked() {
         document.getElementById("comment-bubble").style.background = "orange";
         document.getElementById("comment-tooltipmodeengaged").classList.remove("hidden");
         commentMode = true;
+    }
+
+    try {
+        if (!browserData.meters) {
+            const { meters } = await getData({ meters: {} });
+            browserData.meters = meters;
+        }
+        fillDD(browserData.meters);
+    } catch (err) {
+        console.error("Failed to load data", err);
     }
 };
 
@@ -265,22 +275,16 @@ function setRadioButtons(name, state) {
 function fillDD(data) {
     for (m of data) {
         fullDD.push({
-            "id": m[varNameDevSensorID],
-            "type": m[varNameDevSensorType],
+            "id": m[metaLabel["meter_id"]],
+            "type": m[metaLabel["utility_type"]],
             //"serving": m["Serving"] too long...
-            "building": m[varNameDevMeasuringShort]
+            "building": m[metaLabel["description"]]
         })
     }
 }
 
 $(document).ready(async function () {
-    try {
-        const { meters } = await getData({ meters: {} });
-        fillDD(meters);
-    } catch (err) {
-        console.error("Failed to load meters for context popup", err);
-    }
-
+    
     // to not bloat the CSS file do this
     for (e of document.querySelectorAll("div.gc-grid-element")) {
         e.style.gridArea = e.id;

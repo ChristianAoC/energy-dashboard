@@ -1,46 +1,24 @@
-/*
-if (typeof summaryCache !== 'undefined' && summaryCache.length > 50) {
-    masterList = summaryCache;
-}
-*/
+const browserData = {};
 
-let metaLabels = {
-    "varNameDevSensorID": "meter_id_clean",
-    "varNameDevLastObs": "last_obs_time",
-    "varNameDevSensorType": "meter_type", // gas heat water elec
-    "varNameDevSensorLocation": "meter_location", // not in anon
-    "varNameDevMeasuringLong": "serving", // not in anon (too long)
-    "varNameDevMeasuringShort": "serving_revised",
-    "varNameDevClass": "class", // cumulative or rate
-    "varNameDevResolution": "resolution",
-//    "varNameDevUnits": "measured_units", // this is converted in the API acc. to Paul, see below
-    "varNameDevUnits": "units_after_conversion",
-    "varNameDevTenantName": "tenant_name", // not in anon
+let metaLabel = {
+    "meter_id": "id",
+    "building_id": "building_id",
+    "utility_type": "utility_type",
+    "description_short": "serving_revised",
+    "description_long": "serving",
+    "reading_type": "reading_type",
+    "tenant": "tenant",
+    "invoiced": "invoiced", // probably remove and only add/keep tenant
+    "location": "meter_location",
+    "main_meter": "main",
+    "resolution": "resolution",
+    "units": "units",
+    "scaling_factor": "scaling_factor", // do we need this? should only be needed in API?
 
-  // those are new, should we add them to table?
-    "varNameDevInvoiced": "to_be_invoiced", // not in anon
-    "varNameDevMeterLevel": "meter_level",
-//    "varNameDevConfigCheckedDate": "config_checked_date",
-    "varNameDevBuildingLevelMeter": "building_level_meter",
-    "varNameDevBuilding": "building",
-//    "varNameDevAdjustmentFactor": "adjustment_factor",
-    "varNameDevParent": "parent", // not in anon
-    "varNameDevParentTwo": "parent2", // not in anon
-    "varNameDevRedundant": "redundant", // not in anon
-    "varNameDevTenant": "tenant", // not in anon
-    "varNameDevTenantID": "tenant_unit_id", // not in anon
-    "varNameDevUnitConversionFactor": "unit_conversion_factor",
-//    "varNameDevUnitsAfterConversion": "unit_after_conversion", // Paul said this is actually the returned unit
-
-// masterList variables
-    "varNameMLBuildingName": "building_name",
-    "varNameMLBuildingGroupName": "building_group_name", // not in anon
-    "varNameMLBuildingID": "building_code",
-    "varNameMLBuildingGroup": "building_group", // not in anon
-    "varNameMLMazeMapID": "maze_map_label",
-    "varNameMLFloorSize": "floor_area",
-    "varNameMLUsage": "usage", // (this is residential/non-res etc)
-    "varNameMLYearBuilt": "year_built"
+    "maze_map_label": "maze_map_label",
+    "floor_area": "floor_area",
+    "occupancy_type": "occupancy_type",
+    "year_built": "year_built"
 }
 
 /*
@@ -73,14 +51,6 @@ var varNameDevUnitConversionFactor = "unit_conversion_factor";
 //var varNameDevUnitsAfterConversion = "unit_after_conversion"; // Paul said this is actually the returned unit
 
 // masterList variables
-var varNameMLBuildingName = "building_name";
-var varNameMLBuildingGroupName = "building_group_name"; // not in anon
-var varNameMLBuildingID = "building_code";
-var varNameMLBuildingGroup = "building_group"; // not in anon
-var varNameMLMazeMapID = "maze_map_label";
-var varNameMLFloorSize = "floor_area";
-var varNameMLUsage = "usage"; // (this is residential/non-res etc)
-var varNameMLYearBuilt = "year_built";
 
 var originalMasterList = [];
 var narrowML = [];

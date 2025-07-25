@@ -1,5 +1,3 @@
-let hierarchy = "";
-
 let pConfigPopup = {
     displayModeBar: false
 };
@@ -48,9 +46,9 @@ window.addEventListener('keydown', function (event) {
 		let ref = params.get("ref");
 		if (ref) {
 			if (ref == "view-map") {
-                window.location.href = "map.html";
+                window.location.href = "map";
 			} else if (ref == "view-graph") {
-                window.location.href = "benchmark.html";
+                window.location.href = "benchmark";
 			}
 		}
 	}
@@ -82,7 +80,7 @@ function downloadSensorData(){
 	document.body.removeChild(element);
 };
 
-function redrawPlot() {
+async function redrawPlot() {
 	let selMeter = document.getElementById("select-meter").value;
 	if (selMeter == "") {
 		return;
@@ -95,26 +93,38 @@ function redrawPlot() {
     let startDate = document.getElementById("sb-start-date").value;
 	let endDate = document.getElementById("sb-end-date").value;
 
-    let uri="api/meter_obs?uuid=" + selMeter +
-	    "&from_time=" + encodeURIComponent(startDate) + "T00:00:00Z" +
-	    "&to_time=" + encodeURIComponent(endDate) + "T23:59:59Z" +
-		"&to_rate=" + toRate;
-	if (agg != "None") uri += "&aggregate=" + agg + "H";
-
 	document.getElementById('b-plot').innerHTML = `<img src='${appConfig.loadingGifUrl}' alt='Loading...' />`;
 	document.getElementById('b-plot-header').innerHTML = selMeter;
-	
-	callApiJSON( uri ).then((data) => {
-		if (data == null) {
-			document.getElementById('b-plot').innerHTML = "<br><br>Could not connect to API.";
-			return;
-		}
+
+	let params = {
+        uuid: selMeter,
+        from_time: `${startDate}T00:00:00Z`,
+        to_time:   `${endDate}T23:59:59Z`,
+        to_rate: toRate
+    };
+    if (agg && agg !== "None" && agg != 0) {
+        params.aggregate = `${agg}H`;
+    }
+
+    try {
+		console.log(params)
+        const { obs } = await getData({ obs: params }, true); 
+
+        if (!obs) {
+            document.getElementById('b-plot').innerHTML = "<br><br>Could not connect to API.";
+            return;
+        }
+
 		document.getElementById('b-plot').innerHTML = "";
-        let resArr = convertTSDToPlotlyPopup(data[selMeter].obs, "bar");
+        let resArr = convertTSDToPlotlyPopup(obs[selMeter].obs, "bar");
         let pData = resArr[0];
-        pLayoutPopup["yaxis"]["title"]["text"] = capFirst(type) + " [" + data[selMeter].unit + "]";
+        pLayoutPopup["yaxis"]["title"]["text"] = capFirst(type) + " [" + obs[selMeter].unit + "]";
         Plotly.newPlot("b-plot", [pData], pLayoutPopup, pConfigPopup);
-	});
+
+    } catch (err) {
+        console.error("Failed to load meter data", err);
+        document.getElementById('b-plot').innerHTML = "<br><br>Error retrieving data.";
+    }	
 };
 
 function selectPopulator(selectID, selectArray) {
@@ -140,7 +150,7 @@ function buildingSelected() {
 	selectMeter.innerHTML = "<option value=''>--Select--</option>";
 
 	if (selBuilding !== "") {
-		selectPopulator("select-type", Object.keys(hierarchy[selBuilding]));
+		selectPopulator("select-type", Object.keys(browserData.hierarchy[selBuilding]));
 	}
 };
 
@@ -150,7 +160,7 @@ function typeSelected() {
 	let selMeter = document.getElementById("select-meter");
 	selMeter.innerHTML = "<option value=''>--Select--</option>";
 	if (selType != "") {
-		selectPopulator("select-meter", hierarchy[document.getElementById("select-building").value][selType]);
+		selectPopulator("select-meter", browserData.hierarchy[document.getElementById("select-building").value][selType]);
 	}
 };
 
@@ -159,9 +169,9 @@ function meterSelected() {
 	selMeter = document.getElementById("select-meter").value;
 
 	if (selMeter != "") {
-		for( let i = 0; i < devices.length; i++ ) {
-			if (devices[i]["meter_id_clean"] == selMeter) {
-				if (devices[i]["class"] == "Cumulative") {
+		for( let i = 0; i < browserData.meters.length; i++ ) {
+			if (browserData.meters[i][metaLabel["meter_id"]] == selMeter) {
+				if (browserData.meters[i][metaLabel["reading_type"]] == "Cumulative") {
 					document.getElementById("cumultorate").disabled = false;
 					document.getElementById("alreadyrate").hidden = true;
 				} else {
@@ -176,6 +186,45 @@ function meterSelected() {
 };
 
 $(document).ready(async function () {
+    try {
+        // fetch both hierarchy and meters at once
+        const { hierarchy, meters } = await getData({
+            hierarchy: {},
+            meters: {}
+        });
+
+        // store them in your global browserData object
+        browserData.hierarchy = hierarchy;
+        browserData.meters = meters;
+
+        if (browserData.hierarchy) {
+            selectPopulator("select-building", Object.keys(browserData.hierarchy));
+
+			// check if we pre-select building or meter from URL
+			let params = new URLSearchParams(document.location.search);
+			if (params.get("building")) {
+				document.getElementById("select-building").value = params.get("building");
+			}
+			buildingSelected();
+
+			if (params.get("meter_id")) {
+				for( let i = 0; i < browserData.meters.length; i++ ) {
+					if (browserData.meters[i][metaLabel["meter_id"]] == params.get("meter_id")) {
+						document.getElementById("select-building").value = browserData.meters[i][metaLabel["building_id"]];
+						buildingSelected();
+						document.getElementById("select-type").value = browserData.meters[i][metaLabel["utility_type"]].toLowerCase();
+						typeSelected();
+					}
+				};
+				document.getElementById("select-meter").value = params.get("meter_id");
+			}
+			meterSelected();
+		}
+
+    } catch (err) {
+        console.error("Failed to load data", err);
+    }
+	
 	commentParent = "browser";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
@@ -186,13 +235,6 @@ $(document).ready(async function () {
     sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
     document.getElementById('sb-end-date').value = sideBarEndDate;
 
-    hierarchy = await callApiJSON('/api/meter_hierarchy');
-    if (hierarchy) {
-        selectPopulator("select-building", Object.keys(hierarchy));
-    } else {
-        console.error("Failed to load hierarchy data");
-    }
-
 	// TODO implement a cumultorate filter
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);
 
@@ -201,23 +243,4 @@ $(document).ready(async function () {
     document.getElementById("select-meter").addEventListener("change", meterSelected);
 
     document.getElementById("download-button").addEventListener("click", downloadSensorData);
-
-	let params = new URLSearchParams(document.location.search);
-	if (params.get("building")) {
-		document.getElementById("select-building").value = params.get("building");
-	}
-	buildingSelected();
-
-	if (params.get("meter_id")) {
-		for( let i = 0; i < devices.length; i++ ) {
-			if (devices[i]["meter_id_clean"] == params.get("meter_id")) {
-				document.getElementById("select-building").value = devices[i]["building"];
-				buildingSelected();
-				document.getElementById("select-type").value = devices[i]["meter_type"].toLowerCase();
-				typeSelected();
-			}
-		};
-		document.getElementById("select-meter").value = params.get("meter_id");
-	}
-	meterSelected();
 });
