@@ -289,16 +289,17 @@ class UtilityData(db.Model):
         self.building_id = building_id
         self.update(electricity, gas, heat, water)
     
-    def _check_dict(self, dictionary: dict) -> bool:
-        if len(dictionary.keys()) == 0:
+    def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
+        if len(dictionary) == 0:
             return True # Allow empty data
         
-        for meter in dictionary:
+        for meter in dictionary.values():
             if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
                 return False
 
-            if bool(meter["benchmark"].keys() - {"good", "typical"}):
-                return False
+            if require_benchmark:
+                if bool(meter["benchmark"].keys() - {"good", "typical"}):
+                    return False
         
         return True
     
@@ -309,7 +310,7 @@ class UtilityData(db.Model):
             raise ValueError("Invalid gas data")
         if not self._check_dict(heat):
             raise ValueError("Invalid heat data")
-        if not self._check_dict(water):
+        if not self._check_dict(water, False):
             raise ValueError("Invalid water data")
         
         self.electricity = electricity
