@@ -1177,6 +1177,9 @@ def meter_health():
 ## json object:
 ## {
 ##     "building_code": {
+##         "meta": {
+##             Building metadata
+##         },
 ##         "electricity": [
 ##             "meter_id_clean",
 ##             ...
@@ -1224,7 +1227,8 @@ def meter_hierarchy():
                 building_response[meter_type] = []
 
             building_response[meter_type].append(m.id)
-
+        
+        building_response["meta"] = b.to_dict()
         data[b.id] = building_response
 
     return make_response(jsonify(data), 200)
