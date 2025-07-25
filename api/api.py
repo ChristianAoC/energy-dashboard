@@ -673,6 +673,9 @@ def hc_meta():
 ## json object:
 ## {
 ##     "building_code": {
+##         "meta": {
+##             Building metadata
+##         },
 ##         "electricity": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
@@ -772,7 +775,16 @@ def summary():
         valid_cache = False
     
     if valid_cache:
-        data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
+        data = {}
+        for x in db.session.execute(db.select(models.UtilityData)).scalars().all():
+            temp = x.to_dict()
+            
+            temp["meta"] = db.session.execute(
+                db.select(models.Building)
+                .where(models.Building.id == x.building_id)
+            ).scalar_one().to_dict()
+            
+            data[temp["meta"]["id"]] = temp
     else:
         # Generate new data
         cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
@@ -846,6 +858,8 @@ def summary():
                     "consumption": usage,
                     "benchmark": benchmark
                 }
+            
+            building_response["meta"] = b.to_dict()
             
             if cache_result:
                 existing_summary = db.session.execute(db.select(models.UtilityData).where(models.UtilityData.building_id == b.id)).scalar_one_or_none()
