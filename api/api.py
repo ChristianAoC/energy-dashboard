@@ -1110,7 +1110,7 @@ def meter_health():
 
     # What does the 2nd statement do?
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
-        if hc_cache and len(hc_cache) > 2:
+        if hc_cache:
             try:
                 if offlineMode:
                     with open(offline_meta_file, "r") as f:
@@ -1123,23 +1123,25 @@ def meter_health():
                     raise Exception
 
                 cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * hc_update_time and meta.date_range == 30:
+                if cache_age < 3600 * hc_update_time:
                     response = make_response(jsonify(hc_cache), 200)
                     response.headers['X-Cache-State'] = "fresh"
                     return response
             except:
                 print("Error reading cache metadata, skipping HC cache")
 
-        # Implement a lock here instead of this
+        # TODO: Implement a lock here instead of this
         updateOngoing = False
         for th in threading.enumerate():
             if th.name == "updateMainHC":
                 updateOngoing = True
+                break
+        
         if not updateOngoing:
             thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
 
-        if hc_cache and len(hc_cache) > 2:
+        if hc_cache:
             response = make_response(jsonify(hc_cache), 200)
             response.headers['X-Cache-State'] = "stale"
             return response
