@@ -42,7 +42,10 @@ def required_user_level(level_config_key):
             cookies = request.cookies
             try:
                 level = int(current_app.config[level_config_key])
-                if level == 1 or int(user.get_user_level(cookies["Email"], cookies["SessionID"])) >= level:
+                email = cookies.get("Email", None)
+                sessionID = cookies.get("SessionID", None)
+
+                if user.get_user_level(email, sessionID) >= level:
                     return function(*args, **kwargs)
             except:
                 print("No or wrong cookie")

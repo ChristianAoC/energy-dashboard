@@ -625,13 +625,15 @@ def required_user_level(level_config_key):
             cookies = request.cookies
             try:
                 level = int(current_app.config[level_config_key])
-                if int(user.get_user_level(cookies["Email"], cookies["SessionID"])) < level:
+                email = cookies.get("Email", None)
+                sessionID = cookies.get("SessionID", None)
+                
+                if user.get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
             except:
                 print("No or wrong cookie")
                 return make_response("Access Denied", 401)
 
-            print("Authorised!")
             return function(*args, **kwargs)
         return wrapper
     return decorator
