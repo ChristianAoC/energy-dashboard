@@ -183,38 +183,24 @@ def noaccess():
 
 @dashboard_bp.route("/map")
 def map():
-    # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
-    #return render_template('map.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
     return render_template('map.html')
 
 @dashboard_bp.route("/benchmark")
 def benchmark():
-    # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
-    #return render_template('benchmark.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
     return render_template('benchmark.html')
 
 @dashboard_bp.route("/browser")
 def browser():
-    # data needed: health_score_summary, [usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    #return render_template('browser.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
     return render_template('browser.html')
 
 @dashboard_bp.route("/health-check")
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_check():
-    # data needed: [health_score_summary, usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    #hc_latest = api_bp.meter_health_internal(request.args)
-    #if len(hc_latest) > 0:
-    #    return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = hc_latest, hc_meta = api_bp.hc_meta().json, context = context.view_all())
-    #else:
-    #    return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = api_bp.devices().json, hc_meta = api_bp.hc_meta().json, context = context.view_all())
     return render_template('health-check.html')
 
 @dashboard_bp.route("/context")
 @required_user_level("USER_LEVEL_VIEW_COMMENTS")
 def context_view():
-    #data = context.view_all()
-    #return render_template('context.html', data = data, devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
     return render_template('context.html')
 
 @dashboard_bp.route("/about")
