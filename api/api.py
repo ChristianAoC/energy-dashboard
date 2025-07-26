@@ -999,7 +999,7 @@ def meter_obs():
             return Response(
                 csv,
                 mimetype="text/csv",
-                headers={"Content-disposition": "attachment; filename=mydata.csv"})
+                headers={"Content-disposition": "attachment; filename=export.csv"})
         except:
             return make_response("Unable to make csv file",500)
 
