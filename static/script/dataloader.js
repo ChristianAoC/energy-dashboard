@@ -1,24 +1,52 @@
 const browserData = {};
 
 let metaLabel = {
+    // metadata from meters list
     "meter_id": "id",
     "building_id": "building_id",
     "utility_type": "utility_type",
-    "description_short": "serving_revised",
-    "description_long": "serving",
+    "description": "name", // replace with long description? our own?
     "reading_type": "reading_type",
-    "tenant": "tenant",
-    "invoiced": "invoiced", // probably remove and only add/keep tenant
-    "location": "meter_location",
+    //"tenant": "tenant", currently NYI
+    "invoiced": "invoiced", // use this or tenant to filter?
+    //"location": "meter_location", currently NYI
     "main_meter": "main",
     "resolution": "resolution",
     "units": "units",
     "scaling_factor": "scaling_factor", // do we need this? should only be needed in API?
 
+    // metadata from buildings list
     "maze_map_label": "maze_map_label",
     "floor_area": "floor_area",
     "occupancy_type": "occupancy_type",
-    "year_built": "year_built"
+    "year_built": "year_built",
+
+    // health check specific labels
+    "HC_class": "HC_class",
+    "HC_class_check": "HC_class_check",
+    "HC_count": "HC_count",
+    "HC_count_score": "HC_count_score",
+    "HC_diff_neg": "HC_diff_neg",
+    "HC_diff_neg_perc": "HC_diff_neg_perc",
+    "HC_diff_pos": "HC_diff_pos",
+    "HC_diff_pos_perc": "HC_diff_pos_perc",
+    "HC_diff_pos_score": "HC_diff_pos_score",
+    "HC_diff_zero": "HC_diff_zero",
+    "HC_diff_zero_perc": "HC_diff_zero_perc",
+    "HC_functional_matrix": "HC_functional_matrix",
+    "HC_max_value": "HC_max_value",
+    "HC_mean": "HC_mean",
+    "HC_median": "HC_median",
+    "HC_min_value": "HC_min_value",
+    "HC_mode": "HC_mode",
+    "HC_outliers": "HC_outliers",
+    "HC_outliers_ignz": "HC_outliers_ignz",
+    "HC_outliers_ignz_perc": "HC_outliers_ignz_perc",
+    "HC_score": "HC_score",
+    "HC_std": "HC_std",
+    "HC_zeroes": "HC_zeroes",
+    "HC_zeroes_perc": "HC_zeroes_perc",
+    "HC_zeroes_score": "HC_zeroes_score"
 }
 
 /*
@@ -104,7 +132,7 @@ const apiEndpoints = {
 
     // Health check - detailed stats analysis for each meter (or one if ID given)
     // params: id, to_time, from_time, date_range
-    meterHealth: '/api/meter_health',
+    meterHealth: '/api/meter_health', // or call /hc_latest?? rename to /health_check maybe?
 
     // Health check meta info
     // no params
