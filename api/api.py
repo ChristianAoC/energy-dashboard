@@ -1223,11 +1223,7 @@ def meter_health():
 @api_bp.route('/meter_hierarchy')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_hierarchy():
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None)) # type: ignore
-    )).scalars().all()
+    buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
     data = {}
     for b in buildings:
@@ -1238,6 +1234,9 @@ def meter_hierarchy():
             .where(models.Meter.building_id == b.id)
             .where(models.Meter.main)
         ).scalars().all()
+        
+        if len(meters) == 0:
+            continue
         
         for m in meters:
             meter_type = m.utility_type
@@ -1303,11 +1302,7 @@ def health_score():
 
     days = (to_time.date() - from_time.date()).days
 
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
-    ).scalars().all()
+    buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
     data = {}
     for b in buildings:
@@ -1325,6 +1320,9 @@ def health_score():
             .where(models.Meter.building_id == b.id)
             .where(models.Meter.main)
         ).scalars().all()
+        
+        if len(meters) == 0:
+            continue
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
