@@ -2,10 +2,10 @@ const browserData = {};
 
 let metaLabel = {
     // metadata from meters list
-    "meter_id": "id",
+    "meter_id": "meter_id",
     "building_id": "building_id",
     "utility_type": "utility_type",
-    "description": "name", // replace with long description? our own?
+    "description": "meter_name", // replace with long description? our own?
     "reading_type": "reading_type",
     //"tenant": "tenant", currently NYI
     "invoiced": "invoiced", // use this or tenant to filter?
@@ -118,9 +118,9 @@ async function callApiJSON(uri) {
 
 // A map of data keys to base endpoints
 const apiEndpoints = {
-    // Provides a list of meters for each health_score per building
-    // params: to_time, from_time
-    healthScore: '/api/health_score',
+    // List of all meters (formerly "devices")
+    // no params
+    meters: '/api/meters',
 
     // Simple static list of buildings as JSON hierarchy (formerly "masterlist" without usage)
     // no params
@@ -130,9 +130,13 @@ const apiEndpoints = {
     // params: to_time, from_time
     summary: '/api/summary',
 
+    // Provides a list of meters for each health_score per building
+    // params: to_time, from_time
+    healthScore: '/api/health_score',
+
     // Health check - detailed stats analysis for each meter (or one if ID given)
     // params: id, to_time, from_time, date_range
-    meterHealth: '/api/meter_health', // or call /hc_latest?? rename to /health_check maybe?
+    meterHealth: '/api/meter_health',
 
     // Health check meta info
     // no params
@@ -140,11 +144,7 @@ const apiEndpoints = {
 
     // Return time series data for given meter/time
     // params: id, to_time, from_time, format, aggregate, to_rate
-    obs: '/api/meter_obs',
-
-    // List of all meters (formerly "devices", endpoint to be renamed to /meters)
-    // params: planon, uuid, lastobs
-    meters: '/api/devices'
+    obs: '/api/meter_obs'
 };
 
 /**
