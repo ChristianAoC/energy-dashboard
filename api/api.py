@@ -803,7 +803,7 @@ def summary():
                 .where(models.Building.id == x.building_id)
             ).scalar_one().to_dict()
             
-            data[temp["meta"]["id"]] = temp
+            data[temp["meta"]["building_id"]] = temp
     else:
         # Generate new data
         cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
@@ -1109,9 +1109,9 @@ def get_health(args, returning=False, app=None):
         return out
 
 def update_health_check(values: dict):
-    existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["id"])).scalar_one_or_none()
+    existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
     if existing_hc is None:
-        new_hc = models.HealthCheck(meter_id=values["id"], hc_data=values)
+        new_hc = models.HealthCheck(meter_id=values["meter_id"], hc_data=values)
         db.session.add(new_hc)
     else:
         existing_hc.update(values)
