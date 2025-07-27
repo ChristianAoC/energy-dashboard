@@ -42,7 +42,10 @@ def required_user_level(level_config_key):
             cookies = request.cookies
             try:
                 level = int(current_app.config[level_config_key])
-                if level == 1 or int(user.get_user_level(cookies["Email"], cookies["SessionID"])) >= level:
+                email = cookies.get("Email", None)
+                sessionID = cookies.get("SessionID", None)
+
+                if user.get_user_level(email, sessionID) >= level:
                     return function(*args, **kwargs)
             except:
                 print("No or wrong cookie")
@@ -187,43 +190,43 @@ def noaccess():
 @dashboard_bp.route("/map.html")
 def map():
     # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
-    return render_template('map.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('map.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/benchmark.html")
 def benchmark():
     # data needed: health_score_summary, usage_summary, metadata (floor area, descriptions, categories)
-    return render_template('benchmark.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('benchmark.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/browser.html")
 def browser():
     # data needed: health_score_summary, [usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    return render_template('browser.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('browser.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/health-check.html")
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_check():
     # data needed: [health_score_summary, usage_summary - not sure, maybe for a starting page overview?], metadata (floor area, descriptions, categories)
-    hc_latest = api_bp.meter_health_internal(request.args)
-    if len(hc_latest) > 0:
-        return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = hc_latest, hc_meta = api_bp.hc_meta().json, context = context.view_all())
+    hc_latest = api_bp.meter_health().json
+    if len(hc_latest) > 0: # type: ignore
+        return render_template('health-check.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json, hc_latest = hc_latest, hc_meta = api_bp.hc_meta().json, context = context.view_all())
     else:
-        return render_template('health-check.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json, hc_latest = api_bp.devices().json, hc_meta = api_bp.hc_meta().json, context = context.view_all())
+        return render_template('health-check.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json, hc_latest = api_bp.meters().json, hc_meta = api_bp.hc_meta().json, context = context.view_all())
 
 @dashboard_bp.route("/anomaly.html")
 #@required_user_level(3)
 def anomaly():
-    return render_template('anomaly.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('anomaly.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/energy-usage.html")
 #@required_user_level(3)
 def energyusage():
-    return render_template('energy-usage.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('energy-usage.html', devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/context.html")
 @required_user_level("USER_LEVEL_VIEW_COMMENTS")
 def context_view():
     data = context.view_all()
-    return render_template('context.html', data = data, devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+    return render_template('context.html', data = data, devices = api_bp.meters().json, masterlist = api_bp.summary().json)
 
 @dashboard_bp.route("/about.html")
 def about():
@@ -240,7 +243,7 @@ def settings():
 #@dashboard_bp.route("/start.html")
 #@required_user_level(1)
 #def start():
-#    return render_template('start.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+#    return render_template('start.html', devices = api_bp.meters().json, masterlist = api_bp.usageoffline().json)
 
 #@dashboard_bp.route("/tutorial.html")
 #def tutorial():
@@ -249,4 +252,4 @@ def settings():
 #@dashboard_bp.route("/devices.html")
 #@required_user_level(3)
 #def devices():
-#    return render_template('devices.html', devices = api_bp.devices().json, masterlist = api_bp.usageoffline().json)
+#    return render_template('devices.html', devices = api_bp.meters().json, masterlist = api_bp.usageoffline().json)

@@ -31,8 +31,6 @@ app.config["MAZEMAP_LAT"] = os.getenv("MAZEMAP_LAT") or "54.008809"
 
 # data backend settings.
 # those are kept in api.py for now, just keeping here to show which ones are available (and to move here later, possibly)
-#val = os.getenv("ANON_MODE", "True")
-#app.config["ANON_MODE"] = val.strip().lower() in ("1", "true", "yes", "on")
 #val = os.getenv("OFFLINE_MODE", "True")
 #app.config["OFFLINE_MODE"] = val.strip().lower() in ("1", "true", "yes", "on")
 #app.config["INFLUX_URL"] = os.getenv("INFLUX_URL")
@@ -69,4 +67,3 @@ app.config["IFRAME_ENERGY_USAGE"] = os.getenv("IFRAME_ENERGY_USAGE")
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)
-    

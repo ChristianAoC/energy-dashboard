@@ -24,9 +24,6 @@ load_dotenv()
 val = os.getenv("OFFLINE_MODE", "True")
 offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
 
-# val = os.getenv("ANON_MODE", "True")
-# anonMode = val.strip().lower() in ("1", "true", "yes", "on")
-
 InfluxURL = os.getenv("INFLUX_URL")
 InfluxPort = os.getenv("INFLUX_PORT")
 InfluxUser = os.getenv("INFLUX_USER")
@@ -50,9 +47,9 @@ else:
     meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
     meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
 if not os.path.exists(meter_health_score_files):
-    os.mkdir(meter_health_score_files)
+    os.makedirs(meter_health_score_files)
 if not os.path.exists(meter_snapshots_files):
-    os.mkdir(meter_snapshots_files)
+    os.makedirs(meter_snapshots_files)
 
 cache_generation_lock = threading.Lock()
 cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
@@ -71,6 +68,20 @@ if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode without any offline data!")
     print("\tPlease place your data in ./data/offline/")
+    print("\n" + "="*20)
+    sys.exit(1)
+
+if offlineMode and not os.path.exists(offline_meta_file):
+    print("\n" + "="*20)
+    print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
+    print("\tPlease place your metadata in ./data/meta/offline_data.json")
+    print("\n" + "="*20)
+    sys.exit(1)
+
+if not os.path.exists(benchmark_data_file):
+    print("\n" + "="*20)
+    print("\tERROR: You have removed the included benchmark data!")
+    print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
     print("\n" + "="*20)
     sys.exit(1)
 
@@ -125,6 +136,7 @@ def query_pandas(m: models.Meter, from_time, to_time):
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=False):
     # set some constants
+    # TODO: Why was 10 years chosen here?
     max_time_interval = dt.timedelta(days=3650)
 
     # convert to UTC for influx
@@ -137,7 +149,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 
     # set the basic output
     out = {
-        "uuid": m.id,
+        "id": m.id,
         "label": m.name,
         "obs": [],
         "unit": m.units
@@ -235,53 +247,6 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
         obs = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originally used pd.DataFrame.to_dict(df,orient="records")
 
     out["obs"] = obs
-    return out
-
-## Get time of last observation
-## m - meter
-## to_time - time to get data to (datetime)
-## from_time - time to get data from (datetime)
-def query_last_obs_time(m: models.Meter, to_time, from_time):
-
-    ## convert uuid to string for query
-    ##ustr = ",".join(['"SEED"."autogen"."'+x+'"' for x in uuid])
-    if m.id is None:
-        return None
-
-    # if offline, last obs is simply last line of file
-    if offlineMode:
-        try:
-            with open(f"data/offline/{m.id}.json", "r") as f:
-                obs = json.load(f)
-        except:
-            return make_response("Offline mode and can't open/find a file for this UUID", 500)
-        
-        if len(obs) > 0:
-            return obs[-1]["time"]
-
-    ustr = '"SEED"."autogen"."' + m.SEED_uuid + '"'
-    ## convert to_time to correct time zone
-    to_time = to_time.astimezone(dt.timezone.utc)
-    from_time = from_time.astimezone(dt.timezone.utc)
-
-    ## form query
-    qry = 'SELECT LAST(value) FROM ' + ustr + ' WHERE time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
-        ' AND time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
-
-    ## create client for influx
-    client = InfluxDBClient(host = InfluxURL,
-                            port = InfluxPort,
-                            username = InfluxUser,
-                            password = InfluxPass)
-
-    result = client.query(qry)
-    out = list(result.get_points())
-    if len(out) > 0:
-        out = out[0]['time']
-        out = out[:-1] + '+0000'
-    else:
-        out = None
-
     return out
 
 ## Retrieve data from influx and process it for meter health
@@ -577,7 +542,7 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
 ##
-## The generation of each meter's cache is handed of to a separate thread, this dramatically speeds up cache generation
+## The generation of each meter's cache is handed off to a separate thread, this dramatically speeds up cache generation
 ## **IF** the majority of the cache is expired/missing, or if this is the first time generating the cache.
 ## If the cache has just been updated, and we haven't gone past midnight UTC, then this will likely be slower than doing
 ## everything in the request's thread.
@@ -607,7 +572,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     # Don't need to filter id by not null as id is primary key and therefore not null
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
 
-    n = 20 # Process 35 meters at a time (35 was a random number I chose)
+    n = 35 # Process 35 meters at a time (35 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -660,13 +625,15 @@ def required_user_level(level_config_key):
             cookies = request.cookies
             try:
                 level = int(current_app.config[level_config_key])
-                if int(user.get_user_level(cookies["Email"], cookies["SessionID"])) < level:
+                email = cookies.get("Email", None)
+                sessionID = cookies.get("SessionID", None)
+                
+                if user.get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
             except:
                 print("No or wrong cookie")
                 return make_response("Access Denied", 401)
 
-            print("Authorised!")
             return function(*args, **kwargs)
         return wrapper
     return decorator
@@ -695,27 +662,17 @@ def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
-@api_bp.route('/devices')
-def devices():
+@api_bp.route('/meters')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def meters():
     data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
     return make_response(jsonify(data), 200)
 
-## Helper function needed for accessing quick usage list so UI doesn't delay too much
-@api_bp.route('/usageoffline')
-def usageoffline():
-    data = [x.to_dict() for x in db.session.execute(db.select(models.UtilityData)).scalars().all()]
-    return make_response(jsonify(data), 200)
-
-## Return the latest health check table so we're not waiting for ages
-@api_bp.route('/hc_latest')
-def hc_latest():
-    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
-    return make_response(jsonify(hc_cache), 200)
-
 ## Health check cache meta
 @api_bp.route('/hc_meta')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
-    hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+    hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
     if hc_meta is None:
         return make_response(jsonify({}), 500)
 
@@ -734,6 +691,9 @@ def hc_meta():
 ## json object:
 ## {
 ##     "building_code": {
+##         "meta": {
+##             Building metadata
+##         },
 ##         "electricity": {
 ##             "meter_id_clean": {
 ##                 "EUI": EUI,
@@ -785,7 +745,10 @@ def hc_meta():
 ## Example:
 ## http://127.0.0.1:5000/api/summary
 @api_bp.route('/summary')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def summary():
+    start_time = time.time()
+    
     if not offlineMode:
         to_time = request.args.get("to_time")
         if to_time is not None:
@@ -808,133 +771,164 @@ def summary():
         if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
             from_time = to_time - dt.timedelta(days=7, seconds=1)
 
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
-        .where(not_(models.Building.floor_area.is_(None))) # type: ignore
-    ).scalars().all()
-
-    units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
-
-    with open(benchmark_data_file, "r") as f:
-        benchmark_data = json.load(f)
-
-    data = {}
-    for b in buildings:
-        building_response = {}
-
-        meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.building_id == b.id)
-            .where(models.Meter.main)
+    valid_cache = True
+    
+    cache_meta = db.session.execute(
+        db.select(models.CacheMeta)
+        .where(models.CacheMeta.meta_type == "usage_summary")
+    ).scalar_one_or_none()
+    
+    try:
+        if cache_meta is None:
+            raise Exception
+        
+        if offlineMode:
+            with open(offline_meta_file, "r") as f:
+                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+        else:
+            latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
+        cache_age = latest_data_date - cache_meta.to_time
+        if cache_age >= 3600 * hc_update_time:
+            valid_cache = False
+    except:
+        valid_cache = False
+    
+    if valid_cache:
+        data = {}
+        for x in db.session.execute(db.select(models.UtilityData)).scalars().all():
+            temp = x.to_dict()
+            
+            temp["meta"] = db.session.execute(
+                db.select(models.Building)
+                .where(models.Building.id == x.building_id)
+            ).scalar_one().to_dict()
+            
+            data[temp["meta"]["id"]] = temp
+    else:
+        # Generate new data
+        cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
+    
+        buildings = db.session.execute(
+            db.select(models.Building)
+            .where(not_(models.Building.floor_area.is_(None))) # type: ignore
         ).scalars().all()
 
-        for m in meters:
-            meter_type = m.utility_type
+        units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
 
-            if meter_type not in units.keys():
+        with open(benchmark_data_file, "r") as f:
+            benchmark_data = json.load(f)
+
+        data = {}
+        for b in buildings:
+            building_response = {}
+
+            meters = db.session.execute(
+                db.select(models.Meter)
+                .where(models.Meter.building_id == b.id)
+                .where(models.Meter.main)
+            ).scalars().all()
+            
+            if len(meters) == 0:
                 continue
 
-            x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
+            for m in meters:
+                meter_type = m.utility_type
 
-            # No data available
-            if len(x['obs']) == 0:
-                continue
-
-            usage = x['obs'][0]['value']
-
-            if usage is None:
-                usage = 0
-
-            # handle unit changes
-            if x['unit'] != units[meter_type]:
-                if meter_type == "heat" and x['unit'] == "kWh":
-                    usage *= 1e-3  # to MWh
-                elif meter_type == "heat" and x['unit'] == "kW":
-                    # presume 10 minute data, round to nearest kWh
-                    usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
-                else:
+                if meter_type not in units.keys():
                     continue
 
-            # process EUI
-            eui = float(f"{(usage / b.floor_area):.2g}")
+                # TODO: calculate agg number from time diff
+                x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
 
-            # Create utility entries on occurrence so that the response is smaller
-            if meter_type not in building_response:
-                building_response[meter_type] = {}
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
 
-            benchmark = None
-            if meter_type in ["gas", "heat"]:
-                benchmark = benchmark_data[b.occupancy_type]["fossil"]
-            elif meter_type == "electricity":
-                benchmark = benchmark_data[b.occupancy_type]["electricity"]
+                usage = x['obs'][0]['value']
 
-            building_response[meter_type][m.id] = {
-                "EUI": eui,
-                "consumption": usage,
-                "benchmark": benchmark
+                if usage is None:
+                    usage = 0
+
+                # handle unit changes
+                if x['unit'] != units[meter_type]:
+                    if meter_type == "heat" and x['unit'] == "kWh":
+                        usage *= 1e-3  # to MWh
+                    elif meter_type == "heat" and x['unit'] == "kW":
+                        # presume 10 minute data, round to nearest kWh
+                        usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
+                    else:
+                        continue
+
+                # process EUI
+                eui = float(f"{(usage / b.floor_area):.2g}")
+
+                # Create utility entries on occurrence so that the response is smaller
+                if meter_type not in building_response:
+                    building_response[meter_type] = {}
+
+                benchmark = None
+                if meter_type in ["gas", "heat"]:
+                    benchmark = benchmark_data[b.occupancy_type]["fossil"]
+                elif meter_type == "electricity":
+                    benchmark = benchmark_data[b.occupancy_type]["electricity"]
+
+                building_response[meter_type][m.id] = {
+                    "EUI": eui,
+                    "consumption": usage,
+                    "benchmark": benchmark
+                }
+            
+            building_response["meta"] = b.to_dict()
+            
+            if cache_result:
+                existing_summary = db.session.execute(db.select(models.UtilityData).where(models.UtilityData.building_id == b.id)).scalar_one_or_none()
+                if existing_summary is None:
+                    new_hc = models.UtilityData(
+                        building_id=b.id,
+                        electricity=building_response.get("electricity", {}),
+                        gas=building_response.get("gas", {}),
+                        heat=building_response.get("heat", {}),
+                        water=building_response.get("water", {})
+                    )
+                    db.session.add(new_hc)
+                else:
+                    existing_summary.update(
+                        electricity=building_response.get("electricity", {}),
+                        gas=building_response.get("gas", {}),
+                        heat=building_response.get("heat", {}),
+                        water=building_response.get("water", {})
+                    )
+                db.session.commit()
+            
+            data[b.id] = building_response
+        
+        end_time = time.time()
+        
+        if cache_result:
+            existing_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+            
+            new_meta = {
+                "to_time": to_time.timestamp(),
+                "from_time": from_time.timestamp(),
+                "timestamp": dt.datetime.now().timestamp(),
+                "processing_time": end_time - start_time
             }
-
-        data[b.id] = building_response
+            
+            if existing_meta is None:
+                building_usage_cache_meta = models.CacheMeta(
+                    "usage_summary",
+                    new_meta
+                )
+                db.session.add(building_usage_cache_meta)
+            else:
+                existing_meta.update(new_meta)
+            db.session.commit()
     return make_response(jsonify(data), 200)
-
-## Return the meters, optionally trimming by planon or meter_id_clean
-##
-## Parameters:
-## planon - planon codes to filter by
-## uuid - meter unique code to filter by
-## lastobs - supply last obs data (slow if not limited to few meters)
-##
-## Return:
-## json format time series data
-##
-## Example:
-## http://127.0.0.1:5000/api/meter
-## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/api/meter?lastobs=true
-## http://127.0.0.1:5000/api/meter?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/meter?is_weather=true
-@api_bp.route('/meter')
-def meter():
-    try:
-        planon = request.args["planon"] # this is url decoded
-        planon = planon.split(";")
-    except:
-        planon = None
-
-    try:
-        uuid = request.args["uuid"] # this is url decoded
-        uuid = uuid.split(";")
-    except:
-        uuid = None
-
-    try:
-        lastobs = request.args["lastobs"].lower() # this is url decoded
-    except:
-        lastobs = None
-
-    statement = db.select(models.Meter)
-    if planon is not None:
-        statement = statement.where(models.Meter.building_id.in_(planon)) # type: ignore
-    elif uuid is not None:
-        statement = statement.where(models.Meter.id.in_(uuid)) # type: ignore
-    
-    meters = [meter.to_dict() for meter in db.session.execute(statement).scalars().all()]
-
-    to_time = dt.datetime.now(dt.timezone.utc)
-    from_time = to_time - dt.timedelta(days=1)
-
-    if lastobs == "true":
-        for m in meters:
-            m["last_obs_time"] = query_last_obs_time(m, to_time, from_time)
-
-    return make_response(jsonify( meters ), 200)
 
 ## time series of data for a given sensor
 ##
 ## Parameters:
-## uuid - meter uuid
+## id - meter id
 ## to_time - final observation time, defaults to current time
 ## from_time - first observation time, defaults to 7 days ago
 ## format - use csv if required otherwise returns json
@@ -945,16 +939,17 @@ def meter():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/api/meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/meter_obs?uuid=WTHR_0
+## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter_obs?id=WTHR_0
 @api_bp.route('/meter_obs')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_obs():
     try:
-        uuids = request.args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
+        meter_ids = request.args["id"] # this is url decoded
+        meter_ids = meter_ids.split(";")
     except:
-        return make_response("Bad uuid supplied", 500)
+        return make_response("Bad meter id supplied", 500)
 
     try:
         to_time = request.args["to_time"] # this is url decoded
@@ -987,10 +982,10 @@ def meter_obs():
 
     meters = db.session.execute(
         db.select(models.Meter)
-        .where(models.Meter.id.in_(uuids)) # type: ignore
+        .where(models.Meter.id.in_(meter_ids)) # type: ignore
     ).scalars().all()
 
-    out = dict.fromkeys(uuids)
+    out = dict.fromkeys(meter_ids)
 
     for m in meters:
         out[m.id] = query_time_series(m, from_time, to_time, agg=agg, to_rate=to_rate)
@@ -1001,62 +996,17 @@ def meter_obs():
             ## repackage data as csv and return
             for k in out.keys():
                 for obs in out[k]["obs"]:
-                    csv += out[k]["uuid"] + ',' + out[k]["unit"] + "," + obs["time"] + ',' + str(obs["value"]) + '\n'
+                    csv += out[k]["id"] + ',' + out[k]["unit"] + "," + obs["time"] + ',' + str(obs["value"]) + '\n'
 
             return Response(
                 csv,
                 mimetype="text/csv",
-                headers={"Content-disposition": "attachment; filename=mydata.csv"})
+                headers={"Content-disposition": "attachment; filename=export.csv"})
         except:
             return make_response("Unable to make csv file",500)
 
     else:
         return make_response(jsonify(out), 200)
-
-## get last observation before the specified time
-##
-## Parameters:
-## uuid - meter uuid
-## to_time - final observation time, defaults to current time
-##
-## Return:
-## json dictionary of last time or null is no observations
-## Example:
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=WTHR_0
-## http://127.0.0.1:5000/api/last_meter_obs?uuid=MC062_L01_M33_R2048&to_time=2024-01-01T00:00:00%2B0000
-@api_bp.route('/last_meter_obs')
-def last_meter_obs():
-    try:
-        uuids = request.args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
-    except:
-        return make_response("Bad uuid supplied", 500)
-
-    try:
-        to_time = request.args["to_time"] # this is url decoded
-        to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z",)
-    except:
-        to_time = dt.datetime.now(dt.timezone.utc)
-
-    try:
-        from_time = request.args["from_time"] # this is url decoded
-        from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
-    except:
-        from_time = to_time - dt.timedelta(days=7)
-
-    meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.id.in_(uuids)) # type: ignore
-        ).scalars().all()
-
-    out = dict.fromkeys(uuids)
-
-    for m in meters:
-        out[m.id] = query_last_obs_time(m, to_time, from_time)
-
-    return make_response(jsonify(out), 200)
 
 def get_health(args, returning=False, app=None):
     # Because this function can be run in a separate thread, we need to
@@ -1064,10 +1014,10 @@ def get_health(args, returning=False, app=None):
         app.app_context().push()
 
     try:
-        uuids = args["uuid"] # this is url decoded
-        uuids = uuids.split(";")
+        meter_ids = args["id"] # this is url decoded
+        meter_ids = meter_ids.split(";")
     except:
-        uuids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
+        meter_ids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
 
     try:
         to_time = args["to_time"] # this is url decoded
@@ -1104,7 +1054,7 @@ def get_health(args, returning=False, app=None):
 
     ## load and trim meters
     meters = db.session.execute(db.select(models.Meter).where(
-            models.Meter.id.in_(uuids), # type: ignore
+            models.Meter.id.in_(meter_ids), # type: ignore
             models.Meter.id is not None
         )
     ).scalars().all()
@@ -1126,24 +1076,22 @@ def get_health(args, returning=False, app=None):
     # print("--- Health check took %s seconds ---" % proc_time)
 
     # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "uuid"}):
+    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
         try:
             for meter in out:
                 update_health_check(meter)
 
             try:
                 hc_meta = {
-                    "meter_count": len(out),
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
-                    "date_range": date_range,
                     "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
                     "processing_time": proc_time
                 }
 
-                existing_hc_meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+                existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                 if existing_hc_meta is None:
-                    new_hc_meta = models.HealthCheckMeta(hc_meta)
+                    new_hc_meta = models.CacheMeta("health_check", hc_meta)
                     db.session.add(new_hc_meta)
                 else:
                     existing_hc_meta.update(hc_meta)
@@ -1172,65 +1120,75 @@ def update_health_check(values: dict):
 ## Create health check of meters (requested by IES)
 ##
 ## Parameters:
-## uuid - gauge id (planon style) or missing for all gauges
+## id - meter id or missing for all gauges
 ## to_time - final observation time, defaults to current time
 ## from_time - first observation time, defaults to 30 days ago
 ## date_range - how far back we want to check in days (ignored if from_time is given)
 ##
 ## Return:
 ## json format time series data
+##
+## Return Headers:
+## X-Cache-State: either 'stale' or 'fresh'
+##
 ## Example:
-## http://127.0.0.1:5000/api/meter_health?uuid=AP001_L01_M2&date_range=7
+## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=7
 @api_bp.route('/meter_health')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
-    return make_response(jsonify(meter_health_internal(request.args)), 200)
-
-# this is the same but doesn't return a response as we need the pure JSON for the template
-# TODO: does this need a route?
-@api_bp.route('/meter_health_internal')
-def meter_health_internal(args):
-    # if "default" call, check if there's a cache
-    hc_cache = hc_latest().json
+    # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
+    # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters)
+    #       Alternativly, the frontend could just set timeouts with increasing intervals until it received a fresh cache
+    
+    # load existing cache
+    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
 
     # What does the 2nd statement do?
-    if len(args) == 0 or list(args.keys()) == ["hidden"]:
-        if hc_cache and len(hc_cache) > 2:
+    if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
+        if hc_cache:
             try:
                 if offlineMode:
                     with open(offline_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-                
-                no_meters = len(db.session.execute(db.select(models.Meter)).all())
-                
-                meta = db.session.execute(db.select(models.HealthCheckMeta)).scalar_one_or_none()
+
+                meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                 if meta is None:
                     raise Exception
-                
-                cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * hc_update_time and meta.date_range == 30 and no_meters > 1000:
-                    return hc_cache
-            except:
-                print("Error reading meta file, skipping cache")
 
-        # Implement a lock here instead of this
+                cache_age = latest_data_date - meta.to_time
+                if cache_age < 3600 * hc_update_time:
+                    response = make_response(jsonify(hc_cache), 200)
+                    response.headers['X-Cache-State'] = "fresh"
+                    return response
+            except:
+                print("Error reading cache metadata, skipping HC cache")
+
+        # TODO: Implement a lock here instead of this
         updateOngoing = False
         for th in threading.enumerate():
             if th.name == "updateMainHC":
                 updateOngoing = True
+                break
+        
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
             thread.start()
 
-        # TODO: let front end know that we are serving stale cache so that it knows to send another request later
-        # Could be done with a custom header (eg: X-Cache-State: stale and X-Cache-State: fresh) and maybe a header telling the frontend how long to wait (could guesstimate this from number of meters)
-        if hc_cache and len(hc_cache) > 2:
-            return hc_cache
-        else:
-            return []
+        if hc_cache:
+            response = make_response(jsonify(hc_cache), 200)
+            response.headers['X-Cache-State'] = "stale"
+            return response
+
+        response = make_response(jsonify([]), 500)
+        response.headers['X-Cache-State'] = "stale"
+        return response
     else:
-        return get_health(args, True)
+        health_check_data = get_health(request.args, True)
+        response = make_response(jsonify(health_check_data), 200)
+        response.headers['X-Cache-State'] = "fresh"
+        return response
 
 ## Return meter hierarchy
 ##
@@ -1240,6 +1198,9 @@ def meter_health_internal(args):
 ## json object:
 ## {
 ##     "building_code": {
+##         "meta": {
+##             Building metadata
+##         },
 ##         "electricity": [
 ##             "meter_id_clean",
 ##             ...
@@ -1260,12 +1221,9 @@ def meter_health_internal(args):
 ##     ...
 ## }
 @api_bp.route('/meter_hierarchy')
-def hierarchy():
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None)) # type: ignore
-    )).scalars().all()
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def meter_hierarchy():
+    buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
     data = {}
     for b in buildings:
@@ -1277,6 +1235,9 @@ def hierarchy():
             .where(models.Meter.main)
         ).scalars().all()
         
+        if len(meters) == 0:
+            continue
+        
         for m in meters:
             meter_type = m.utility_type
             if meter_type not in ['gas', 'electricity', 'heat', 'water']:
@@ -1287,7 +1248,8 @@ def hierarchy():
                 building_response[meter_type] = []
 
             building_response[meter_type].append(m.id)
-
+        
+        building_response["meta"] = b.to_dict()
         data[b.id] = building_response
 
     return make_response(jsonify(data), 200)
@@ -1313,6 +1275,7 @@ def hierarchy():
 ## Example:
 ## http://127.0.0.1:5000/api/health_score
 @api_bp.route('/health_score')
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
     if not offlineMode:
         to_time = request.args.get("to_time")
@@ -1327,6 +1290,7 @@ def health_score():
         else:
             from_time = to_time - dt.timedelta(days=7, seconds=1)
     else:
+        # TODO: use given parameters if we can - currently ignores them in offline mode
         with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
 
@@ -1338,11 +1302,7 @@ def health_score():
 
     days = (to_time.date() - from_time.date()).days
 
-    buildings = db.session.execute(
-        db.select(models.Building)
-        .join(models.Meter)
-        .where(not_(models.Meter.building_id.is_(None))) # type: ignore
-    ).scalars().all()
+    buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
     data = {}
     for b in buildings:
@@ -1360,6 +1320,9 @@ def health_score():
             .where(models.Meter.building_id == b.id)
             .where(models.Meter.main)
         ).scalars().all()
+        
+        if len(meters) == 0:
+            continue
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
@@ -1383,8 +1346,11 @@ def health_score():
             for score in health_scores:
                 total_score += score
 
-            average_score = total_score//len(health_scores)
-
+            if len(health_scores) != 0:
+                average_score = total_score//len(health_scores)
+            else:
+                average_score = 0
+            
             if average_score > 5:
                 average_score = 5
             elif average_score < 0:
@@ -1395,7 +1361,16 @@ def health_score():
         data[b.id] = building_response
     return make_response(jsonify(data), 200)
 
+## Returns the contents of meta/offline_data.json
+@api_bp.route('/offline_meta')
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def offline_meta():
+    with open(offline_meta_file, "r") as f:
+        data = json.load(f)
+    return make_response(jsonify(data), 200)
+
 @api_bp.route('/populate_database')
+@required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
     for building in BUILDINGS():
         new_building = models.Building(
@@ -1440,41 +1415,8 @@ def populate_database():
             print(e)
             print(meter)
     
-    if os.path.exists(buildings_usage_file):
-        for building in BUILDINGSWITHUSAGE():
-            try:
-                new_building_usage = models.UtilityData(
-                    building["building_code"],
-                    electricity={
-                        "eui": building["electricity"]["eui"],
-                        "eui_annual": building["electricity"]["eui_annual"],
-                        "meter_ids": building["electricity"]["sensor_uuid"],
-                        "usage": building["electricity"]["usage"]
-                    },
-                    gas={
-                        "eui": building["gas"]["eui"],
-                        "eui_annual": building["gas"]["eui_annual"],
-                        "meter_ids": building["gas"]["sensor_uuid"],
-                        "usage": building["gas"]["usage"]
-                    },
-                    heat={
-                        "eui": building["heat"]["eui"],
-                        "eui_annual": building["heat"]["eui_annual"],
-                        "meter_ids": building["heat"]["sensor_uuid"],
-                        "usage": building["heat"]["usage"]
-                    },
-                    water={
-                        "eui": building["water"]["eui"],
-                        "eui_annual": building["water"]["eui_annual"],
-                        "meter_ids": building["water"]["sensor_uuid"],
-                        "usage": building["water"]["usage"]
-                    }
-                )
-                
-                db.session.add(new_building_usage)
-                db.session.commit()
-            except Exception as e:
-                print(e)
-                print(building)
-
+    # Generate usage data cache
+    # This dramatically increases the time it takes to initialise the database
+    # summary()
+    
     return make_response("OK", 200)
