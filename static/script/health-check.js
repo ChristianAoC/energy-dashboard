@@ -188,15 +188,22 @@ function initHCTable() {
     let urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('hidden')) {
         let hiddenCols = urlParams.get('hidden').split(";");
-        for (h of hiddenCols) {
-            if (h != "") {
-                healthcheckTable.column(h).visible(false);
-                if (Number. isInteger(h) && h < hctColumns.length) {
-                    document.querySelector('[data-column="'+h+'"]').classList.toggle("hidden");
+        for (let h of hiddenCols) {
+            if (h !== "") {
+                const colIdx = parseInt(h, 10);
+                if (!isNaN(colIdx) && colIdx >= 0 && colIdx < hctColumns.length) {
+                    // Hide the column in DataTables
+                    healthcheckTable.column(colIdx).visible(false);
+
+                    // Explicitly add the .hidden class to the button
+                    const btn = document.querySelector('[data-column="'+colIdx+'"]');
+                    if (btn) {
+                        btn.classList.add("hidden");
+                    }
                 }
             }
-        };
-    };
+        }
+    }
 
     healthcheckTable.on('click', 'tbody tr td', function() {
         cell = healthcheckTable.cell(this);
