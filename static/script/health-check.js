@@ -191,7 +191,9 @@ function initHCTable() {
         for (h of hiddenCols) {
             if (h != "") {
                 healthcheckTable.column(h).visible(false);
-                document.querySelector('[data-column="'+h+'"]').classList.toggle("hidden");
+                if (Number. isInteger(h) && h < hctColumns.length) {
+                    document.querySelector('[data-column="'+h+'"]').classList.toggle("hidden");
+                }
             }
         };
     };
