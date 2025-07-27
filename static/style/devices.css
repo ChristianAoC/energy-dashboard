@@ -15,7 +15,7 @@
 	outline: 0;
 }
 
-div#device-data {
+div#browser {
     position: fixed;
     top: 0;
     bottom: 0;
@@ -89,13 +89,13 @@ div#b-sidebar {
     padding: 20px;
 }
 
-div#b-sensor-select-container,
+div#b-meter-select-container,
 div#b-class-select-container {
     display: flex;
     align-items: left;
 }
 
-div#b-sensor-select,
+div#b-meter-select,
 div#b-class-select {
     text-align: left;
 	padding: 5px;

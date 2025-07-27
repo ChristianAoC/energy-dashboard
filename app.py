@@ -61,9 +61,5 @@ app.config["USER_LEVEL_SUBMIT_COMMENTS"] = int(os.getenv("USER_LEVEL_SUBMIT_COMM
 app.config["USER_LEVEL_EDIT_COMMENTS"] = int(os.getenv("USER_LEVEL_EDIT_COMMENTS", "4"))
 app.config["USER_LEVEL_ADMIN"] = int(os.getenv("USER_LEVEL_ADMIN", "5"))
 
-# links to shiny servers rendered in iframes, internal use only
-app.config["IFRAME_CAPAVIS"] = os.getenv("IFRAME_CAPAVIS")
-app.config["IFRAME_ENERGY_USAGE"] = os.getenv("IFRAME_ENERGY_USAGE")
-
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

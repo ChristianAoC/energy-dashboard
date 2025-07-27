@@ -3,7 +3,7 @@ var commentParent = ""; // the main content div containing info that can be comm
 var contextMeterClicked = "";
 var fullDD = [];
 
-function commentBubbleClicked() {
+async function commentBubbleClicked() {
     if (commentMode) {
         leaveCommentMode();
     } else {
@@ -14,6 +14,16 @@ function commentBubbleClicked() {
         document.getElementById("comment-bubble").style.background = "orange";
         document.getElementById("comment-tooltipmodeengaged").classList.remove("hidden");
         commentMode = true;
+    }
+
+    try {
+        if (!browserData.meters) {
+            const { meters } = await getData({ meters: {} });
+            browserData.meters = meters;
+        }
+        fillDD(browserData.meters);
+    } catch (err) {
+        console.error("Failed to load data", err);
     }
 };
 
@@ -33,20 +43,20 @@ function populateDD() {
     var curDD = [];
 
     if (commentParent == "view-map" || commentParent == "view-list" || commentParent == "view-graph") {
-        let sensorIDs = [];
+        let meterIDs = [];
         if (commentParent == "view-graph") {
             for (m of narrowML) {
-                sensorIDs.push(...m[activeTab]["sensor_uuid"]);
+                meterIDs.push(...m[activeTab]["meter_uuid"]);
             }
         } else {
             for (m of masterList) {
                 for (t of ["electricity", "gas", "heat", "water"]) {
-                    sensorIDs.push(...m[t]["sensor_uuid"]);
+                    meterIDs.push(...m[t]["meter_uuid"]);
                 }
             }
         }
         for (m of fullDD) {
-            if (sensorIDs.includes(m.id)) {
+            if (meterIDs.includes(m.id)) {
                 curDD.push(m);
             }
         }
@@ -56,9 +66,9 @@ function populateDD() {
                 curDD.push(m);
             }
         }
-    } else if (commentParent == "device-data") {
+    } else if (commentParent == "browser") {
         for (m of fullDD) {
-            if (document.getElementById('b-button').dataset.sensor) {
+            if (document.getElementById('b-button').dataset.meter) {
                 curDD.push(m);
             }
         }
@@ -69,7 +79,7 @@ function populateDD() {
     var ddList = document.getElementById("contextDD");
     ddList.innerHTML = "";
     var customE = document.createElement('option');
-    customE.text = "(Select a sensor)"
+    customE.text = "(Select a meter)"
     customE.value = "select";
     ddList.add(customE)
     for (m of curDD) {
@@ -92,7 +102,7 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
-function createContextDialog(clickedSensor, from, to) {
+function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
@@ -115,10 +125,10 @@ function createContextDialog(clickedSensor, from, to) {
 
     var ddElem = document.getElementById("contextDD");
 
-    if (clickedSensor == "" || clickedSensor == null) {
+    if (clickedMeter == "" || clickedMeter == null) {
         ddElem.value = "select";
     } else {
-        ddElem.value = clickedSensor;
+        ddElem.value = clickedMeter;
     }
 
     document.getElementById("con-start-date").value = from;
@@ -131,47 +141,47 @@ function clickCheck(e) {
         return;
     }
 
-    var clickedSensor = "";
+    var clickedMeter = "";
 
-    // add sensor pre-set
+    // add meter pre-set
     if ((commentParent == "deviceTable") || (commentParent == "healthcheckTable")) {
-        clickedSensor = e.target.closest("tr").getAttribute("data-sensor");
+        clickedMeter = e.target.closest("tr").getAttribute("data-meter");
 
     } else if (commentParent == "view-map") {
         if (clickedOn != "") {
-            clickedSensor = clickedOn;
+            clickedMeter = clickedOn;
         }
 
     } else if (commentParent == "view-list") {
         var currentDDArray = [...document.getElementById("contextDD").options].map(o => o.value);
         if (currentDDArray.includes(e.target.innerHTML)) {
-            clickedSensor = e.target.innerHTML;
+            clickedMeter = e.target.innerHTML;
         } else {
-            clickedSensor = e.target.closest("tr").getAttribute("data-sensor");
+            clickedMeter = e.target.closest("tr").getAttribute("data-meter");
         }
 
     } else if (commentParent == "view-graph") {
         if (contextMeterClicked != "") {
-            clickedSensor = contextMeterClicked;
+            clickedMeter = contextMeterClicked;
             contextMeterClicked = "";
         }
 
     } else if (commentParent == "building-data") {
-        clickedSensor = document.querySelector('input[name="sensor"]:checked').value;
+        clickedMeter = document.querySelector('input[name="meter"]:checked').value;
 
-    } else if (commentParent == "device-data") {
-        clickedSensor = document.getElementById('b-button').dataset.sensor;
+    } else if (commentParent == "browser") {
+        clickedMeter = document.getElementById('b-button').dataset.meter;
     }
 
     var fromContext = getCurPageStartDate();
     var toContext = getCurPageEndDate();
 
-    createContextDialog(clickedSensor, fromContext, toContext)
+    createContextDialog(clickedMeter, fromContext, toContext)
     leaveCommentMode();
 };
 
 function getCurPageStartDate() {
-    if (["view-map", "view-list", "view-graph", "device-data"].includes(commentParent)) {
+    if (["view-map", "view-list", "view-graph", "browser"].includes(commentParent)) {
     } else {
         let setDate = new Date(Date.now());
         setDate.setDate(setDate.getDate()-7);
@@ -182,7 +192,7 @@ function getCurPageStartDate() {
 function getCurPageEndDate() {
     if (["view-map", "view-list", "view-graph"].includes(commentParent)) {
         return document.getElementById("sb-end-date").value+" 23:50";
-    } else if (["building-data", "device-data"].includes(commentParent)) {
+    } else if (["building-data", "browser"].includes(commentParent)) {
         return document.getElementById("b-end-date").value+" 23:50";
     } else {
         let setDate = new Date(Date.now());
@@ -204,7 +214,7 @@ function htmlEscape(text) {
 function saveContext() {
     if (commentParent == "healthcheckTable") {
         var table = $('#healthcheckTable').DataTable();
-        var rowNode = $('#healthcheckTable tbody tr[data-sensor="' + document.getElementById("contextDD").value + '"]');
+        var rowNode = $('#healthcheckTable tbody tr[data-meter="' + document.getElementById("contextDD").value + '"]');
         //var row = table.row(rowNode);
         var cellNode = rowNode.find('td.lastCol');
         var currentHTML = cellNode.html();
@@ -224,7 +234,7 @@ function saveContext() {
     }
     var toSubmit = {
         "author": (getCookie("Email") != "") ? getCookie("Email") : "(anonymous)",
-        "sensor": document.getElementById("contextDD").value,
+        "meter": document.getElementById("contextDD").value,
         "startnone": document.getElementById("none-from").checked,
         "start": document.getElementById("con-start-date").value,
         "startfuzzy": document.getElementById("fuzzy-from").checked,
@@ -265,29 +275,16 @@ function setRadioButtons(name, state) {
 function fillDD(data) {
     for (m of data) {
         fullDD.push({
-            "id": m[varNameDevSensorID],
-            "type": m[varNameDevSensorType],
+            "id": m[metaLabel["meter_id"]],
+            "type": m[metaLabel["utility_type"]],
             //"serving": m["Serving"] too long...
-            "building": m[varNameDevMeasuringShort]
+            "building": m[metaLabel["description"]]
         })
     }
 }
 
-$(document).ready( function () {
-    fetch("api/meter").then((response) => {
-        if (response.ok) {
-            return response.json()
-        } else {
-            return devices;
-        }
-    })
-    .then(data => {
-        fillDD(data);
-    })
-    .catch((error) => {
-        fillDD(devices);
-    });
-
+$(document).ready(async function () {
+    
     // to not bloat the CSS file do this
     for (e of document.querySelectorAll("div.gc-grid-element")) {
         e.style.gridArea = e.id;

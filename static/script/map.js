@@ -61,16 +61,16 @@ $(document).ready( function () {
         
         highlightBuildingsList();
 
-        let sensors = "";
+        let meters = "";
         for (let b of masterList) {
             for (let t of ["electricity", "gas", "heat", "water"]) {
-                if (b[t] && b[t]["sensor_uuid"] && b[t]["sensor_uuid"].length > 0) {
-                    sensors += b[t]["sensor_uuid"].join(";") + ";";
+                if (b[t] && b[t]["meter_uuid"] && b[t]["meter_uuid"].length > 0) {
+                    meters += b[t]["meter_uuid"].join(";") + ";";
                 }
             }
         }
 
-        let uri = "getcontext?sensor=" + sensors +
+        let uri = "getcontext?meter=" + meters +
                 "&start=" + getCurPageStartDate() +
                 "&end=" + getCurPageEndDate();
 
@@ -95,8 +95,8 @@ function displayContextMarkers(contextData) {
     for (let e of contextData) {
         for (let b of masterList) {
             for (let t of ["electricity", "gas", "heat", "water"]) {
-                if (b[t] && b[t]["sensor_uuid"].includes(e.sensor)) {
-                    // Found the building this sensor is in
+                if (b[t] && b[t]["meter_uuid"].includes(e.meter)) {
+                    // Found the building this meter is in
                     const matchedBuilding = allBuildings.find(f => f.properties.id == b[varNameMLMazeMapID]);
                     if (matchedBuilding) {
                         const lngLat = Mazemap.Util.getPoiLngLat(matchedBuilding);
@@ -177,8 +177,8 @@ function onMapClick(e) {
         for (b of masterList) {
             if (building != null && b[varNameMLMazeMapID] == building.properties.id) {
                 for (t of ["electricity", "gas", "heat", "water"]) {
-                    if (b[t]["sensor_uuid"].length > 0) {
-                        clickedOn = b[t]["sensor_uuid"][0];
+                    if (b[t]["meter_uuid"].length > 0) {
+                        clickedOn = b[t]["meter_uuid"][0];
                         return;
                     }
                 }
@@ -221,11 +221,11 @@ function buildingPopup(building, e) {
     text += "<tr><td style='font-weight: bold;'>Floor Area</td><td>" + curBuilding[varNameMLFloorSize] + " m&sup2;</td></tr>";
     text += "<tr><td style='font-weight: bold;'>Res/Non-res</td><td>" + curBuilding[varNameMLUsage] + "</td></tr>";
     text += "<tr><td style='font-weight: bold;'>Year Built</td><td>" + curBuilding[varNameMLYearBuilt] + "</td></tr>";
-    text += "<tr><th colspan='2'><br>Main sensors:</th></tr>";
+    text += "<tr><th colspan='2'><br>Main meters:</th></tr>";
     for (t of ["electricity", "gas", "heat", "water"]) {
-        if (curBuilding[t]["sensor_uuid"] != null && curBuilding[t]["sensor_uuid"].length > 0) {
+        if (curBuilding[t]["meter_uuid"] != null && curBuilding[t]["meter_uuid"].length > 0) {
             text += "<tr><td style='font-weight: bold;'>" + capFirst(t) + "</td>";
-            text += "<td>" + curBuilding[t]["sensor_uuid"].join("<br>") + "</td></tr>";
+            text += "<td>" + curBuilding[t]["meter_uuid"].join("<br>") + "</td></tr>";
             text += "<tr><td style='font-weight: bold;'>" + capFirst(t) + " Usage</td>";
             text += "<td>" + curBuilding[t]["usage"] + " " + curBuilding[t]["unit"] + "</td></tr>";
         }

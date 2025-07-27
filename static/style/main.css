@@ -160,7 +160,7 @@ div#context-content {
     display: grid;
     grid-template-columns: min-content auto 3.5em auto;
     grid-template-areas:
-        "gc-sensors-label gc-sensors gc-sensors gc-sensors"
+        "gc-meters-label gc-meters gc-meters gc-meters"
         "gc-datefrom-label gc-datefrom-none gc-dateto-label gc-dateto-none"
         ". gc-datefrom . gc-dateto"
         ". gc-datefromfuzzy . gc-datetofuzzy"
@@ -303,7 +303,7 @@ div#failed-div {
     background-color: #BBB;
 }
 
-#context-sensor {
+#context-meter {
     position: relative;
     display: inline-block;
 }
@@ -325,7 +325,7 @@ div#failed-div {
     display: block;
 }
 
-#context-sensor {background-color: #ddd;}
+#context-meter {background-color: #ddd;}
 
 .show {display: block;}
 
@@ -457,16 +457,20 @@ span#footer {
 }
 
 button.toggle-vis {
-    background-color: #555;
-    color: white;
-    margin: 2px;
-    padding: 5px;
-    border-radius: 5px;
+  background-color: #555;
+  color: #fff;
+  margin: 2px;
+  padding: 5px 8px;
+  border: 1px solid #555;
+  border-radius: 5px;
+  cursor: pointer;
+  transition: background-color 0.2s, color 0.2s, border-color 0.2s;
 }
 
 button.toggle-vis.hidden {
-    background-color: white;
-    color: #555;
+  background-color: transparent;
+  color: #555;
+  border: 1px solid #555;
 }
 
 .colorScore0 {

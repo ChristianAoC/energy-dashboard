@@ -10,26 +10,38 @@
 
 <div id="map-sidebar">
 
+<label for="select-building"><b>Select a building:</b></label><br>
+<select name="select-building" id="select-building">
+	<option value="">--Select--</option>
+</select>
+
+<br><br>
+
+<label for="select-type"><b>Select a meter type:</b></label><br>
+<select name="select-type" id="select-type">
+	<option value="">--Select--</option>
+</select>
+
+<br><br>
+
+<label for="select-meter"><b>Select a meter:</b></label><br>
+<select name="select-meter" id="select-meter">
+	<option value="">--Select--</option>
+</select>
+
+<br><br>
+
 <div class="sidebar-date">
-    <label for="sb-start-date">Start date:</label>
+    <label for="sb-start-date"><b>Start date:</b></label>
     <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" onchange="dateChange()" />
 </div>
 <div class="sidebar-date">
-    <label for="sb-end-date">End date:</label>
+    <label for="sb-end-date"><b>End date:</b></label>
     <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" onchange="dateChange()" />
 </div>
 
-<div class="clear-float"></div>
+<br><br><br><br>
 
-<div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
-
-<label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="cumultorate" /> Convert to rate
-  <span class="checkmark"></span>
-  <br><span id="alreadyrate">(Already a rate meter)</span>
-</label>
-
-<br>
 <b>Aggregate by:</b>
 <br>
 <div id="b-aggregate-select-container">
@@ -43,26 +55,13 @@
 	</div>
 </div>
 
-<label for="select-building">Select a building:</label><br>
-<select name="select-building" id="select-building">
-	<option value="">--Select--</option>
-</select>
+<label class="checkbox-container">
+  <input type="checkbox" checked="checked" id="cumultorate" disabled /> Convert to rate
+  <span class="checkmark"></span>
+  <br><span>&nbsp;</span><span id="alreadyrate" hidden>(Already a rate meter)</span>
+</label>
 
-<br><br>
-
-<label for="select-type">Select a meter type:</label><br>
-<select name="select-type" id="select-type">
-	<option value="">--Select--</option>
-</select>
-
-<br><br>
-
-<label for="select-meter">Select a meter:</label><br>
-<select name="select-meter" id="select-meter">
-	<option value="">--Select--</option>
-</select>
-
-<br><br>
+<br>
 
 <button class="b-button" id="download-button">
 	<img src="{{ url_for('static', filename='gfx/download.png') }}" width="24" alt="Download" /> &nbsp; Download CSV

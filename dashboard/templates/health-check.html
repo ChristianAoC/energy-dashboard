@@ -1,14 +1,6 @@
 {% extends 'base.html' %}
 
 {% block head %}
-{% if hc_latest %}
-<script>
-    var hc_latest = JSON.parse('{{ hc_latest | tojson | safe }}');
-    var hc_meta = JSON.parse('{{ hc_meta | tojson | safe }}');
-    var context = JSON.parse('{{ context | tojson | safe }}');
-</script>
-{% endif %}
-
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
 <!--
 <link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/r/bs-3.3.5/dt-1.10.9/datatables.min.css">
@@ -36,103 +28,9 @@
 
 <span id="datespan"></span>
 
-<script>
-var sp_str = "";
-if (jQuery.isEmptyObject(hc_meta)) {
-    sp_str += "No cached health check found, showing simple meter list. A check is being performed, check again in a few minutes.<br>";
-} else {
-    sp_str += "This is the latest health check for the period between ";
-    sp_str += new Date(hc_meta["from_time"] * 1000).toDateString()+" and "+new Date(hc_meta["to_time"] * 1000).toDateString();
-    sp_str += " ("+hc_meta["date_range"]+" days).<br>";
-    //sp_str += "This is the latest health check, retrieved at <b>"+new Date(hc_meta["timestamp"] * 1000).toDateString()+"</b>.<br>";
-    //sp_str += "It lists "+hc_meta["meters"]+" meters, analysing the time between ";
-    //sp_str += new Date(hc_meta["from_time"] * 1000).toDateString()+" and "+new Date(hc_meta["to_time"] * 1000).toDateString()
-    //sp_str += " ("+hc_meta["date_range"]+" days).<br>";
-    /*
-    if (hc_meta["new"] == 0) {
-        sp_str += "A new health check is being generated in the background and will be ready in roughly 5 minutes, reload this page then.<br>";
-    } else {
-        sp_str += "This health check snapshot is <b>"+hc_meta["age"]+" hours</b> old and will not be automatically updated. To force an update now click here (takes roughly 5 minutes).<br>";
-    }
-    */
-}
-document.getElementById("datespan").innerHTML = sp_str + "<br>";
-</script>
-
 <details id="toggle-columns-section" style="margin-bottom: 1em;">
 <summary style="cursor: pointer; font-weight: bold;">Toggle columns</summary>
 <div id="dt-cols-toggles">
-    <div>
-        Basic info<br>
-        <button class="toggle-vis" data-column="0">Meter ID (cleaned)</button><br>
-        <button class="toggle-vis" data-column="1">Measurement Type</button><br>
-        <button class="toggle-vis" data-column="13">Concise Description</button><br>
-        <button class="toggle-vis" data-column="14">Building</button><br>
-        <button class="toggle-vis" data-column="2">Rate/Cumulative</button><br>
-        <button class="toggle-vis" data-column="3">Rate/Cum. Check</button><br>
-        <button class="toggle-vis" data-column="7">Main Meter</button>
-    </div>
-    <div>
-        Advanced info 1<br>
-        <button class="toggle-vis" data-column="4">Obsolete</button><br>
-        <button class="toggle-vis" data-column="5">Detailed Description</button><br>
-        <button class="toggle-vis" data-column="6">Level (1-5, beta)</button><br>
-        <button class="toggle-vis" data-column="8">Meter Location</button><br>
-        <button class="toggle-vis" data-column="10">Has Tenant</button><br>
-        <button class="toggle-vis" data-column="11">Tenant Name</button><br>
-        <button class="toggle-vis" data-column="12">Invoiced</button>
-    </div>
-    <div>
-        Advanced info 2<br>
-        <button class="toggle-vis" data-column="15">Meter ID (raw)</button><br>
-        <button class="toggle-vis" data-column="9">Measured Units</button><br>
-        <button class="toggle-vis" data-column="16">Conversion Factor</button><br>
-        <button class="toggle-vis" data-column="17">Coverted Units</button><br>
-        <button class="toggle-vis" data-column="18">Resolution</button><br>
-        <button class="toggle-vis" data-column="19">Adjustment Factor</button>
-    </div>
-    <div>
-        General Analysis<br>
-        <button class="toggle-vis" data-column="20">Data Points</button><br>
-        <button class="toggle-vis" data-column="21">Data (percentage)</button><br>
-        <button class="toggle-vis" data-column="22">Zeroes</button><br>
-        <button class="toggle-vis" data-column="23">Zeroes (percentage)</button>
-    </div>
-    <div>
-        Point Diff. Analysis<br>
-        <button class="toggle-vis" data-column="24">Count Neg. Increases</button><br>
-        <button class="toggle-vis" data-column="25">Neg. (percentage)</button><br>
-        <button class="toggle-vis" data-column="26">Count Pos. Increases</button><br>
-        <button class="toggle-vis" data-column="27">Pos. (percentage)</button><br>
-        <button class="toggle-vis" data-column="28">Count: Diff = Zero</button><br>
-        <button class="toggle-vis" data-column="29">Zero Inc (percentage)</button>
-    </div>
-    <div>
-        Basic Stats<br>
-        <button class="toggle-vis" data-column="30">Median</button><br>
-        <button class="toggle-vis" data-column="31">Mode</button><br>
-        <button class="toggle-vis" data-column="32">STD</button><br>
-        <button class="toggle-vis" data-column="33">Min</button><br>
-        <button class="toggle-vis" data-column="34">Max</button><br>
-        <button class="toggle-vis" data-column="35">Mean</button>
-    </div>
-    <div>
-        Outlier Analysis<br>
-        <button class="toggle-vis" data-column="36">Outliers</button><br>
-        <button class="toggle-vis" data-column="37">Outliers (perc)</button><br>
-        <button class="toggle-vis" data-column="38">Outliers ign 0s</button><br>
-        <button class="toggle-vis" data-column="39">Outliers ign 0s (perc)</button>
-    </div>
-    <div>
-        Score Calculation<br>
-        <button class="toggle-vis" data-column="40">Count score</button><br>
-        <button class="toggle-vis" data-column="41">Zero score</button><br>
-        <button class="toggle-vis" data-column="42">Diff pos score</button><br>
-        <button class="toggle-vis" data-column="43">Func matrix</button><br>
-        <button class="toggle-vis" data-column="44">Cumu. matrix</button><br>
-        <button class="toggle-vis" data-column="45">Score</button>
-    </div>
-    <!-- <button class="toggle-vis" data-column="46">Comments</button> -->
 </div>
 </details>
 <br>
@@ -141,53 +39,6 @@ document.getElementById("datespan").innerHTML = sp_str + "<br>";
 <table id="healthcheckTable" width="100%" class="filtering-col table-bordered table-striped responsive">
     <thead>
         <tr>
-            <th>Meter ID</th>
-            <th>Type</th>
-            <th>Class</th>
-            <th><abbr title='Checks if the class seems correct: If the ratio is higher than 80 to 20 then it is probably cumulative, otherwise probably rate'>Class Check</abbr></th>
-            <th><abbr title='Marked by facility management as a meter that is not longer needed/maintained, but kept in the database for now'>Obsolete</abbr></th>
-            <th>Serving</th>
-            <th>Level</th>
-            <th><abbr title='Marked as building_level_meter'>Main</abbr></th>
-            <th>Meter location</th>
-            <th><abbr title='Measured units'>M. Units</abbr></th>
-            <th>Tenant</th>
-            <th>Tenant Name</th>
-            <th>Invoiced</th>
-            <th>Serving (revised)</th>
-            <th>Building</th>
-            <th><abbr title='Raw meter ID, might contain slashes/hiphens'>Meter ID</abbr></th>
-            <th><abbr title='Unit conversion factor'>Conv.</abbr></th>
-            <th><abbr title='Units after conversion'>C. Units</abbr></th>
-            <th>Resolution</th>
-            <th>Adj. Factor</th>
-            <th><abbr title='Total count of data points'>Data Points</abbr></th>
-            <th><abbr title='Percentage of available data points for this period'>Data (perc)</abbr></th>
-            <th><abbr title='Total count of zeroes'>Zeroes</abbr></th>
-            <th><abbr title='Percentage of zero readings'>Zeroes (perc)</abbr></th>
-            <th><abbr title='How many data points are declining (lower than the previous one)'>Diff: Neg.</abbr></th>
-            <th><abbr title='Percentage of declining data points'>D.Neg. (perc)</abbr></th>
-            <th><abbr title='How many data points are increasing (higher than the previous one)'>Diff: Pos.</abbr></th>
-            <th><abbr title='Percentage of increasing data points'>D.Pos. (perc)</abbr></th>
-            <th><abbr title='How many data points are the same as the previous one (no change)'>Diff: Zero</abbr></th>
-            <th><abbr title='Percentage of non-changing data points'>D. Zero (perc)</abbr></th>
-            <th><abbr title='The median reading (converted to rate)'>Median</abbr></th>
-            <th><abbr title='The mode reading (converted to rate), i.e., most frequent value'>Mode</abbr></th>
-            <th><abbr title='Standard deviation (converted to rate)'>STD</abbr></th>
-            <th><abbr title='Min reading (converted to rate)'>Min</abbr></th>
-            <th><abbr title='Max reading (converted to rate)'>Max</abbr></th>
-            <th><abbr title='The mean (average) reading (converted to rate)'>Mean</abbr></th>
-            <th><abbr title='Counts of outliers - defined as values 5 times higher than the average reading'>Outliers</abbr></th>
-            <th><abbr title='Percentage of outliers'>Outliers (perc)</abbr></th>
-            <th><abbr title='Counts of outliers but ignore all zero values'>Outliers ign 0s</abbr></th>
-            <th><abbr title='Percentage of outliers (ignoring zeroes)'>Outliers ign 0s (perc)</abbr></th>
-            <th><abbr title='Score based on how many data points are available, from 0 for no data points to 5 for 100% availability'>Count score</abbr></th>
-            <th><abbr title='Score based on how many data points are zero, from 0 for all zeroes to 5 for no zeroes'>Zero score</abbr></th>
-            <th><abbr title='Score based on how many data points are incremental, from 0 for all are incremental to 5 for none'>Diff pos score</abbr></th>
-            <th><abbr title='Functional matrix value - multiplying count score and zero score'>Func matrix</abbr></th>
-            <th><abbr title='Cumulative matrix value (only for cumulative meters) - multiplying count score, zero score, and diff pos score'>Cumu. matrix</abbr></th>
-            <th><abbr title='Score from 0 (no or almost no useful data) to 5 (healthy meter)'>Score</abbr></th>
-            <th>Comments</th>
         </tr>
     </thead>
     <tbody></tbody>
