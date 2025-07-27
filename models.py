@@ -50,9 +50,9 @@ class Meter(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
+            'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
-            'name': self.name,
+            'meter_name': self.name,
             'main': self.main,
             'utility_type': self.utility_type,
             'reading_type': self.reading_type,
@@ -95,8 +95,8 @@ class Building(db.Model):
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "name": self.name,
+            "building_id": self.id,
+            "building_name": self.name,
             "floor_area": self.floor_area,
             "year_built": self.year_built,
             "occupancy_type": self.occupancy_type,
