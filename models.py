@@ -50,9 +50,9 @@ class Meter(db.Model):
 
     def to_dict(self):
         return {
-            'id': self.id,
+            'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
-            'name': self.name,
+            'meter_name': self.name,
             'main': self.main,
             'utility_type': self.utility_type,
             'reading_type': self.reading_type,
@@ -95,8 +95,8 @@ class Building(db.Model):
 
     def to_dict(self):
         return {
-            "id": self.id,
-            "name": self.name,
+            "building_id": self.id,
+            "building_name": self.name,
             "floor_area": self.floor_area,
             "year_built": self.year_built,
             "occupancy_type": self.occupancy_type,
@@ -231,133 +231,99 @@ class HealthCheck(db.Model):
     def __repr__(self) -> str:
         return f"<HealthCheck {self.meter_id}>"
 
-class HealthCheckMeta(db.Model):
-    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
-    meter_count = db.Column(db.Integer, nullable=False)
+class CacheMeta(db.Model):
+    meta_type = db.Column(db.String, primary_key=True)
     to_time = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
     from_time = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
-    date_range = db.Column(db.Integer, nullable=False)
     timestamp = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
     processing_time = db.Column(db.Float, nullable=False)
 
-    def __init__(self, hc_meta: dict):
-        self.meter_count = hc_meta["meter_count"]
-        self.to_time = hc_meta["to_time"]
-        self.from_time = hc_meta["from_time"]
-        self.date_range = hc_meta["date_range"]
-        self.timestamp = hc_meta["timestamp"]
-        self.processing_time = hc_meta["processing_time"]
+    def __init__(self, meta_type: str, new_meta: dict):
+        if meta_type not in ["health_check", "usage_summary"]:
+            raise ValueError("Invalid meta type")
 
-    def update(self, hc_meta: dict):
-        self.meter_count = hc_meta["meter_count"]
-        self.to_time = hc_meta["to_time"]
-        self.from_time = hc_meta["from_time"]
-        self.date_range = hc_meta["date_range"]
-        self.timestamp = hc_meta["timestamp"]
-        self.processing_time = hc_meta["processing_time"]
+        self.meta_type = meta_type
+        self.to_time = new_meta["to_time"]
+        self.from_time = new_meta["from_time"]
+        self.timestamp = new_meta["timestamp"]
+        self.processing_time = new_meta["processing_time"]
+
+    def update(self, new_meta: dict):
+        self.to_time = new_meta["to_time"]
+        self.from_time = new_meta["from_time"]
+        self.timestamp = new_meta["timestamp"]
+        self.processing_time = new_meta["processing_time"]
 
     def to_dict(self):
         return {
-            "meter_count": self.meter_count,
             "to_time": self.to_time,
             "from_time": self.from_time,
-            "date_range": self.date_range,
             "timestamp": self.timestamp,
             "processing_time": self.processing_time
         }
 
     def __repr__(self) -> str:
-        return f"<HealthCheckMeta {self.id}>"
+        return f"<CacheMeta {self.meta_type}>"
 
 class UtilityData(db.Model):
     building_id = db.Column(db.String, db.ForeignKey("building.id"), primary_key=True)
-
-    # Electricity
-    electricity_eui = db.Column(db.Integer)
-    electricity_eui_annual = db.Column(db.Integer)
-    electricity_meter_ids = db.Column(db.JSON)
-    electricity_usage = db.Column(db.Integer)
-
-    # Gas
-    gas_eui = db.Column(db.Integer)
-    gas_eui_annual = db.Column(db.Integer)
-    gas_meter_ids = db.Column(db.JSON)
-    gas_usage = db.Column(db.Integer)
     
-    # Heat
-    heat_eui = db.Column(db.Integer)
-    heat_eui_annual = db.Column(db.Integer)
-    heat_meter_ids = db.Column(db.JSON)
-    heat_usage = db.Column(db.Integer)
-    
-    # Water
-    water_eui = db.Column(db.Integer)
-    water_eui_annual = db.Column(db.Integer)
-    water_meter_ids = db.Column(db.JSON)
-    water_usage = db.Column(db.Integer)
+    # Each utility json should look like this
+    # {
+    #     "meter_id": {
+    #         "EUI": EUI,
+    #         "consumption": consumption,
+    #         "benchmark": {
+    #             "good": good_benchmark,
+    #             "typical": typical_benchmark
+    #         }
+    #     },
+    #     ...
+    # }
+    electricity = db.Column(db.JSON)
+    gas = db.Column(db.JSON)
+    heat = db.Column(db.JSON)
+    water = db.Column(db.JSON)
 
     def __init__(self, building_id: str, electricity: dict, gas: dict, heat: dict, water: dict):
         self.building_id = building_id
         self.update(electricity, gas, heat, water)
     
-    def update(self, electricity: dict, gas: dict, heat: dict, water: dict):
-        # Electricity
-        self.electricity_eui = electricity["eui"]
-        self.electricity_eui_annual = electricity["eui_annual"]
-        self.electricity_meter_ids = electricity["meter_ids"]
-        self.electricity_usage = electricity["usage"]
+    def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
+        if len(dictionary) == 0:
+            return True # Allow empty data
+        
+        for meter in dictionary.values():
+            if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
+                return False
 
-        # Gas
-        self.gas_eui = gas["eui"]
-        self.gas_eui_annual = gas["eui_annual"]
-        self.gas_meter_ids = gas["meter_ids"]
-        self.gas_usage = gas["usage"]
+            if require_benchmark:
+                if bool(meter["benchmark"].keys() - {"good", "typical"}):
+                    return False
         
-        # Heat
-        self.heat_eui = heat["eui"]
-        self.heat_eui_annual = heat["eui_annual"]
-        self.heat_meter_ids = heat["meter_ids"]
-        self.heat_usage = heat["usage"]
+        return True
+    
+    def update(self, electricity: dict, gas: dict, heat: dict, water: dict):
+        if not self._check_dict(electricity):
+            raise ValueError("Invalid electricity data")
+        if not self._check_dict(gas):
+            raise ValueError("Invalid gas data")
+        if not self._check_dict(heat):
+            raise ValueError("Invalid heat data")
+        if not self._check_dict(water, False):
+            raise ValueError("Invalid water data")
         
-        # Water
-        self.water_eui = water["eui"]
-        self.water_eui_annual = water["eui_annual"]
-        self.water_meter_ids = water["meter_ids"]
-        self.water_usage = water["usage"]
+        self.electricity = electricity
+        self.gas = gas
+        self.heat = heat
+        self.water = water
 
     def to_dict(self):
-        building_dict = db.session.execute(db.select(Building).where(Building.id == self.building_id)).scalar_one_or_none()
-        if building_dict is None:
-            return {}
-        
-        building_dict = building_dict.to_dict()
-        
         return {
-            **building_dict,
-            "electricity": {
-                "eui": self.electricity_eui,
-                "eui_annual": self.electricity_eui_annual,
-                "meter_id": self.electricity_meter_ids,
-                "usage": self.electricity_usage
-            },
-            "gas": {
-                "eui": self.gas_eui,
-                "eui_annual": self.gas_eui_annual,
-                "meter_id": self.gas_meter_ids,
-                "usage": self.gas_usage
-            },
-            "heat": {
-                "eui": self.heat_eui,
-                "eui_annual": self.heat_eui_annual,
-                "meter_id": self.heat_meter_ids,
-                "usage": self.heat_usage
-            },
-            "water": {
-                "eui": self.water_eui,
-                "eui_annual": self.water_eui_annual,
-                "meter_id": self.water_meter_ids,
-                "usage": self.water_usage
-            }
+            "electricity": self.electricity,
+            "gas": self.gas,
+            "heat": self.heat,
+            "water": self.water
         }
     
     def __repr__(self) -> str:

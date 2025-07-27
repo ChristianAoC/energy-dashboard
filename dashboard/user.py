@@ -50,7 +50,10 @@ def get_user(email: str|None = None) -> dict|None:
     return None
 
 # get user level - used to check access level
-def get_user_level(email: str, sessionid: str) -> int:
+def get_user_level(email: str|None, sessionid: str|None) -> int:
+    if email is None or sessionid is None:
+        return 0
+
     if os.path.isfile(users_file):
         with open(users_file, "r", encoding="utf-8", errors="replace") as f:
             users = json.load(f)
