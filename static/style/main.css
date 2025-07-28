@@ -496,3 +496,16 @@ button.toggle-vis.hidden {
 .colorScore5 {
     background-color: #9fc9a2 !important;
 }
+
+select#select-building, select#select-meter {
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+div#b-meta-info {
+    margin-bottom: 1em;
+    font-size: 0.9em;
+    color: #555;
+}

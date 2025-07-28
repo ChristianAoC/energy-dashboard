@@ -23,6 +23,8 @@ load_dotenv()
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 
 app.config["SITE_NAME"] = os.getenv("SITE_NAME") or "Energy Dashboard"
+val = os.getenv("OFFLINE_MODE", "True")
+app.config["OFFLINE_MODE"] = val.strip().lower() in ("1", "true", "yes", "on")
 
 # this is the mazemap ID for Lancaster Campus university and its coordinates, by default
 app.config["MAZEMAP_CAMPUS_ID"] = int(os.getenv("MAZEMAP_CAMPUS_ID", "341"))

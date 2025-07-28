@@ -17,8 +17,8 @@
 
 <br><br>
 
-<label for="select-type"><b>Select a meter type:</b></label><br>
-<select name="select-type" id="select-type">
+<label for="select-utility"><b>Select a utility type:</b></label><br>
+<select name="select-utility" id="select-utility">
 	<option value="">--Select--</option>
 </select>
 
@@ -28,6 +28,10 @@
 <select name="select-meter" id="select-meter">
 	<option value="">--Select--</option>
 </select>
+
+<br><br>
+
+<button onclick="randomMeter()">Load a random meter!</button>
 
 <br><br>
 
@@ -80,7 +84,8 @@
 
 <div id="b-content">
 	<div id="b-plot-container">
-		<h3 id="b-plot-header">Header TBD</h3>
+		<h3 id="b-plot-header">(No meter selected)</h3>
+		<div id="b-meta-info"></div>
 		<div id="b-plot" class="plot-div">
 		</div>
 	</div>
