@@ -1,9 +1,10 @@
 const browserData = {};
 
 let metaLabel = {
+
     // metadata from meters list
     "meter_id": "meter_id",
-    "building_id": "building_id",
+    "building_id": "building_id", // also used in hierarchy/building list
     "utility_type": "utility_type",
     "description": "meter_name", // replace with long description? our own?
     "reading_type": "reading_type",
@@ -14,10 +15,12 @@ let metaLabel = {
     "resolution": "resolution",
     "units": "units",
     "scaling_factor": "scaling_factor", // do we need this? should only be needed in API?
+    "EUI": "EUI",
 
-    // metadata from buildings list
+    // metadata from buildings list/hierarchy
     "maze_map_label": "maze_map_label",
     "floor_area": "floor_area",
+    "building_name": "building_name",
     "occupancy_type": "occupancy_type",
     "year_built": "year_built",
 
