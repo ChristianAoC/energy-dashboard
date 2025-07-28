@@ -40,20 +40,6 @@ function convertTSDToPlotlyPopup(tsd, type) {
 	}, totalSum];
 };
 
-window.addEventListener('keydown', function (event) {
-	if (event.key === 'Escape') {
-		let params = new URLSearchParams(document.location.search);
-		let ref = params.get("ref");
-		if (ref) {
-			if (ref == "view-map") {
-                window.location.href = "map";
-			} else if (ref == "view-graph") {
-                window.location.href = "benchmark";
-			}
-		}
-	}
-});
-
 function downloadMeterData(){
     const meter = document.getElementById("select-meter").value;
     const startDate = document.getElementById("sb-start-date").value;
@@ -327,6 +313,10 @@ function randomMeter(buildingFilter = null) {
     window.history.replaceState({}, '', url.toString());
 }
 
+function dateChange() {
+    redrawPlot();
+}
+
 $(document).ready(async function () {
     try {
         // fetch both hierarchy and meters at once
@@ -375,7 +365,7 @@ $(document).ready(async function () {
             if (randomRequest && buildingFromUrl) {
                 // Pick random meter from a specific building
                 randomMeter(buildingFromUrl);
-            } else if (params.size === 0) {
+            } else if (!buildingFromUrl && !meterFromUrl) {
                 // No params at all — just pick anything
                 randomMeter();
             }
@@ -417,14 +407,6 @@ $(document).ready(async function () {
 	commentParent = "browser";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
-    let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
-    sideBarStartDate = sideBarStartDate.toISOString().split('T')[0];
-    document.getElementById('sb-start-date').value = sideBarStartDate;
-    let sideBarEndDate = new Date();
-    sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
-    document.getElementById('sb-end-date').value = sideBarEndDate;
-
-	// TODO implement a cumultorate filter
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);
 
     document.getElementById("select-building").addEventListener("change", () => {
