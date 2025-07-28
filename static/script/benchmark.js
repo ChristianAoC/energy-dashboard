@@ -21,37 +21,55 @@ var pLayoutGraph = {
     };
 
 function convertMLToPlotly(barType) {
-    let toPlot = document.getElementById("toggleGraph").checked ? "eui_annual" : "usage";
-	let x = [];
-	let y = [];
+    const toPlot = document.getElementById("toggleGraph").checked ? metaLabel["EUI"] : metaLabel["consumption"];
+    console.log( metaLabel["EUI"])
+    const dataToPlot = browserData.filteredSummary || [];
+
+    let x = [];
+    let y = [];
     let customdata = [];
     let bmg = [];
     let bmt = [];
-	let i = 0;
-    if (narrowML.length > 0) {
-        do {
-            if(narrowML[i][activeTab][toPlot] != null) {
-                x.push(Math.round(parseFloat(narrowML[i][activeTab][toPlot])));
-                y.push(narrowML[i][varNameMLBuildingName]);
-                customdata.push(narrowML[i][activeTab]["meter_uuid"].join(';'));
-                bmg.push(narrowML[i][activeTab]["bm_good"]);
-                bmt.push(narrowML[i][activeTab]["bm_typical"]);
-            }
-            i++;
-        } while (i < narrowML.length);
+
+    const showBenchmarks = (toPlot === metaLabel["EUI"]);
+
+    for (let building of dataToPlot) {
+        const utilityData = building[activeTab];
+        if (!utilityData || Object.keys(utilityData).length === 0) continue;
+
+        // Take the first meter in this utility group
+        const meterIds = Object.keys(utilityData);
+        if (meterIds.length === 0) continue;
+
+        const firstMeter = utilityData[meterIds[0]];
+        const value = firstMeter[toPlot];
+
+        if (value == null || isNaN(value)) continue;
+
+        x.push(Math.round(parseFloat(value) * 100) / 100);
+        y.push(building.meta[metaLabel["building_name"]] || "Unknown");
+        customdata.push(meterIds[0]); // Meter ID string
+
+        if (showBenchmarks) {
+            bmg.push(firstMeter.benchmark?.good ?? null);
+            bmt.push(firstMeter.benchmark?.typical ?? null);
+        } else {
+            bmg.push(null);
+            bmt.push(null);
+        }
     }
 
-	return {
-		'x': x,
-		'y': y,
-        'customdata': customdata,
-        'bmg': bmg,
-        'bmt': bmt,
-        'marker': { "color": []},
-		'type': barType,
-        'orientation': 'h'
-	};
-};
+    return {
+        x: x,
+        y: y,
+        customdata: customdata,
+        bmg: bmg,
+        bmt: bmt,
+        marker: { color: [] },
+        type: barType,
+        orientation: 'h'
+    };
+}
 
 function redrawGraph() {
     let dateDiff = new Date(document.getElementById("sb-end-date").value) - new Date(document.getElementById("sb-start-date").value);
@@ -110,6 +128,8 @@ function redrawGraph() {
 
         pLayoutGraph["shapes"] = benchmarkLines;
     } else {
+        pLayoutGraph["shapes"] = [];
+
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
             " " + uncapFirst($('label[for="toggleGraph"]')[0].firstElementChild.innerHTML) + " for " +
             //" [" + unitsConsPlain[activeTab] + "], over " +
@@ -127,15 +147,21 @@ function redrawGraph() {
             contextMeterClicked = data.points[0].customdata.split(";")[0];
             if (!commentMode) {
                 //viewEnergyData(contextMeterClicked.slice(0, 5));
-                window.location.href = "browser.html?ref=map&meter_id="+contextMeterClicked.slice(0, 5);
+                window.location.href = "browser?ref=map&meter_id="+contextMeterClicked.slice(0, 5);
             }
         }
     });
 
-    let meters = "";
-    for (s of narrowML) {
-        meters += s[activeTab]["meter_uuid"].join(";")+";";
+    /* TBD context
+    const meters = [];
+    for (const [buildingId, buildingData] of Object.entries(browserData.hierarchy)) {
+        for (const utility of utilityTypes) {
+            if (buildingData[utility]) {
+                meters.push(...buildingData[utility]);
+            }
+        }
     }
+
     let uri = "getcontext?meter="+meters+"&start="+getCurPageStartDate()+"&end="+getCurPageEndDate();
     fetch(uri, {method: 'GET'})
     .then(response => response.json())
@@ -164,106 +190,103 @@ function redrawGraph() {
         }
         Plotly.relayout("comparison-plot", { annotations });
     })
+    */
 };
 
 function toggleGraph() {
     redrawGraph();
 };
 
-function filterMasterListGraph() {
-    masterList = originalMasterList;
-	
-	// check search input
+function filterGraph() {
+    const occType = metaLabel["occupancy_type"];
+    const nameKey = metaLabel["building_name"];
+    const areaKey = metaLabel["floor_area"];
+
+    let filtered = Object.values(browserData.summary);
+
     const searchInput = document.getElementById("building-search").value.toLowerCase();
-    masterList = masterList.filter(b => b[varNameMLBuildingName].toLowerCase().includes(searchInput));
-
-	// check for type (res/non-res/split use)
-    if (!(document.getElementById("residential").checked)) {
-        masterList = masterList.filter(b => b[varNameMLUsage] != "Residential");
-    }
-    if (!(document.getElementById("nonres").checked)) {
-        masterList = masterList.filter(b => b[varNameMLUsage] != "Non-residential");
-    }
-    if (!(document.getElementById("mixed").checked)) {
-        masterList = masterList.filter(b => b[varNameMLUsage] != "Split Use");
+    if (searchInput.length > 0) {
+        filtered = filtered.filter(b => b.meta?.[nameKey]?.toLowerCase().includes(searchInput));
     }
 
-    // slider range check
-    let min = parseInt(document.getElementById("fromInput1").value);
-    let max = parseInt(document.getElementById("toInput1").value);
-    masterList = masterList.filter(b => (min <= parseInt(b[varNameMLFloorSize]) && max >= parseInt(b[varNameMLFloorSize])));
-        
-    // other sliders: for now, only do this into a "narrowML"
-    let minEUI = parseInt(document.getElementById("fromInput2").value);
-    let maxEUI = parseInt(document.getElementById("toInput2").value);
-    narrowML = masterList.filter(b => (minEUI <= parseInt(b[activeTab]["eui_annual"]) && maxEUI >= parseInt(b[activeTab]["eui_annual"])));
-    let minCons = parseInt(document.getElementById("fromInput3").value);
-    let maxCons = parseInt(document.getElementById("toInput3").value);
-    narrowML = narrowML.filter(b => (minCons <= parseInt(b[activeTab]["usage"]) && maxCons >= parseInt(b[activeTab]["usage"])));
+    if (!document.getElementById("residential").checked) {
+        filtered = filtered.filter(b => !b.meta?.[occType]?.toLowerCase().includes("residential"));
+    }
+    if (!document.getElementById("nonres").checked) {
+        filtered = filtered.filter(b => !b.meta?.[occType]?.toLowerCase().includes("non res"));
+    }
+    if (!document.getElementById("mixed").checked) {
+        filtered = filtered.filter(b => !b.meta?.[occType]?.toLowerCase().includes("split"));
+    }
 
-    document.getElementById("span-total").innerHTML = masterList.length;
+    const min = parseInt(document.getElementById("fromInput1").value);
+    const max = parseInt(document.getElementById("toInput1").value);
+    filtered = filtered.filter(b => {
+        const area = parseInt(b.meta?.[areaKey]);
+        return !isNaN(area) && area >= min && area <= max;
+    });
 
+    browserData.filteredSummary = filtered;
+
+    document.getElementById("span-total").innerHTML = filtered.length;
     redrawGraph();
-};
+}
 
-function consumerClick(source) {
-    let allTabs = document.getElementsByClassName("tab");
-    if (source.classList.contains("active")) {
-        return;
-    }
-    for (e of allTabs) {
-        if (e.id == source.id) {
-            e.classList.add("active");
-        } else {
-            e.classList.remove("active");
+function utilityClick(source) {
+    if (source.classList.contains("active")) return;
+
+    Array.from(document.getElementsByClassName("tab")).forEach(tab =>
+        tab.id === source.id ? tab.classList.add("active") : tab.classList.remove("active")
+    );
+
+    activeTab = source.id.toLowerCase();
+
+    // Update unit labels if needed
+    // document.getElementById("span-intensity").innerHTML = "[" + unitsEUI[activeTab] + "]";
+    // document.getElementById("span-consumption").innerHTML = "[" + unitsCons[activeTab] + "]";
+
+    getGraphSliderRanges();
+    filterGraph();
+    redrawGraph();
+}
+
+function getGraphSliderRanges() {
+    const summaryArray = Object.values(browserData.summary);
+
+    // Range 1: floor area
+    const floorSizes = summaryArray
+        .map(x => parseInt(x.meta?.[metaLabel["floor_area"]]))
+        .filter(x => !isNaN(x));
+    setRanges(1, Math.min(...floorSizes), Math.max(...floorSizes));
+
+    const currentType = activeTab;
+    const euiVals = [];
+    const usageVals = [];
+
+    for (const b of summaryArray) {
+        const utilData = b?.[currentType];
+        for (const meterId in utilData) {
+            const meter = utilData[meterId];
+            if (meter?.[metaLabel["EUI"]] !== undefined) {
+                const eui = parseFloat(meter[metaLabel["EUI"]]);
+                if (!isNaN(eui)) euiVals.push(eui);
+            }
+            if (meter?.[metaLabel["consumption"]] !== undefined) {
+                const use = parseFloat(meter[metaLabel["consumption"]]);
+                if (!isNaN(use)) usageVals.push(Math.round(use));
+            }
         }
     }
-    document.getElementById("span-intensity").innerHTML = "[" + unitsEUI[source.id] + "]";
-    document.getElementById("span-consumption").innerHTML = "[" + unitsCons[source.id] + "]";
-    updateRange(source.id);
-    activeTab = source.id;
-    filterMasterListGraph();
-    getSliderRanges();
-    redrawGraph();
-};
 
-function updateRange(type) {
-    if (type == "Electricity") {
-        setRanges(2, Math.min(...elecEUI), Math.max(...elecEUI));
-        setRanges(3, Math.min(...elecUse), Math.max(...elecUse));
-    } else if (type == "Gas") {
-        setRanges(2, Math.min(...gasEUI), Math.max(...gasEUI));
-        setRanges(3, Math.min(...gasUse), Math.max(...gasUse));
-    } else if (type == "Heat") {
-        setRanges(2, Math.min(...heatEUI), Math.max(...heatEUI));
-        setRanges(3, Math.min(...heatUse), Math.max(...heatUse));
-    } else if (type == "Water") {
-        setRanges(2, Math.min(...waterEUI), Math.max(...waterEUI));
-        setRanges(3, Math.min(...waterUse), Math.max(...waterUse));
+    if (euiVals.length > 0) {
+        setRanges(2, Math.min(...euiVals), Math.max(...euiVals));
     }
-};
-
-function getSliderRanges() {
-    sizes = masterList.map(x => parseInt(x[varNameMLFloorSize]));
-    setRanges(1, Math.min(...sizes), Math.max(...sizes));
-
-    elecUse = masterList.map(x => Math.round(parseFloat(x["electricity"]["usage"]))).filter(x => x); // kWh
-    gasUse = masterList.map(x => Math.round(parseFloat(x["gas"]["usage"]))).filter(x => x); // m3
-    heatUse = masterList.map(x => Math.round(parseFloat(x["heat"]["usage"]))).filter(x => x); // m3
-    waterUse = masterList.map(x => Math.round(parseFloat(x["water"]["usage"]))).filter(x => x); // m3
-
-    elecEUI = masterList.map(x => parseFloat(x["electricity"]["eui_annual"])).filter(x => x);
-    gasEUI = masterList.map(x => parseFloat(x["gas"]["eui_annual"])).filter(x => x);
-    heatEUI = masterList.map(x => parseFloat(x["heat"]["eui_annual"])).filter(x => x);
-    waterEUI = masterList.map(x => parseFloat(x["water"]["eui_annual"])).filter(x => x);
-
-    setRanges(2, Math.min(...elecEUI), Math.max(...elecEUI));
-    setRanges(3, Math.min(...elecUse), Math.max(...elecUse));
-};
-
+    if (usageVals.length > 0) {
+        setRanges(3, Math.min(...usageVals), Math.max(...usageVals));
+    }
+}
 
 function getNewSummary() {
-    return "to be implemented once API is done";
     document.getElementById("loading-text").classList.remove("hidden");
     document.getElementById("sb-start-date").disabled = true;
     document.getElementById("sb-end-date").disabled = true;
@@ -277,16 +300,16 @@ function getNewSummary() {
 	    "&to_time=" + encodeURIComponent(endDate);
 
     callApiJSON( uri ).then((data) => {
-        masterList = data;
-        originalMasterList = masterList;
-        getSliderRanges();
+        browserData.filteredSummary = data;
+        browserData.Summary = browserData.filteredSummary;
+        getGraphSliderRanges();
         document.getElementById("loading-text").classList.add("hidden");
         document.getElementById("sb-start-date").disabled = false;
         document.getElementById("sb-end-date").disabled = false;
     });
 };
 
-$(document).ready( function () {
+$(document).ready(async function () {
     commentParent = "view-graph";
 
     let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
@@ -297,19 +320,32 @@ $(document).ready( function () {
     document.getElementById('sb-end-date').value = sideBarEndDate;
 
     document.getElementById("comment-bubble").classList.remove("hidden");
-    document.getElementById("span-total").innerHTML = masterList.length;
 
-    document.getElementById("building-search").addEventListener("input", filterMasterListGraph);
-    document.getElementById("residential").addEventListener("click", filterMasterListGraph);
-    document.getElementById("nonres").addEventListener("click", filterMasterListGraph);
-    document.getElementById("mixed").addEventListener("click", filterMasterListGraph);
-    document.getElementById("fromSlider1").addEventListener("input", filterMasterListGraph);
-    document.getElementById("toSlider1").addEventListener("input", filterMasterListGraph);
-    document.getElementById("fromSlider2").addEventListener("input", filterMasterListGraph);
-    document.getElementById("toSlider2").addEventListener("input", filterMasterListGraph);
-    document.getElementById("fromSlider3").addEventListener("input", filterMasterListGraph);
-    document.getElementById("toSlider3").addEventListener("input", filterMasterListGraph);
+    document.getElementById("building-search").addEventListener("input", filterGraph);
+    document.getElementById("residential").addEventListener("click", filterGraph);
+    document.getElementById("nonres").addEventListener("click", filterGraph);
+    document.getElementById("mixed").addEventListener("click", filterGraph);
+    document.getElementById("fromSlider1").addEventListener("input", filterGraph);
+    document.getElementById("toSlider1").addEventListener("input", filterGraph);
+    document.getElementById("fromSlider2").addEventListener("input", filterGraph);
+    document.getElementById("toSlider2").addEventListener("input", filterGraph);
+    document.getElementById("fromSlider3").addEventListener("input", filterGraph);
+    document.getElementById("toSlider3").addEventListener("input", filterGraph);
 
-    redrawGraph();
-    getSliderRanges();
+    try {
+        const { summary } = await getData({
+            summary: {}
+        });
+
+        browserData.summary = summary;
+        browserData.filteredSummary = Object.values(browserData.summary);
+
+        if (browserData.summary) {
+            document.getElementById("span-total").innerHTML = Object.keys(browserData.summary).length;
+            redrawGraph();
+            getGraphSliderRanges();
+        }
+    } catch (err) {
+        console.error("Failed to load data", err);
+    }
 });

@@ -1,4 +1,5 @@
 const browserData = {};
+const utilityTypes = ["gas", "electricity", "heat", "water"];
 
 let metaLabel = {
 
@@ -15,7 +16,6 @@ let metaLabel = {
     "resolution": "resolution",
     "units": "units",
     "scaling_factor": "scaling_factor", // do we need this? should only be needed in API?
-    "EUI": "EUI",
 
     // metadata from buildings list/hierarchy
     "maze_map_label": "maze_map_label",
@@ -23,6 +23,10 @@ let metaLabel = {
     "building_name": "building_name",
     "occupancy_type": "occupancy_type",
     "year_built": "year_built",
+
+    // metadata in summary
+    "EUI": "EUI",
+    "consumption": "consumption",
 
     // health check specific labels
     "HC_class": "HC_class",
@@ -51,45 +55,6 @@ let metaLabel = {
     "HC_zeroes_perc": "HC_zeroes_perc",
     "HC_zeroes_score": "HC_zeroes_score"
 }
-
-/*
-// variable names in API/JSON/CSV responses and files
-var varNameDevSensorID = "meter_id_clean";
-var varNameDevLastObs = "last_obs_time";
-var varNameDevSensorType = "meter_type"; // gas heat water elec
-var varNameDevSensorLocation = "meter_location"; // not in anon
-var varNameDevMeasuringLong = "serving"; // not in anon (too long)
-var varNameDevMeasuringShort = "serving_revised";
-var varNameDevClass = "class"; // cumulative or rate
-var varNameDevResolution = "resolution";
-//var varNameDevUnits = "measured_units"; // this is converted in the API acc. to Paul, see below
-var varNameDevUnits = "units_after_conversion";
-var varNameDevTenantName = "tenant_name"; // not in anon
-
-  // those are new, should we add them to table?
-var varNameDevInvoiced = "to_be_invoiced"; // not in anon
-var varNameDevMeterLevel = "meter_level";
-//var varNameDevConfigCheckedDate = "config_checked_date";
-var varNameDevBuildingLevelMeter = "building_level_meter";
-var varNameDevBuilding = "building";
-//var varNameDevAdjustmentFactor = "adjustment_factor";
-var varNameDevParent = "parent"; // not in anon
-var varNameDevParentTwo = "parent2"; // not in anon
-var varNameDevRedundant = "redundant"; // not in anon
-var varNameDevTenant = "tenant"; // not in anon
-var varNameDevTenantID = "tenant_unit_id"; // not in anon
-var varNameDevUnitConversionFactor = "unit_conversion_factor";
-//var varNameDevUnitsAfterConversion = "unit_after_conversion"; // Paul said this is actually the returned unit
-
-// masterList variables
-
-var originalMasterList = [];
-var narrowML = [];
-if (typeof masterList !== 'undefined') {
-    originalMasterList = masterList;
-    narrowML = masterList;
-}
-*/
 
 // need this frequently, strangely JS has no native function for this
 function capFirst(str) {
@@ -165,13 +130,6 @@ function buildUrl(baseUrl, params = {}) {
 
 /**
  * Fetch multiple data keys, each optionally with params.
- * 
- * @param {Object} requests - e.g.
- *   {
- *     devices: true,
- *     masterlist: { from_time: '2024-01-01', to_time: '2024-01-31' },
- *     benchmarks: { category: 'A' }
- *   }
  */
 async function getData(requests = {}, forceReload = false) {
     try {
