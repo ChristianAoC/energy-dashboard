@@ -85,7 +85,7 @@ async function redrawPlot() {
 		return;
 	}
 
-	let type = document.getElementById("select-type").value;
+	let type = document.getElementById("select-utility").value;
 
 	let toRate = document.getElementById("cumultorate").checked;
 	let agg = document.querySelector("input[name='agg']:checked").value;
@@ -126,36 +126,51 @@ async function redrawPlot() {
 };
 
 function selectPopulator(selectID, selectArray) {
-	for( let i = 0; i < selectArray.length; i++ ) {
-		let opt = selectArray[i];
-        if (selectID == "select-type" && opt == "meta") continue;
-		let el = document.createElement("option");
-		if (selectID == "select-type") {
+	const selectElement = document.getElementById(selectID);
+	selectElement.innerHTML = "<option value=''>--Select--</option>";
+
+	for (let i = 0; i < selectArray.length; i++) {
+		const opt = selectArray[i];
+
+		// Skip meta if in type selection
+		if (selectID === "select-utility" && opt === "meta") continue;
+
+		const el = document.createElement("option");
+		el.value = opt;
+
+		if (selectID === "select-building") {
+			const bName = browserData.hierarchy[opt]?.["meta"][metaLabel["building_name"]] || "(Unknown name)";
+			el.textContent = `${bName} (${opt})`;
+		} else if (selectID === "select-meter") {
+			const meterMeta = browserData.meters.find(m => m[metaLabel["meter_id"]] === opt);
+			const mName = meterMeta?.[metaLabel["description"]] || "(Unnamed meter)";
+			el.textContent = `${mName} (${opt})`;
+		} else if (selectID === "select-utility") {
 			el.textContent = capFirst(opt);
 		} else {
 			el.textContent = opt;
 		}
-		el.value = opt;
-		document.getElementById(selectID).appendChild(el);
-	};
-};
+
+		selectElement.appendChild(el);
+	}
+}
 
 // called when a building is selected - only needs updating type fields
 function buildingSelected() {
 	let selBuilding = document.getElementById("select-building").value;
-	let selectType = document.getElementById("select-type");
+	let selectType = document.getElementById("select-utility");
 	selectType.innerHTML = "<option value=''>--Select--</option>";
 	let selectMeter = document.getElementById("select-meter");
 	selectMeter.innerHTML = "<option value=''>--Select--</option>";
 
 	if (selBuilding !== "") {
-		selectPopulator("select-type", Object.keys(browserData.hierarchy[selBuilding]));
+		selectPopulator("select-utility", Object.keys(browserData.hierarchy[selBuilding]));
 	}
 };
 
 // called when a type is selected - only needs populating meters
 function typeSelected() {
-	let selType = document.getElementById("select-type").value;
+	let selType = document.getElementById("select-utility").value;
 	let selMeter = document.getElementById("select-meter");
 	selMeter.innerHTML = "<option value=''>--Select--</option>";
 	if (selType != "") {
@@ -189,7 +204,7 @@ function meterSelected() {
 
 function updateUrlFromSelections() {
     const building = document.getElementById("select-building").value;
-    const meterType = document.getElementById("select-type").value;
+    const utilityType = document.getElementById("select-utility").value;
     const meter = document.getElementById("select-meter").value;
 
     // build query params
@@ -201,10 +216,10 @@ function updateUrlFromSelections() {
         params.delete("building");
     }
 
-    if (meterType) {
-        params.set("meter_type", meterType); // optional, you can include type if useful
+    if (utilityType) {
+        params.set("utility_type", utilityType); // optional, you can include type if useful
     } else {
-        params.delete("meter_type");
+        params.delete("utility_type");
     }
 
     if (meter) {
@@ -217,6 +232,66 @@ function updateUrlFromSelections() {
     const newUrl = window.location.pathname + "?" + params.toString();
     window.history.replaceState({}, "", newUrl);
 };
+
+function randomMeter(buildingFilter = null) {
+    if (!Array.isArray(browserData.meters) || browserData.meters.length === 0) {
+        console.warn('No meters loaded yet');
+        return;
+    }
+
+    // Build meter ID list from hierarchy
+    const meterIds = [];
+    for (const buildingId in browserData.hierarchy) {
+        // If filtering by building, skip others
+        if (buildingFilter && buildingId !== buildingFilter) continue;
+
+        const building = browserData.hierarchy[buildingId];
+        for (const utilType of Object.keys(building)) {
+            if (utilType === 'meta') continue;
+            const meters = building[utilType];
+            meters.forEach(meterId => meterIds.push(meterId));
+        }
+    }
+
+    if (meterIds.length === 0) {
+        console.warn(`No meters found for building ${buildingFilter}`);
+        return;
+    }
+
+    // Pick random meter
+    const randomMeterID = meterIds[Math.floor(Math.random() * meterIds.length)];
+    const randomMeter = browserData.meters.find(meter => meter.meter_id === randomMeterID);
+
+    if (!randomMeter) {
+        console.warn(`Random meter ID ${randomMeterID} not found in browserData.meters`);
+        return;
+    }
+
+    const buildingId = randomMeter.building_id;
+    const utilityType = randomMeter.utility_type;
+    const meterId = randomMeter.meter_id;
+
+    // Update dropdowns
+    document.getElementById("select-building").value = buildingId;
+    buildingSelected();
+
+    setTimeout(() => {
+        document.getElementById("select-utility").value = utilityType;
+        typeSelected();
+
+        setTimeout(() => {
+            document.getElementById("select-meter").value = meterId;
+            meterSelected();
+        }, 0);
+    }, 0);
+
+    // Update URL
+    const url = new URL(window.location);
+    url.searchParams.set('building', buildingId);
+    url.searchParams.set('utility_type', utilityType);
+    url.searchParams.set('meter_id', meterId);
+    window.history.replaceState({}, '', url.toString());
+}
 
 $(document).ready(async function () {
     try {
@@ -231,15 +306,27 @@ $(document).ready(async function () {
         browserData.meters = meters;
 
         if (browserData.hierarchy) {
-            selectPopulator("select-building", Object.keys(browserData.hierarchy));
+            const buildingEntries = Object.entries(browserData.hierarchy);
 
-            let params = new URLSearchParams(document.location.search);
+            // sort by building_name in meta
+            buildingEntries.sort((a, b) => {
+                const nameA = a[1].meta?.[metaLabel["building_name"]] || "";
+                const nameB = b[1].meta?.[metaLabel["building_name"]] || "";
+                return nameA.localeCompare(nameB);
+            });
 
+            // extract sorted building IDs
+            const sortedBuildingIds = buildingEntries.map(entry => entry[0]);
+
+            selectPopulator("select-building", sortedBuildingIds);
+
+            const params = new URLSearchParams(window.location.search);
             let buildingFromUrl = params.get("building");
-            let typeFromUrl     = params.get("type");
+            let typeFromUrl     = params.get("utility_type");
             let meterFromUrl    = params.get("meter_id");
+            let randomRequest   = params.get("ref") === "map";
 
-            // if only meter_id is given, derive building & type
+            // Derive missing building/type from meter_id if needed
             if (meterFromUrl && (!buildingFromUrl || !typeFromUrl)) {
                 for (let i = 0; i < browserData.meters.length; i++) {
                     if (browserData.meters[i][metaLabel["meter_id"]] === meterFromUrl) {
@@ -248,6 +335,15 @@ $(document).ready(async function () {
                         break;
                     }
                 }
+            }
+
+            // Auto-load behaviour
+            if (randomRequest && buildingFromUrl) {
+                // Pick random meter from a specific building
+                randomMeter(buildingFromUrl);
+            } else if (params.size === 0) {
+                // No params at all — just pick anything
+                randomMeter();
             }
 
             // STEP 1: set building and populate types
@@ -259,7 +355,7 @@ $(document).ready(async function () {
             // defer STEP 2 until type options are ready
             setTimeout(() => {
                 if (typeFromUrl) {
-                    document.getElementById("select-type").value = typeFromUrl;
+                    document.getElementById("select-utility").value = typeFromUrl;
                     typeSelected();
                 }
 
@@ -277,9 +373,7 @@ $(document).ready(async function () {
 
                     meterSelected();
                 }, 0);
-
             }, 0);
-
 		}
 
     } catch (err) {
@@ -304,7 +398,7 @@ $(document).ready(async function () {
         updateUrlFromSelections();
     });
 
-    document.getElementById("select-type").addEventListener("change", () => {
+    document.getElementById("select-utility").addEventListener("change", () => {
         typeSelected();
         updateUrlFromSelections();
     });
