@@ -503,3 +503,9 @@ select#select-building, select#select-meter {
     white-space: nowrap;
     overflow: hidden;
 }
+
+div#b-meta-info {
+    margin-bottom: 1em;
+    font-size: 0.9em;
+    color: #555;
+}

@@ -93,7 +93,6 @@ async function redrawPlot() {
 	let endDate = document.getElementById("sb-end-date").value;
 
 	document.getElementById('b-plot').innerHTML = `<img src='${appConfig.loadingGifUrl}' alt='Loading...' />`;
-	document.getElementById('b-plot-header').innerHTML = selMeter;
 
 	let params = {
         id: selMeter,
@@ -180,27 +179,62 @@ function typeSelected() {
 
 // when a new building is selected - update cumultorate and redraw
 function meterSelected() {
-	selMeter = document.getElementById("select-meter").value;
+    const selMeter = document.getElementById("select-meter").value;
+    const cumulCheckbox = document.getElementById("cumultorate");
+    const rateWarning = document.getElementById("alreadyrate");
+    const metaDiv = document.getElementById("b-meta-info");
+    const plotHeader = document.getElementById("b-plot-header");
 
-	if (selMeter != "") {
-		for( let i = 0; i < browserData.meters.length; i++ ) {
-			if (browserData.meters[i][metaLabel["meter_id"]] == selMeter) {
-				if (browserData.meters[i][metaLabel["reading_type"]] == "cumulative") {
-					document.getElementById("cumultorate").disabled = false;
-					document.getElementById("alreadyrate").hidden = true;
-				} else {
-					document.getElementById("cumultorate").disabled = true;
-					document.getElementById("alreadyrate").hidden = false;
-				}
-			}
-		};
-	} else {
-        document.getElementById("alreadyrate").hidden = true;
-        document.getElementById("cumultorate").disabled = true;
-    };
+    if (selMeter !== "") {
+        const selected = browserData.meters.find(m => m[metaLabel["meter_id"]] === selMeter);
+        const buildingId = selected?.[metaLabel["building_id"]];
+        const utilityType = selected?.[metaLabel["utility_type"]];
 
-	redrawPlot();
-};
+        const buildingMeta = browserData.hierarchy?.[buildingId]?.meta || {};
+
+        // Set plot header: Meter name (ID)
+        const meterName = selected?.[metaLabel["description"]] || "(Unnamed meter)";
+        plotHeader.textContent = `${meterName} (${selected?.[metaLabel["meter_id"]]})`;
+
+        // Reading type logic
+        const readingType = selected[metaLabel["reading_type"]]?.toLowerCase();
+        if (readingType === "cumulative") {
+            cumulCheckbox.disabled = false;
+            rateWarning.hidden = true;
+        } else {
+            cumulCheckbox.disabled = true;
+            rateWarning.hidden = false;
+        }
+
+        // Format meta info
+        const buildingName = buildingMeta?.[metaLabel["building_name"]] || "(Unknown building)";
+        const occupancy = buildingMeta?.[metaLabel["occupancy_type"]] || "n/a";
+        const yearBuilt = buildingMeta?.[metaLabel["year_built"]] || "n/a";
+        const floorArea = buildingMeta?.[metaLabel["floor_area"]] || "n/a";
+
+        const resolution = selected?.[metaLabel["resolution"]] || "n/a";
+        const units = selected?.[metaLabel["units"]] || "n/a";
+        const isMain = selected?.[metaLabel["is_main_meter"]] ? "Main meter" : "Submeter";
+
+        // Inject meta info
+        metaDiv.innerHTML = `
+            <strong>Meter type:</strong> ${isMain} | 
+            <strong>Resolution:</strong> ${resolution} | 
+            <strong>Units:</strong> ${units}<br>
+            <strong>Building:</strong> ${buildingName} (${buildingId}) |
+            <strong>Occupancy:</strong> ${occupancy} | 
+            <strong>Year built:</strong> ${yearBuilt} | 
+            <strong>Floor area:</strong> ${floorArea} m²
+        `;
+    } else {
+        plotHeader.textContent = "(No meter selected)";
+        metaDiv.innerHTML = "";
+        rateWarning.hidden = true;
+        cumulCheckbox.disabled = true;
+    }
+
+    redrawPlot();
+}
 
 function updateUrlFromSelections() {
     const building = document.getElementById("select-building").value;
