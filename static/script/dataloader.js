@@ -110,6 +110,10 @@ const apiEndpoints = {
     // no params
     hcMeta: '/api/hc_meta',
 
+    // Returns first and last date for offline data and interval
+    // no params
+    offlineMeta: '/api/offline_meta',
+    
     // Return time series data for given meter/time
     // params: id, to_time, from_time, format, aggregate, to_rate
     obs: '/api/meter_obs'

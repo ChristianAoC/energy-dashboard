@@ -321,13 +321,6 @@ async function getNewSummary() {
 $(document).ready(async function () {
     commentParent = "view-graph";
 
-    let sideBarStartDate = new Date(new Date() - (7*24*60*60*1000));
-    sideBarStartDate = sideBarStartDate.toISOString().split('T')[0];
-    document.getElementById('sb-start-date').value = sideBarStartDate;
-    let sideBarEndDate = new Date();
-    sideBarEndDate = sideBarEndDate.toISOString().split('T')[0];
-    document.getElementById('sb-end-date').value = sideBarEndDate;
-
     document.getElementById("comment-bubble").classList.remove("hidden");
 
     document.getElementById("building-search").addEventListener("input", filterGraph);
