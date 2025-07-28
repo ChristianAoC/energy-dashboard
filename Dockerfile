@@ -1,27 +1,27 @@
 # Use official Python image as base
 FROM python:3.10-slim
 
-# Set environment variables
+# Environment variables
 ENV PYTHONDONTWRITEBYTECODE=1
 ENV PYTHONUNBUFFERED=1
 
-# Create working directory inside container
+# Create working directory
 WORKDIR /app
+
+# Install build dependencies (optional but good for some Python libs)
+RUN apt-get update && apt-get install -y --no-install-recommends \
+    build-essential \
+    && rm -rf /var/lib/apt/lists/*
 
 # Copy requirements and install dependencies
 COPY requirements.txt .
-RUN pip install --no-cache-dir -r requirements.txt
+RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Copy the rest of the application code
+# Copy application code
 COPY . .
 
-# Expose port Flask will run on
+# Expose Flask/gunicorn port
 EXPOSE 5050
 
-# Set file permissions for writable files/folders
-RUN mkdir /app/data && \
-    touch /app/data/users.json /app/data/context.json && \
-    chmod -R 777 /app/data
-
-# Default command to run the app
-CMD ["python", "app.py"]
+# Run app with gunicorn (production-grade WSGI)
+CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5050", "app:app"]
