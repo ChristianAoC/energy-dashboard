@@ -3,12 +3,9 @@
 {% block head %}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/start.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/slider.css') }}" />
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/mazemap.min.css') }}">
-<!--<link rel="stylesheet" href="https://api.mazemap.com/js/v2.1.2/mazemap.min.css">-->
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/mazemap.2.2.1.min.css') }}">
 
-<!--<script type='text/javascript' src="{{ url_for('static', filename='script/ext/mazemap.min.js') }}"></script>-->
-<script type='text/javascript' src='https://api.mazemap.com/js/v2.1.2/mazemap.min.js'></script>
-
+<script type='text/javascript' src="{{ url_for('static', filename='script/ext/mazemap.2.2.1.min.js') }}"></script>
 <script type='text/javascript' src="{{ url_for('static', filename='script/slider.js') }}"></script>
 <script type='text/javascript' src="{{ url_for('static', filename='script/map.js') }}"></script>
 {% endblock %}
@@ -54,23 +51,6 @@
         <input id="toSlider1" class="range1" type="range" value="30" min="0" max="100" />
     </div>
 </div>
-
-<!--
-<h4 class="sidebar-header" id="extra-padding-bottom">Consumption</h4>
-
-<div class="sidebar-date">
-    <label for="sb-start-date">Start date:</label>
-    <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" />
-</div>
-<div class="sidebar-date">
-    <label for="sb-end-date">End date:</label>
-    <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" />
-</div>
-<div class="clear-float"></div>
-
-<div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
-
--->
 
 <br>
 Buildings with data: <span id="span-total">0</span><br><br>

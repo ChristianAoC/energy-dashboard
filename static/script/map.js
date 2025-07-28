@@ -44,6 +44,7 @@ function initMap() {
         // Add zoom and rotation controls to the map.
         myMap.addControl(new Mazemap.mapboxgl.NavigationControl());
         
+        /*
         const meters = [];
 
         for (const [buildingId, buildingData] of Object.entries(browserData.hierarchy)) {
@@ -53,8 +54,6 @@ function initMap() {
                 }
             }
         }
-
-        highlightBuildingsList();
 
         // TODO get context
         /*
@@ -68,6 +67,8 @@ function initMap() {
                 displayContextMarkers(data["context"]);
             });
         */
+
+        highlightBuildingsList();
     });
 }
 
