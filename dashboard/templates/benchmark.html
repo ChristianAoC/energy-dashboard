@@ -12,60 +12,8 @@
 
 <div id="map-sidebar">
 
-<h3>Select building(s):</h3>
-
-<input id="building-search" type="text" placeholder="Search by name..." />
-<br><br>
-
-<label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="residential" /> Residential
-  <span class="checkmark"></span>
-</label>
-
-<label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="nonres" /> Non-Residential
-  <span class="checkmark"></span>
-</label>
-
-<label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="mixed" /> Mixed
-  <span class="checkmark"></span>
-</label>
-
-
-<h4 class="sidebar-header" >Building size (in m&sup2;)</h4>
-
-<div class="range_container">
-    <div class="form_control">
-      <div class="form_control_container">
-          <input class="form_control_container__time__input range1" type="number" id="fromInput1" value="10" min="0" max="100" />
-        </div>
-        <div class="form_control_container">
-          <input class="form_control_container__time__input range1" type="number" id="toInput1" value="30" min="0" max="100" />
-        </div>
-    </div>
-    <div class="sliders_control">
-       <input id="fromSlider1" class="range1" type="range" value="10" min="0" max="100" />
-       <input id="toSlider1" class="range1" type="range" value="30" min="0" max="100" />
-    </div>
-</div>
-
-<h4 class="sidebar-header" id="extra-padding-bottom">Consumption</h4>
-
-<div class="sidebar-date">
-    <label for="sb-start-date">Start date:</label>
-    <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" />
-</div>
-<div class="sidebar-date">
-    <label for="sb-end-date">End date:</label>
-    <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" />
-</div>
-<div class="clear-float"></div>
-
-<div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
-
 <div id="slider-container">
-<div id="tab-topbar">Filter by:</div>
+<div id="tab-topbar">Choose/filter utility:</div>
 <div class="tab active" id="electricity" onclick="utilityClick(this)">Elec.</div><div class="tab" id="gas" onclick="utilityClick(this)">Gas</div><div class="tab" id="heat" onclick="utilityClick(this)">Heat</div><div class="tab" id="water" onclick="utilityClick(this)">Water</div>
 
 <h4 class="sidebar-header">Energy use intensity <span id="span-intensity">[kWh/m&sup2;]</span></h4>
@@ -104,8 +52,64 @@
 
 </div>
 
+<h4 class="sidebar-header" >Filter building(s):</h4>
+
+<input id="building-search" type="text" placeholder="Search by name..." />
+<br><br>
+
+<label class="checkbox-container">
+  <input type="checkbox" checked="checked" id="residential" /> Residential
+  <span class="checkmark"></span>
+</label>
+
+<label class="checkbox-container">
+  <input type="checkbox" checked="checked" id="nonres" /> Non-Residential
+  <span class="checkmark"></span>
+</label>
+
+<label class="checkbox-container">
+  <input type="checkbox" checked="checked" id="mixed" /> Mixed
+  <span class="checkmark"></span>
+</label>
+
+
+<h4 class="sidebar-header" >Building size (in m&sup2;)</h4>
+
+<div class="range_container">
+    <div class="form_control">
+      <div class="form_control_container">
+          <input class="form_control_container__time__input range1" type="number" id="fromInput1" value="10" min="0" max="100" />
+        </div>
+        <div class="form_control_container">
+          <input class="form_control_container__time__input range1" type="number" id="toInput1" value="30" min="0" max="100" />
+        </div>
+    </div>
+    <div class="sliders_control">
+       <input id="fromSlider1" class="range1" type="range" value="10" min="0" max="100" />
+       <input id="toSlider1" class="range1" type="range" value="30" min="0" max="100" />
+    </div>
+</div>
+
 <br>
-Buildings with data: <span id="span-total">0</span> (for <span id="span-type">electricity</span>: <span id="span-typeCount">0</span>)<br><br>
+Buildings with data: <span id="span-total">0</span> (for <span id="span-type">electricity</span>: <span id="span-typeCount">0</span>)
+<br><br>
+
+<h4 class="sidebar-header" id="extra-padding-bottom">Change data range</h4>
+
+<div class="sidebar-date">
+    <label for="sb-start-date">Start date:</label>
+    <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" />
+</div>
+<div class="sidebar-date">
+    <label for="sb-end-date">End date:</label>
+    <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" />
+</div>
+
+<button onclick="getNewSummary()">Reload data</button>
+
+<div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
+<div class="clear-float"></div>
+
 </div>
 
 <!-- end of side bar -->

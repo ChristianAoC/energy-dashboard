@@ -22,7 +22,6 @@ var pLayoutGraph = {
 
 function convertMLToPlotly(barType) {
     const toPlot = document.getElementById("toggleGraph").checked ? metaLabel["EUI"] : metaLabel["consumption"];
-    console.log( metaLabel["EUI"])
     const dataToPlot = browserData.filteredSummary || [];
 
     let x = [];
@@ -286,28 +285,38 @@ function getGraphSliderRanges() {
     }
 }
 
-function getNewSummary() {
+async function getNewSummary() {
     document.getElementById("loading-text").classList.remove("hidden");
     document.getElementById("sb-start-date").disabled = true;
     document.getElementById("sb-end-date").disabled = true;
-    var startDate = document.getElementById("sb-start-date").value;
-	var endDate = document.getElementById("sb-end-date").value;
 
-    // changed to get this from our own endpoint to enable caching - UPDATE: disabled for now
-    // var uri="getdata/summary?" +
-	var uri="api/summary?" +
-        "from_time=" + encodeURIComponent(startDate) +
-	    "&to_time=" + encodeURIComponent(endDate);
+    const startDate = document.getElementById("sb-start-date").value;
+    const endDate = document.getElementById("sb-end-date").value;
 
-    callApiJSON( uri ).then((data) => {
-        browserData.filteredSummary = data;
-        browserData.Summary = browserData.filteredSummary;
-        getGraphSliderRanges();
+    const params = {
+        summary: {
+            from_time: startDate,
+            to_time: endDate
+        }
+    };
+
+    try {
+        const result = await getData(params, true); // forceReload = true to bypass cache
+        if (result.summary) {
+            browserData.filteredSummary = result.summary;
+            browserData.Summary = [...result.summary];  // optional deep copy
+            getGraphSliderRanges();
+        } else {
+            console.warn("No summary data returned");
+        }
+    } catch (err) {
+        console.error("Error reloading summary data", err);
+    } finally {
         document.getElementById("loading-text").classList.add("hidden");
         document.getElementById("sb-start-date").disabled = false;
         document.getElementById("sb-end-date").disabled = false;
-    });
-};
+    }
+}
 
 $(document).ready(async function () {
     commentParent = "view-graph";
