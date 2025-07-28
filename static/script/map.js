@@ -2,7 +2,6 @@
 let myMap;
 let clickedOn = "";
 let contextMarkers = [];
-const utilityTypes = ["gas", "electricity", "heat", "water"];
 
 function initMap() {
     myMap = new Mazemap.Map({
@@ -79,12 +78,13 @@ $(document).ready( async function () {
             fetch("/static/data/allBuildings.json").then(res => res.json())
         ]);
 
-        browserData.fullHierarchy = hierarchyData; // needs a copy for filtering
-        browserData.hierarchy = structuredClone(hierarchyData);
+        browserData.hierarchy = hierarchyData // full dataset needed for filtering reset
+        browserData.filteredHierarchy = Object.values(browserData.hierarchy);
         browserData.allBuildings = allBuildings;
 
         if (browserData.hierarchy) {
             initMap();
+            getMapSliderRanges();
             document.getElementById("span-total").innerHTML = Object.keys(browserData.hierarchy).length;
         }
     } catch (err) {
@@ -117,8 +117,6 @@ $(document).ready( async function () {
     document.getElementById("mixed").addEventListener("click", filterMap);
     document.getElementById("fromSlider1").addEventListener("input", filterMap);
     document.getElementById("toSlider1").addEventListener("input", filterMap);
-
-    getSliderRanges();
 });
 
 function clearContextMarkers() {
@@ -132,7 +130,7 @@ function displayContextMarkers(contextData) {
     clearContextMarkers();
 
     for (let e of contextData) {
-        for (let b of browserData.hierarchy) {
+        for (let b of browserData.filteredHierarchy) {
             for (let t of utilityTypes) {
                 if (b[t] && b[t]["meter_uuid"].includes(e.meter)) {
                     // Found the building this meter is in
@@ -204,7 +202,7 @@ function onMapClick(e) {
 
 	// Optional: commentMode logic (skip or update later if meter_uuid not available)
 	if (commentMode) {
-		for (const b of Object.values(browserData.hierarchy)) {
+		for (const b of Object.values(browserData.filteredHierarchy)) {
 			const labels = b.meta?.[metaLabel["maze_map_label"]];
 			const labelArray = Array.isArray(labels) ? labels : [labels];
 			if (labelArray.includes(buildingId)) {
@@ -239,7 +237,7 @@ function buildingPopup(building, e) {
 	let curBuilding = null;
 	const buildingId = building.properties.id;
 
-	for (const b of Object.values(browserData.hierarchy)) {
+	for (const b of Object.values(browserData.filteredHierarchy)) {
 		const labels = b.meta?.[metaLabel["maze_map_label"]];
 		const labelArray = Array.isArray(labels) ? labels : [labels];
 		if (labelArray.includes(buildingId)) {
@@ -285,7 +283,7 @@ function highlightBuildingsList() {
     const selectedBuildings = [];
     const buildingLookup = new Map(browserData.allBuildings.map(b => [b.properties.id, b]));
 
-    for (const buildingData of Object.values(browserData.hierarchy)) {
+    for (const buildingData of Object.values(browserData.filteredHierarchy)) {
         const labels = buildingData.meta?.maze_map_label;
         if (!labels) continue;
 
@@ -312,8 +310,8 @@ function viewEnergyData(buildingID) {
     window.location.href = "browser?ref=map&building="+buildingID;
 };
 
-function getSliderRanges() {
-    const sizes = Object.values(browserData.hierarchy)
+function getMapSliderRanges() {
+    const sizes = Object.values(browserData.filteredHierarchy)
         .map(b => parseInt(b.meta?.floor_area))
         .filter(n => !isNaN(n));
 
@@ -323,42 +321,39 @@ function getSliderRanges() {
 };
 
 function filterMap() {
+    // Start from full dataset
+    let filtered = Object.values(browserData.hierarchy);
+
+    // Text search
     const searchInput = document.getElementById("building-search").value.toLowerCase();
-    const includeResidential = document.getElementById("residential").checked;
-    const includeNonRes = document.getElementById("nonres").checked;
-    const includeMixed = document.getElementById("mixed").checked;
+    filtered = filtered.filter(b =>
+        b["meta"][metaLabel["building_name"]] &&
+        b["meta"][metaLabel["building_name"]].toLowerCase().includes(searchInput)
+    );
 
-    const min = parseInt(document.getElementById("fromInput1").value);
-    const max = parseInt(document.getElementById("toInput1").value);
-
-    // Filter from the original unfiltered dataset
-    const buildingList = Object.values(browserData.fullHierarchy);
-
-    const filtered = buildingList.filter(b => {
-        const name = String(b.meta?.[metaLabel["building_name"]] || "").toLowerCase();
-        const occupancy = b.meta?.[metaLabel["occupancy_type"]] || "";
-        const area = parseInt(b.meta?.[metaLabel["floor_area"]]);
-
-        const matchesSearch = name.includes(searchInput);
-        const matchesOccupancy =
-            (includeResidential && occupancy === "Residential") ||
-            (includeNonRes && occupancy === "Non Res") ||
-            (includeMixed && occupancy === "Split Use");
-        const matchesArea = !isNaN(area) && area >= min && area <= max;
-
-        return matchesSearch && matchesOccupancy && matchesArea;
-    });
-
-    // Build a new filtered hierarchy object with the same structure
-    const filteredHierarchy = {};
-    for (const b of filtered) {
-        filteredHierarchy[b.meta[metaLabel["building_id"]]] = b;
+    // Occupancy type filters
+    if (!document.getElementById("residential").checked) {
+        filtered = filtered.filter(b => b["meta"][metaLabel["occupancy_type"]] !== "Residential");
+    }
+    if (!document.getElementById("nonres").checked) {
+        filtered = filtered.filter(b => b["meta"][metaLabel["occupancy_type"]] !== "Non Res");
+    }
+    if (!document.getElementById("mixed").checked) {
+        filtered = filtered.filter(b => b["meta"][metaLabel["occupancy_type"]] !== "Split Use");
     }
 
-    // Update the displayed hierarchy only
-    browserData.hierarchy = filteredHierarchy;
+    // Floor area range filter
+    let min = parseInt(document.getElementById("fromInput1").value);
+    let max = parseInt(document.getElementById("toInput1").value);
+    filtered = filtered.filter(b => {
+        let val = parseInt(b["meta"][metaLabel["floor_area"]]);
+        return !isNaN(val) && val >= min && val <= max;
+    });
 
-    document.getElementById("span-total").innerHTML = Object.keys(filteredHierarchy).length;
+    // Save filtered result
+    browserData.filteredHierarchy = filtered;
 
+    // Update UI
+    document.getElementById("span-total").innerHTML = filtered.length;
     highlightBuildingsList();
 }
