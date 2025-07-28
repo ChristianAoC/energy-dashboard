@@ -185,7 +185,7 @@ function meterSelected() {
 	if (selMeter != "") {
 		for( let i = 0; i < browserData.meters.length; i++ ) {
 			if (browserData.meters[i][metaLabel["meter_id"]] == selMeter) {
-				if (browserData.meters[i][metaLabel["reading_type"]] == "Cumulative") {
+				if (browserData.meters[i][metaLabel["reading_type"]] == "cumulative") {
 					document.getElementById("cumultorate").disabled = false;
 					document.getElementById("alreadyrate").hidden = true;
 				} else {
