@@ -27,6 +27,7 @@
     <div id="nav-parent">
     <nav id="nav-top-bar">
     <script>
+    const OFFLINE_MODE = {{ config.OFFLINE_MODE | tojson }};
     const STATIC_URLS = {
         logo: "{{ url_for('static', filename='gfx/logo.png') }}",
         settings: "{{ url_for('static', filename='gfx/settings.png') }}"
