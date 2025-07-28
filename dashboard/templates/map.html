@@ -25,18 +25,18 @@
 <br><br>
 
 <label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="residential" /> Residential
-  <span class="checkmark"></span>
+    <input type="checkbox" checked="checked" id="residential" /> Residential
+    <span class="checkmark"></span>
 </label>
 
 <label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="nonres" /> Non-Residential
-  <span class="checkmark"></span>
+    <input type="checkbox" checked="checked" id="nonres" /> Non-Residential
+    <span class="checkmark"></span>
 </label>
 
 <label class="checkbox-container">
-  <input type="checkbox" checked="checked" id="mixed" /> Mixed
-  <span class="checkmark"></span>
+    <input type="checkbox" checked="checked" id="mixed" /> Mixed
+    <span class="checkmark"></span>
 </label>
 
 
@@ -44,16 +44,16 @@
 
 <div class="range_container">
     <div class="form_control">
-      <div class="form_control_container">
-          <input class="form_control_container__time__input range1" type="number" id="fromInput1" value="10" min="0" max="100" />
+        <div class="form_control_container">
+            <input class="form_control_container__time__input range1" type="number" id="fromInput1" value="10" min="0" max="100" />
         </div>
         <div class="form_control_container">
-          <input class="form_control_container__time__input range1" type="number" id="toInput1" value="30" min="0" max="100" />
+            <input class="form_control_container__time__input range1" type="number" id="toInput1" value="30" min="0" max="100" />
         </div>
     </div>
     <div class="sliders_control">
-       <input id="fromSlider1" class="range1" type="range" value="10" min="0" max="100" />
-       <input id="toSlider1" class="range1" type="range" value="30" min="0" max="100" />
+        <input id="fromSlider1" class="range1" type="range" value="10" min="0" max="100" />
+        <input id="toSlider1" class="range1" type="range" value="30" min="0" max="100" />
     </div>
 </div>
 
@@ -78,9 +78,9 @@ Buildings with data: <span id="span-total">0</span><br><br>
 <!-- end of side bar -->
 
 <script>
-    let mazemapCampusID = Number("{{ config.MAZEMAP_CAMPUS_ID }}")
-    let mazemapLng = "{{ config.MAZEMAP_LNG }}"
-    let mazemapLat = "{{ config.MAZEMAP_LAT }}"
+    let mazemapCampusID = Number("{{ config.MAZEMAP_CAMPUS_ID }}");
+    let mazemapLng = parseFloat("{{ config.MAZEMAP_LNG }}");
+    let mazemapLat = parseFloat("{{ config.MAZEMAP_LAT }}");
 </script>
 
 <div id="view-map" class="mazemap start-view-selection">
