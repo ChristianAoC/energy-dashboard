@@ -80,6 +80,7 @@ def update_user(u: dict, login: bool = False) -> bool:
     if not os.path.isfile(users_file):
         with open(users_file, "w", encoding="utf-8") as f:
             f.write("[]")
+        os.chmod(users_file, 0x777)
 
     if not acquire_lock(lock_file, timeout=5):
         print("Could not acquire lock.")

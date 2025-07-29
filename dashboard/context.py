@@ -9,6 +9,7 @@ def add_context(contextElem):
     if not os.path.isfile(filename) or os.path.getsize(filename) == 0:
         with open(filename, "w", encoding="utf-8") as f:
             json.dump([], f)
+    os.chmod(filename, 0o777)
 
     with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
