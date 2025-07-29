@@ -1133,9 +1133,23 @@ def get_health(args, returning=False, app=None):
             print("Error trying to save current health check in cache")
             print(e)
 
-    print("Completed HC update")
+        print("Completed HC update")
     
     if returning:
+        exclude_tenants = not is_admin()
+        if not exclude_tenants:
+            return out
+        
+        cleaned_out = []
+        for meter_data in out:
+            meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
+            if meter is None:
+                continue
+            
+            if meter.invoiced:
+                continue
+            
+            cleaned_out.append(meter_data)
         return out
 
 def update_health_check(values: dict):
@@ -1171,7 +1185,10 @@ def meter_health():
     #       Alternativly, the frontend could just set timeouts with increasing intervals until it received a fresh cache
     
     # load existing cache
-    hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
+    statement = db.select(models.HealthCheck)
+    if not is_admin():
+        statement = statement.where(models.HealthCheck.meter_id == models.Meter.id).where(models.Meter.invoiced.is_(False)) # type: ignore
+    hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
 
     # TODO: What does the 2nd statement do?
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
