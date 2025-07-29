@@ -258,7 +258,7 @@ function buildingPopup(building, e) {
 	}
 
 	text += "</table>";
-	text += `<br><div class='centered'><button onclick='viewEnergyData("${curBuilding.meta[metaLabel["building_id"]]}")' class='button-type'>View energy data</button></div>`;
+	text += `<br><div class='centered'><button onclick='viewEnergyData("${curBuilding.meta[metaLabel["building_id"]]}")' class='button-generic'>View energy data</button></div>`;
 
 	const popupEl = document.getElementById("building-popup");
 	popupEl.innerHTML = text;

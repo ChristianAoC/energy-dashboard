@@ -1,8 +1,6 @@
 {% extends 'base.html' %}
 
 {% block head %}
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/start.css') }}" />
-
 <script type='text/javascript' src="{{ url_for('static', filename='script/browser.js') }}"></script>
 {% endblock %}
 
@@ -31,7 +29,7 @@
 
 <br><br>
 
-<button onclick="randomMeter()">Load a random meter!</button>
+<button onclick="randomMeter()" class="button-generic">Load a random meter!</button>
 
 <br><br>
 
@@ -67,7 +65,7 @@
 
 <br>
 
-<button class="b-button" id="download-button">
+<button class="button-generic" id="download-button">
 	<img src="{{ url_for('static', filename='gfx/download.png') }}" width="24" alt="Download" /> &nbsp; Download CSV
 </button>
 </div>
