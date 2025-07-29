@@ -570,6 +570,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         data_end_time = dt.datetime.now(dt.timezone.utc)
 
     # Don't need to filter id by not null as id is primary key and therefore not null
+    # We aren't filtering out tenanted meters here so that the cache contains all meters
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
 
     n = 35 # Process 35 meters at a time (35 was a random number I chose)
@@ -666,14 +667,28 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     
     return (from_time, to_time, days)
 
+def is_admin() -> bool:
+    try:
+        cookies = request.cookies
+        required_level = int(current_app.config["USER_LEVEL_ADMIN"])
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        
+        if user.get_user_level(email, sessionID) < required_level:
+            return False
+    except:
+        return False
+    print("user is admin")
+    return True
+
 ## #############################################################################################
 # decorator to limit certain pages to a specific user level
 def required_user_level(level_config_key):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
-            cookies = request.cookies
             try:
+                cookies = request.cookies
                 level = int(current_app.config[level_config_key])
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)
@@ -715,7 +730,10 @@ def health():
 @api_bp.route('/meters')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meters():
-    data = [x.to_dict() for x in db.session.execute(db.select(models.Meter)).scalars().all()]
+    statement = db.select(models.Meter)
+    if not is_admin():
+        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+    data = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
     return make_response(jsonify(data), 200)
 
 ## Health check cache meta
@@ -850,15 +868,17 @@ def summary():
         with open(benchmark_data_file, "r") as f:
             benchmark_data = json.load(f)
 
+        exclude_tenants = not is_admin()
+        
         data = {}
         for b in buildings:
             building_response = {}
 
-            meters = db.session.execute(
-                db.select(models.Meter)
-                .where(models.Meter.building_id == b.id)
-                .where(models.Meter.main)
-            ).scalars().all()
+            statement = db.select(models.Meter).where(models.Meter.building_id == b.id).where(models.Meter.main)
+            if exclude_tenants:
+                statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+            
+            meters = db.session.execute(statement).scalars().all()
             
             if len(meters) == 0:
                 continue
@@ -1004,10 +1024,11 @@ def meter_obs():
     except:
         to_rate = True
 
-    meters = db.session.execute(
-        db.select(models.Meter)
-        .where(models.Meter.id.in_(meter_ids)) # type: ignore
-    ).scalars().all()
+    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
+    if not is_admin():
+        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+    
+    meters = db.session.execute(statement).scalars().all()
 
     out = dict.fromkeys(meter_ids)
 
@@ -1041,7 +1062,11 @@ def get_health(args, returning=False, app=None):
         meter_ids = args["id"] # this is url decoded
         meter_ids = meter_ids.split(";")
     except:
-        meter_ids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
+        statement = db.select(models.Meter)
+        if not is_admin():
+            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+        
+        meter_ids = [x.id for x in db.session.execute(statement)]
 
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
@@ -1058,11 +1083,11 @@ def get_health(args, returning=False, app=None):
         fmt = "json"
 
     ## load and trim meters
-    meters = db.session.execute(db.select(models.Meter).where(
-            models.Meter.id.in_(meter_ids), # type: ignore
-            models.Meter.id is not None
-        )
-    ).scalars().all()
+    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
+    if not is_admin():
+        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+    
+    meters = db.session.execute(statement).scalars().all()
 
     start_time = time.time()
 
@@ -1234,11 +1259,11 @@ def meter_hierarchy():
     for b in buildings:
         building_response = {}
         
-        meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.building_id == b.id)
-            .where(models.Meter.main)
-        ).scalars().all()
+        statement = db.select(models.Meter).where(models.Meter.building_id == b.id).where(models.Meter.main)
+        if not is_admin():
+            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+        
+        meters = db.session.execute(statement).scalars().all()
         
         if len(meters) == 0:
             continue
@@ -1299,11 +1324,11 @@ def health_score():
             5: []
         }
         
-        meters = db.session.execute(
-            db.select(models.Meter)
-            .where(models.Meter.building_id == b.id)
-            .where(models.Meter.main)
-        ).scalars().all()
+        statement = db.select(models.Meter).where(models.Meter.building_id == b.id).where(models.Meter.main)
+        if not is_admin():
+            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+        
+        meters = db.session.execute(statement).scalars().all()
         
         if len(meters) == 0:
             continue
