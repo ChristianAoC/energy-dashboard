@@ -1067,8 +1067,8 @@ def get_health(args, returning=False, app=None):
         
         meter_ids = [x.id for x in db.session.execute(statement)]
 
-    to_time = request.args.get("to_time")
-    from_time = request.args.get("from_time")
+    to_time = args.get("to_time")
+    from_time = args.get("from_time")
     try:
         date_range = int(args["date_range"]) # this is url decoded
     except:
