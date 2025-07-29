@@ -1061,7 +1061,7 @@ def get_health(args, returning=False, app=None):
         meter_ids = args["id"] # this is url decoded
         meter_ids = meter_ids.split(";")
     except:
-        statement = db.select(models.Meter)
+        statement = db.select(models.Meter.id)
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
