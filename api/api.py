@@ -615,6 +615,56 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     cache_generation_lock.release()
     return
 
+def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
+    from_time: dt.datetime = None # type: ignore
+    if type(from_time_requested) is dt.datetime:
+        from_time = from_time_requested
+    
+    to_time: dt.datetime = None # type: ignore
+    if type(to_time_requested) is dt.datetime:
+        to_time = to_time_requested
+    
+    if type(from_time_requested) is str:
+        from_time = dt.datetime.combine(dt.datetime.strptime(from_time_requested,"%Y-%m-%d"), dt.datetime.min.time())
+    if type(to_time_requested) is str:
+        to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time())
+    
+    if not offlineMode:
+        if to_time_requested is None:
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
+
+        if from_time_requested is None:
+            from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
+    else:
+        with open(offline_meta_file, "r") as f:
+            anon_data_meta = json.load(f)
+
+        offline_to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        offline_from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+        
+        if to_time is not None:
+            # Need to make sure that the provided data is within the offline data
+            if to_time > offline_to_time or to_time < offline_from_time:
+                to_time = offline_to_time
+        else:
+            to_time = offline_to_time
+        
+        if from_time is not None:
+            # Need to make sure that the provided data is within the offline data
+            if from_time > offline_to_time or from_time < offline_from_time:
+                from_time = offline_from_time
+            
+            if from_time > to_time:
+                from_time = offline_from_time
+        else:
+            from_time = offline_from_time
+
+        if (from_time - to_time) > dt.timedelta(days=desired_time_range, seconds=1):
+            from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
+    
+    days = (to_time.date() - from_time.date()).days
+    
+    return (from_time, to_time, days)
 
 ## #############################################################################################
 # decorator to limit certain pages to a specific user level
@@ -684,7 +734,7 @@ def hc_meta():
 ## Only includes buildings with a valid floor area at least one meter.
 ##
 ## Parameters:
-## from_time - options initial date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 7 days before to_time
+## from_time - options initial date YYYY-mm-dd format (summary of usage from 00:00 of this date) - default 30 days before to_time
 ## to_time - options final observation time in YYYY-mm-dd format (summary of usage upto 23:59 of this date) - default current date
 ##
 ## Return:
@@ -749,27 +799,9 @@ def hc_meta():
 def summary():
     start_time = time.time()
     
-    if not offlineMode:
-        to_time = request.args.get("to_time")
-        if to_time is not None:
-            to_time = dt.datetime.combine(dt.datetime.strptime(to_time, "%Y-%m-%d"), dt.datetime.max.time())
-        else:
-            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
-
-        from_time = request.args.get("from_time")
-        if from_time is not None:
-            from_time = dt.datetime.combine(dt.datetime.strptime(from_time,"%Y-%m-%d"), dt.datetime.min.time())
-        else:
-            from_time = to_time - dt.timedelta(days=7, seconds=1)
-    else:
-        with open(offline_meta_file, "r") as f:
-            anon_data_meta = json.load(f)
-
-        to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
-        from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
-
-        if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
-            from_time = to_time - dt.timedelta(days=7, seconds=1)
+    to_time = request.args.get("to_time")
+    from_time = request.args.get("from_time")
+    from_time, to_time, _ = calculate_time_args(from_time, to_time)
 
     valid_cache = True
     
@@ -930,7 +962,7 @@ def summary():
 ## Parameters:
 ## id - meter id
 ## to_time - final observation time, defaults to current time
-## from_time - first observation time, defaults to 7 days ago
+## from_time - first observation time, defaults to 30 days ago
 ## format - use csv if required otherwise returns json
 ## aggregate - aggregate as used by pandas e.g. 168H, 7D etc.
 ## Note that 168H and 7D are the same but only the formers works in pandas 2.0.3
@@ -951,17 +983,9 @@ def meter_obs():
     except:
         return make_response("Bad meter id supplied", 500)
 
-    try:
-        to_time = request.args["to_time"] # this is url decoded
-        to_time = dt.datetime.strptime(to_time,"%Y-%m-%dT%H:%M:%S%z",)
-    except:
-        to_time = dt.datetime.now(dt.timezone.utc)
-
-    try:
-        from_time = request.args["from_time"] # this is url decoded
-        from_time = dt.datetime.strptime(from_time,"%Y-%m-%dT%H:%M:%S%z")
-    except:
-        from_time = to_time - dt.timedelta(days=7)
+    to_time = request.args.get("to_time")
+    from_time = request.args.get("from_time")
+    from_time, to_time, _ = calculate_time_args(from_time, to_time)
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -1019,32 +1043,13 @@ def get_health(args, returning=False, app=None):
     except:
         meter_ids = [x.id for x in db.session.execute(db.select(models.Meter.id))]
 
-    try:
-        to_time = args["to_time"] # this is url decoded
-        to_time = dt.datetime.strptime(to_time,"%Y-%m-%d")
-    except:
-        if offlineMode:
-            with open(offline_meta_file, "r") as f:
-                to_time = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
-        else:
-            to_time = dt.datetime.now(dt.timezone.utc)
-
+    to_time = request.args.get("to_time")
+    from_time = request.args.get("from_time")
     try:
         date_range = int(args["date_range"]) # this is url decoded
     except:
         date_range = 30
-
-    try:
-        from_time = args["from_time"] # this is url decoded
-        from_time = dt.datetime.strptime(from_time,"%Y-%m-%d")
-    except:
-        if offlineMode:
-            with open(offline_meta_file, "r") as f:
-                from_time = dt.datetime.strptime(json.load(f)['start_time'], "%Y-%m-%dT%H:%M:%S%z")
-            date_range = min((to_time - from_time).days, date_range)
-            from_time = to_time - dt.timedelta(days=date_range)
-        else:
-            from_time = to_time - dt.timedelta(days=date_range)
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range)
 
     # TODO: Should this be implemented or removed?
     try:
@@ -1132,7 +1137,7 @@ def update_health_check(values: dict):
 ## X-Cache-State: either 'stale' or 'fresh'
 ##
 ## Example:
-## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=7
+## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=30
 @api_bp.route('/meter_health')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
@@ -1143,7 +1148,7 @@ def meter_health():
     # load existing cache
     hc_cache = [x.to_dict() for x in db.session.execute(db.select(models.HealthCheck)).scalars().all()]
 
-    # What does the 2nd statement do?
+    # TODO: What does the 2nd statement do?
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
         if hc_cache:
             try:
@@ -1256,7 +1261,7 @@ def meter_hierarchy():
 
 ## Parameters:
 ## to_time - options final observation time in YYYY-MM-DD format (meter health up to 23:59 of this date) - default current date
-## from_time - options initial date YYYY-MM-DD format (meter health from 00:00 of this date) - default 7 days before to_time
+## from_time - options initial date YYYY-MM-DD format (meter health from 00:00 of this date) - default 30 days before to_time
 ##
 ## [
 ##     {
@@ -1277,30 +1282,9 @@ def meter_hierarchy():
 @api_bp.route('/health_score')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
-    if not offlineMode:
-        to_time = request.args.get("to_time")
-        if to_time is not None:
-            to_time = dt.datetime.combine(dt.datetime.strptime(to_time, "%Y-%m-%d"), dt.datetime.max.time())
-        else:
-            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
-
-        from_time = request.args.get("from_time")
-        if from_time is not None:
-            from_time = dt.datetime.combine(dt.datetime.strptime(from_time,"%Y-%m-%d"), dt.datetime.min.time())
-        else:
-            from_time = to_time - dt.timedelta(days=7, seconds=1)
-    else:
-        # TODO: use given parameters if we can - currently ignores them in offline mode
-        with open(offline_meta_file, "r") as f:
-            anon_data_meta = json.load(f)
-
-        to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
-        from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
-
-        if (from_time - to_time) > dt.timedelta(days=7, seconds=1):
-            from_time = to_time - dt.timedelta(days=7, seconds=1)
-
-    days = (to_time.date() - from_time.date()).days
+    to_time = request.args.get("to_time")
+    from_time = request.args.get("from_time")
+    from_time, to_time, days = calculate_time_args(from_time, to_time)
 
     buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
