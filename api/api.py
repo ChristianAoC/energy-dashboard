@@ -678,7 +678,6 @@ def is_admin() -> bool:
             return False
     except:
         return False
-    print("user is admin")
     return True
 
 ## #############################################################################################
