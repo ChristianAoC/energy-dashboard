@@ -626,9 +626,9 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
         to_time = to_time_requested
     
     if type(from_time_requested) is str:
-        from_time = dt.datetime.combine(dt.datetime.strptime(from_time_requested,"%Y-%m-%d"), dt.datetime.min.time())
+        from_time = dt.datetime.combine(dt.datetime.strptime(from_time_requested,"%Y-%m-%d"), dt.datetime.min.time(), tzinfo=dt.timezone.utc)
     if type(to_time_requested) is str:
-        to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time())
+        to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
     
     if not offlineMode:
         if to_time_requested is None:
@@ -678,7 +678,6 @@ def is_admin() -> bool:
             return False
     except:
         return False
-    print("user is admin")
     return True
 
 ## #############################################################################################
@@ -1062,7 +1061,7 @@ def get_health(args, returning=False, app=None):
         meter_ids = args["id"] # this is url decoded
         meter_ids = meter_ids.split(";")
     except:
-        statement = db.select(models.Meter)
+        statement = db.select(models.Meter.id)
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
