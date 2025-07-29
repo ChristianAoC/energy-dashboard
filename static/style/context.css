@@ -1,0 +1,78 @@
+/* Context container (usually appears beside elements or on hover) */
+.context-container {
+    position: absolute;
+    max-width: 240px;
+    background-color: white;
+    border: 1px solid #ccc;
+    border-radius: 6px;
+    padding: 8px;
+    z-index: 1000;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}
+
+/* Tooltip for comment icon (on hover) */
+#comment-tooltip {
+    position: relative;
+    display: inline-block;
+    cursor: pointer;
+}
+
+#comment-tooltiptext {
+    visibility: hidden;
+    width: 160px;
+    background-color: #555;
+    color: #fff;
+    text-align: center;
+    border-radius: 6px;
+    padding: 5px;
+    position: absolute;
+    z-index: 1001;
+    bottom: 125%;
+    left: 50%;
+    transform: translateX(-50%);
+    opacity: 0;
+    transition: opacity 0.3s;
+}
+
+#comment-tooltip:hover #comment-tooltiptext {
+    visibility: visible;
+    opacity: 1;
+}
+
+/* Comments sidebar */
+#comments-sidebar {
+    position: fixed;
+    top: 0;
+    right: 0;
+    width: 300px;
+    height: 100%;
+    background-color: #f9f9f9;
+    border-left: 1px solid #ddd;
+    box-shadow: -2px 0 5px rgba(0,0,0,0.1);
+    padding: 16px;
+    overflow-y: auto;
+    z-index: 1050;
+}
+
+/* Context header */
+.context-header {
+    font-weight: bold;
+    margin-bottom: 8px;
+}
+
+/* Text inside comment items */
+.context-text {
+    font-size: 0.9em;
+    margin: 4px 0;
+    color: #333;
+}
+
+/* Arrows linking context to elements */
+.context-arrow {
+    position: absolute;
+    width: 20px;
+    height: 20px;
+    background: transparent;
+    pointer-events: none;
+    z-index: 999;
+}

@@ -64,7 +64,7 @@ function initHCTable() {
     } else {
         sp_str += "This is the latest health check for the period between ";
         sp_str += new Date(browserData.hcMeta["from_time"] * 1000).toDateString()+" and "+new Date(browserData.hcMeta["to_time"] * 1000).toDateString();
-        sp_str += " ("+browserData.hcMeta["date_range"]+" days).<br>";
+        sp_str += ".<br>";
         //sp_str += "This is the latest health check, retrieved at <b>"+new Date(hc_meta["timestamp"] * 1000).toDateString()+"</b>.<br>";
         //sp_str += "It lists "+hc_meta["meters"]+" meters, analysing the time between ";
         //sp_str += new Date(hc_meta["from_time"] * 1000).toDateString()+" and "+new Date(hc_meta["to_time"] * 1000).toDateString()
@@ -220,6 +220,31 @@ function initHCTable() {
     });    
 };
 
+function updateHCTable(newData, newMeta) {
+    browserData.meterHealth = newData;
+    browserData.hcMeta = newMeta;
+
+    // Update the info span
+    let sp_str = "";
+    if (jQuery.isEmptyObject(browserData.hcMeta)) {
+        sp_str += "No cached health check found, showing simple meter list. A check is being performed, check again in a few minutes.<br>";
+    } else {
+        sp_str += "This is the latest health check for the period between ";
+        sp_str += new Date(browserData.hcMeta["from_time"] * 1000).toDateString() +
+                  " and " +
+                  new Date(browserData.hcMeta["to_time"] * 1000).toDateString() +
+                  ".<br>";
+    }
+    document.getElementById("datespan").innerHTML = sp_str + "<br>";
+
+    // Update DataTable contents
+    const table = $('#healthcheckTable').DataTable();
+
+    table.clear();
+    table.rows.add(newData);
+    table.draw();
+}
+
 function setupFilters(api) {
     const headerRow = $('#healthcheckTable thead tr').first();
     $('#healthcheckTable thead tr.filters').remove(); // remove old filters
@@ -321,7 +346,7 @@ function buildColumnToggles() {
     });
 }
 
-$(async function() {
+$(async function () {
     document.getElementById("comment-bubble").classList.remove("hidden");
     commentParent = "healthcheckTable";
 
@@ -330,14 +355,15 @@ $(async function() {
         filterRow.append('<th></th>');
     });
     $('#healthcheckTable thead').append(filterRow);
-    
+
     buildColumnToggles();
 
     try {
-        const { meterHealth, hcMeta } = await getData({
-            meterHealth: {},
-            hcMeta: {}
-        });
+        let meterHealthResponse = await fetch(apiEndpoints.meterHealth);
+        const cacheState = meterHealthResponse.headers.get('X-Cache-State');
+        const meterHealth = await meterHealthResponse.json();
+
+        const hcMeta = await callApiJSON(apiEndpoints.hcMeta);
 
         browserData.meterHealth = meterHealth;
         browserData.hcMeta = hcMeta;
@@ -346,6 +372,38 @@ $(async function() {
             initHCTable();
         }
 
+        if (cacheState === 'stale') {
+            console.log("Cache is stale, setting up retry...");
+
+            // You can retry after 5s, or increase progressively
+            const retryIntervalMs = 5000;
+
+            // Optional: show some “Updating...” message in the UI
+            $('#healthcheckStatus').text('Updating health check... table will reload when done.');
+
+            setTimeout(async () => {
+                try {
+                    const retryResp = await fetch(apiEndpoints.meterHealth + `?_=${Date.now()}`); // cache-bust
+                    const retryCacheState = retryResp.headers.get('X-Cache-State');
+                    const retryData = await retryResp.json();
+
+                    if (retryCacheState === 'fresh') {
+                        console.log("Fresh data loaded after retry");
+
+                        browserData.meterHealth = retryData;
+                        updateHCTable();  // re-init with new data
+
+                        $('#healthcheckStatus').text('Updated');
+                    } else {
+                        $('#healthcheckStatus').text('Still updating...');
+                        // optionally: retry again with increasing timeout
+                    }
+                } catch (err) {
+                    console.error("Retry failed", err);
+                    $('#healthcheckStatus').text('Update failed');
+                }
+            }, retryIntervalMs);
+        }
     } catch (err) {
         console.error("Failed to load data", err);
     }

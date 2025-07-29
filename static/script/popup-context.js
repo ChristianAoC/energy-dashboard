@@ -68,7 +68,8 @@ function populateDD() {
         }
     } else if (commentParent == "browser") {
         for (m of fullDD) {
-            if (document.getElementById('b-button').dataset.meter) {
+            // this isn't working anymore, find other way to hand over meter name
+            if (document.getElementById('button-generic').dataset.meter) {
                 curDD.push(m);
             }
         }
@@ -170,7 +171,7 @@ function clickCheck(e) {
         clickedMeter = document.querySelector('input[name="meter"]:checked').value;
 
     } else if (commentParent == "browser") {
-        clickedMeter = document.getElementById('b-button').dataset.meter;
+        clickedMeter = document.getElementById('button-generic').dataset.meter;
     }
 
     var fromContext = getCurPageStartDate();

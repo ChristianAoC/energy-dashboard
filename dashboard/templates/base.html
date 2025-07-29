@@ -3,7 +3,6 @@
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
 <title>{{ config.SITE_NAME }}</title>
-
 <!-- CSS files (external and own, just main for all pages) -->
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery.datetimepicker.min.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery-ui.min.css') }}" />
@@ -30,7 +29,11 @@
     <script>
     const OFFLINE_MODE = {{ config.OFFLINE_MODE | tojson }};
     const STATIC_URLS = {
-        logo: "{{ url_for('static', filename='gfx/logo.png') }}",
+        {% if config.OFFLINE_MODE %}
+        logo: "{{ url_for('static', filename='gfx/logo-offline.png') }}",
+        {% else %}
+        logo: "{{ url_for('static', filename='gfx/logo-online.png') }}",
+        {% endif %}
         settings: "{{ url_for('static', filename='gfx/settings.png') }}"
     };
     </script>

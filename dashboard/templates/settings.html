@@ -16,7 +16,7 @@
 {% if user %}
 
 Logged in as {{ user.email | tojson | safe }}.<br><br>
-<button type="button" onclick="logout()" class="auth" id="button-logout">Logout</button>
+<button type="button" onclick="logout()" class="button-generic" id="button-logout">Logout</button>
 
 {% if user.level == 5 %}
 

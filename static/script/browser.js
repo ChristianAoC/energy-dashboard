@@ -48,8 +48,8 @@ function downloadMeterData(){
     // build query params cleanly
     const params = new URLSearchParams({
         id: meter,
-        from_time: `${startDate}T00:00:00Z`,
-        to_time:   `${endDate}T23:59:59Z`,
+        from_time: startDate,
+        to_time:   endDate,
         to_rate: 'false',
         format: 'csv'
     });
@@ -82,12 +82,12 @@ async function redrawPlot() {
 
 	let params = {
         id: selMeter,
-        from_time: `${startDate}T00:00:00Z`,
-        to_time:   `${endDate}T23:59:59Z`,
+        from_time: startDate,
+        to_time:   endDate,
         to_rate: toRate
     };
     if (agg && agg !== "None" && agg != 0) {
-        params.aggregate = `${agg}H`;
+        params.aggregate = `${agg}h`;
     }
 
     try {
