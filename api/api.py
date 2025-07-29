@@ -925,7 +925,7 @@ def summary():
             db.session.commit()
     return make_response(jsonify(data), 200)
 
-## time series of data for a given sensor
+## time series of data for a given meter
 ##
 ## Parameters:
 ## id - meter id
