@@ -248,13 +248,15 @@ function buildingPopup(building, e) {
 	text += `<tr><td style='font-weight: bold;'>Res/Non-res</td><td>${curBuilding.meta[metaLabel["occupancy_type"]]}</td></tr>`;
 	text += `<tr><td style='font-weight: bold;'>Year Built</td><td>${curBuilding.meta[metaLabel["year_built"]]}</td></tr>`;
 
-	text += `<tr><th colspan='2'><br>Main meters:</th></tr>`;
+	text += `<tr><th colspan='2'><br>Meters available:</th></tr>`;
 
 	for (const t of utilityTypes) {
 		const meters = curBuilding[t];
 		if (meters && meters.length > 0) {
-			text += `<tr><td style='font-weight: bold;'>${capFirst(t)}</td><td>${meters.join("<br>")}</td></tr>`;
-		}
+			text += `<tr><td style='font-weight: bold;'>${capFirst(t)}</td><td>${meters.length} meters</td></tr>`;
+		} else {
+            text += `<tr><td style='font-weight: bold;'>${capFirst(t)}</td><td>N/A</td></tr>`;
+        }
 	}
 
 	text += "</table>";
