@@ -737,7 +737,14 @@ def meters():
     data = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
     
     # Filter out SEED_UUID and invoiced
-    keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    try:
+        keys = request.args["columns"]
+        if keys is None:
+            raise Exception
+        keys = keys.split(";")
+    except:
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    
     out = models.data_cleaner(data, keys)
     
     return make_response(jsonify(out), 200)
