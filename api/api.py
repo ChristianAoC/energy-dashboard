@@ -40,14 +40,10 @@ meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
 buildings_usage_file = os.path.join(DATA_DIR, "input", 'UniHierarchyWithUsage.json')
 
-if not offlineMode:
-    meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
-else:
-    meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
+meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
 if not os.path.exists(meter_health_score_files):
     os.makedirs(meter_health_score_files)
+meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
 if not os.path.exists(meter_snapshots_files):
     os.makedirs(meter_snapshots_files)
 
