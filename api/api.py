@@ -67,25 +67,40 @@ usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
 background_task_timing = val.split(":")
 
+mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
+
+cannot_initialise = False
+
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode without any offline data!")
     print("\tPlease place your data in ./data/offline/")
     print("="*20 + "\n")
-    sys.exit(1)
+    cannot_initialise = True
 
 if offlineMode and not os.path.exists(offline_meta_file):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
     print("\tPlease place your metadata in ./data/meta/offline_data.json")
     print("="*20 + "\n")
-    sys.exit(1)
+    cannot_initialise = True
 
 if not os.path.exists(benchmark_data_file):
     print("\n" + "="*20)
     print("\tERROR: You have removed the included benchmark data!")
     print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
     print("="*20 + "\n")
+    cannot_initialise = True
+
+if not os.path.exists(mazemap_polygons_file):
+    print("\n" + "="*20)
+    print("\tERROR: You don't have any mazemap polygons defined!")
+    print("\tPlease place the data in ./data/mazemap_polygons.json")
+    print("="*20 + "\n")
+    cannot_initialise = True
+
+# Show all error messages before exiting
+if cannot_initialise:
     sys.exit(1)
 
 internal_api_key = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
@@ -1420,6 +1435,13 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     with open(offline_meta_file, "r") as f:
+        data = json.load(f)
+    return make_response(jsonify(data), 200)
+
+@api_bp.route("/mazemap_polygons")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def mazemap_polygons():
+    with open(mazemap_polygons_file, "r") as f:
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
