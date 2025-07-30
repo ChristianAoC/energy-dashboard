@@ -278,7 +278,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         xcount = int((to_time - from_time).total_seconds()//600) - 1
 
     # Bring SQL update output back in line with the original output (instead of just returning calculated values)
-    out = m.to_dict()
+    # Filter out SEED_UUID and invoiced
+    keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    out: dict = models.data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
     if not offlineMode:
@@ -752,7 +754,19 @@ def meters():
     if not is_admin():
         statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
     data = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
-    return make_response(jsonify(data), 200)
+    
+    # Filter out SEED_UUID and invoiced
+    try:
+        keys = request.args["columns"]
+        if keys is None:
+            raise Exception
+        keys = keys.split(";")
+    except:
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    
+    out = models.data_cleaner(data, keys)
+    
+    return make_response(jsonify(out), 200)
 
 ## Health check cache meta
 @api_bp.route('/hc_meta')

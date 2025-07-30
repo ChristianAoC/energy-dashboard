@@ -2,6 +2,21 @@ from database import db
 from sqlalchemy import CheckConstraint
 
 
+# Uses a whitelist for which keys are allowed to be returned to the user to help stop leaking data
+def data_cleaner(data: list[dict]|dict, keys: list) -> list[dict]|dict:
+    if keys is None or keys == {}:
+        return data
+    
+    if type(data) == dict:
+        return {key: data.get(key) for key in keys}
+    
+    out = []
+    for data_point in data:
+        out.append({key: data_point.get(key) for key in keys})
+    
+    return out
+
+
 class Meter(db.Model):
     # ID is the meter_clean_id from the input data
     id = db.Column(db.String(30), primary_key=True)
@@ -193,11 +208,13 @@ class HealthCheck(db.Model):
         self.outliers_ignz_perc = hc_data.get("outliers_ignz_per")
 
     def to_dict(self):
-        meter_dict = db.session.execute(db.select(Meter).where(Meter.id == self.meter_id)).scalar_one_or_none()
-        if meter_dict is None:
+        meter = db.session.execute(db.select(Meter).where(Meter.id == self.meter_id)).scalar_one_or_none()
+        if meter is None:
             return {}
         
-        meter_dict = meter_dict.to_dict()
+        # Filter out SEED_UUID and invoiced
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        meter_dict: dict = data_cleaner(meter.to_dict(), keys) # type: ignore
         
         return {
             **meter_dict,
