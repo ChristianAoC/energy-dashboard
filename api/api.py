@@ -11,6 +11,10 @@ import threading
 import math
 from functools import wraps
 import sys
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import requests
+import base64
 
 from database import db
 import models
@@ -64,26 +68,31 @@ meters_anon_file = os.path.join(DATA_DIR, "input", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "input", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 
+val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
+background_task_timing = val.split(":")
+
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode without any offline data!")
     print("\tPlease place your data in ./data/offline/")
-    print("\n" + "="*20)
+    print("="*20 + "\n")
     sys.exit(1)
 
 if offlineMode and not os.path.exists(offline_meta_file):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
     print("\tPlease place your metadata in ./data/meta/offline_data.json")
-    print("\n" + "="*20)
+    print("="*20 + "\n")
     sys.exit(1)
 
 if not os.path.exists(benchmark_data_file):
     print("\n" + "="*20)
     print("\tERROR: You have removed the included benchmark data!")
     print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
-    print("\n" + "="*20)
+    print("="*20 + "\n")
     sys.exit(1)
+
+internal_api_key = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
 
 ## #################################################################
 ## constants - should not be changed later in code
@@ -669,6 +678,11 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
 
 def is_admin() -> bool:
     try:
+        # Run all internal calls at admin level
+        if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == internal_api_key:
+            print("Bypassed admin level check for internal call")
+            return True
+        
         cookies = request.cookies
         required_level = int(current_app.config["USER_LEVEL_ADMIN"])
         email = cookies.get("Email", None)
@@ -686,6 +700,11 @@ def required_user_level(level_config_key):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
+            # Bypass authentication for internal calls
+            if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == internal_api_key:
+                print("Bypassed user level authorization for internal call")
+                return function(*args, **kwargs)
+            
             try:
                 cookies = request.cookies
                 level = int(current_app.config[level_config_key])
@@ -1445,3 +1464,35 @@ def populate_database():
     # summary()
     
     return make_response("OK", 200)
+
+## #############################################################################################
+
+def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, params: dict = {}, data: dict = {}):
+    request_response = requests.request(method=method, url=url, headers=headers, data=data, params=params)
+    
+    if request_response.status_code != 200:
+        print("\n" + "="*20)
+        print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
+        print("\tPlease manually call the endpoint to complete the scheduled task")
+        print("="*20 + "\n")
+    else:
+        print(f"Finished scheduled request to: {url}")
+
+scheduler = BackgroundScheduler()
+trigger = CronTrigger(
+    hour = background_task_timing[0],
+    minute = background_task_timing[1],
+    timezone = dt.timezone.utc,
+    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+)
+
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="meter_health_cache_generation",
+                  args=("http://127.0.0.1:5000/api/regeneratecache", "get", {"Authorization": internal_api_key}))
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="usage_summary_cache_generation",
+                  args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": internal_api_key}))
+
+scheduler.start()
