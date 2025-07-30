@@ -1052,10 +1052,10 @@ def meter_obs():
     else:
         return make_response(jsonify(out), 200)
 
-def get_health(args, returning=False, app=None):
+def get_health(args, returning=False, app_context=None):
     # Because this function can be run in a separate thread, we need to
-    if app is not None:
-        app.app_context().push()
+    if app_context is not None:
+        app_context.push()
 
     try:
         meter_ids = args["id"] # this is url decoded
@@ -1219,7 +1219,7 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()), name="updateMainHC", daemon=True)
             thread.start()
 
         if hc_cache:
