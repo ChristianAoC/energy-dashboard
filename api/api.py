@@ -64,26 +64,42 @@ meters_anon_file = os.path.join(DATA_DIR, "input", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "input", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 
+mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
+
+cannot_initialise = False
+
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode without any offline data!")
     print("\tPlease place your data in ./data/offline/")
     print("\n" + "="*20)
-    sys.exit(1)
+    cannot_initialise = True
 
 if offlineMode and not os.path.exists(offline_meta_file):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
     print("\tPlease place your metadata in ./data/meta/offline_data.json")
     print("\n" + "="*20)
-    sys.exit(1)
+    cannot_initialise = True
 
 if not os.path.exists(benchmark_data_file):
     print("\n" + "="*20)
     print("\tERROR: You have removed the included benchmark data!")
     print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
     print("\n" + "="*20)
+    cannot_initialise = True
+
+if not os.path.exists(mazemap_polygons_file):
+    print("\n" + "="*20)
+    print("\tERROR: You have removed the included benchmark data!")
+    print("\tPlease place the benchmark data in ./data/mazemap_polygons.json")
+    print("\n" + "="*20)
+    cannot_initialise = True
+
+# Show all error messages before exiting
+if cannot_initialise:
     sys.exit(1)
+
 
 ## #################################################################
 ## constants - should not be changed later in code
@@ -1391,6 +1407,13 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     with open(offline_meta_file, "r") as f:
+        data = json.load(f)
+    return make_response(jsonify(data), 200)
+
+@api_bp.route("/mazemap_polygons")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def mazemap_polygons():
+    with open(mazemap_polygons_file, "r") as f:
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
