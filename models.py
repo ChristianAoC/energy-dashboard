@@ -208,11 +208,13 @@ class HealthCheck(db.Model):
         self.outliers_ignz_perc = hc_data.get("outliers_ignz_per")
 
     def to_dict(self):
-        meter_dict = db.session.execute(db.select(Meter).where(Meter.id == self.meter_id)).scalar_one_or_none()
-        if meter_dict is None:
+        meter = db.session.execute(db.select(Meter).where(Meter.id == self.meter_id)).scalar_one_or_none()
+        if meter is None:
             return {}
         
-        meter_dict = meter_dict.to_dict()
+        # Filter out SEED_UUID and invoiced
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        meter_dict: dict = data_cleaner(meter.to_dict(), keys) # type: ignore
         
         return {
             **meter_dict,
