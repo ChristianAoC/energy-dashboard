@@ -237,7 +237,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     ## aggregate and scale
     if agg != "raw":
         df = pd.DataFrame.from_dict(obs)
-        df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+        df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
         df.set_index('time', inplace=True)
         df = df.resample(agg, origin='end').mean() ## windows go backwards
 
@@ -825,9 +825,12 @@ def summary():
     
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time)
-
-    valid_cache = True
+    from_time, to_time, days = calculate_time_args(from_time, to_time, 365)
+    
+    agg = f"{days*24*2}h"
+    time_days_multiplier = 365/days
+    
+    valid_cache = set(request.args).isdisjoint({"from_time", "to_time"})
     
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -894,16 +897,28 @@ def summary():
 
                 if meter_type not in units.keys():
                     continue
-
-                # TODO: calculate agg number from time diff
-                x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
+                
+                x = query_time_series(m, from_time, to_time, agg="raw", to_rate=True)
 
                 # No data available
                 if len(x['obs']) == 0:
                     continue
+                
+                df = pd.DataFrame.from_dict(x['obs'])
+                df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+                df.set_index('time', inplace=True)
+                df = df.resample(agg, origin='end').sum() ## windows go backwards
 
+                df.reset_index(inplace=True)
+                df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
+
+                x['obs'] = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originally used pd.DataFrame.to_dict(df,orient="records")
+                print(x['obs'])
+                
+                if len(x['obs']) == 0:
+                    continue
+                
                 usage = x['obs'][0]['value']
-
                 if usage is None:
                     usage = 0
 
@@ -916,9 +931,9 @@ def summary():
                         usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
                     else:
                         continue
-
+                
                 # process EUI
-                eui = float(f"{(usage / b.floor_area):.2g}")
+                eui = float(f"{(usage * time_days_multiplier/ b.floor_area):.2g}")
 
                 # Create utility entries on occurrence so that the response is smaller
                 if meter_type not in building_response:
