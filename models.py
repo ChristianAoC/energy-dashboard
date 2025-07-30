@@ -2,6 +2,21 @@ from database import db
 from sqlalchemy import CheckConstraint
 
 
+# Uses a whitelist for which keys are allowed to be returned to the user to help stop leaking data
+def data_cleaner(data: list[dict]|dict, keys: list) -> list[dict]|dict:
+    if keys is None or keys == {}:
+        return data
+    
+    if type(data) == dict:
+        return {key: data.get(key) for key in keys}
+    
+    out = []
+    for data_point in data:
+        out.append({key: data_point.get(key) for key in keys})
+    
+    return out
+
+
 class Meter(db.Model):
     # ID is the meter_clean_id from the input data
     id = db.Column(db.String(30), primary_key=True)
