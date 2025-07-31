@@ -76,11 +76,11 @@ $(document).ready( async function () {
     try {
         const [hierarchyData, allBuildings] = await Promise.all([
             getData({ hierarchy: {} }).then(res => res.hierarchy),
-            fetch("/static/data/allBuildings.json").then(res => res.json())
+            fetch(apiEndpoints.mazemap_polygons).then(res => res.json())
         ]);
 
-        browserData.hierarchy = hierarchyData // full dataset needed for filtering reset
-        browserData.filteredHierarchy = Object.values(browserData.hierarchy);
+        browserData.hierarchy = hierarchyData;
+        browserData.filteredHierarchy = Object.values(hierarchyData);
         browserData.allBuildings = allBuildings;
 
         if (browserData.hierarchy) {

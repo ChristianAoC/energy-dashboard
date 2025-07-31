@@ -170,8 +170,7 @@ function renderContext() {
     const contextDiv = document.getElementById("b-context");
     contextDiv.innerHTML = ""; // clear existing content
 
-    if (!selMeter || !browserData.context) {
-        contextDiv.innerText = "No context available.";
+    if (!selMeter || !browserData.context || browserData.context == [] || browserData.context == "Context file missing") {
         return;
     }
 
