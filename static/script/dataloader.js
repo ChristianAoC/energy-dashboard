@@ -66,10 +66,14 @@ const apiEndpoints = {
     // Simple static list of buildings as JSON hierarchy (formerly "masterlist" without usage)
     // no params
     hierarchy: '/api/meter_hierarchy',
-
+    
     // Summary of usage as pet buildings and their main meters (formerly "masterlist" with usage)
     // params: to_time, from_time
     summary: '/api/summary',
+
+    // Mazemap polygons
+    // noaparms
+    mazemap_polygons: '/api/mazemap_polygons',
 
     // Provides a list of meters for each health_score per building
     // params: to_time, from_time
