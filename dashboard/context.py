@@ -64,49 +64,45 @@ def delete_context(contextID):
     os.replace(tempfile, filename)
     return "success"
 
-# TODO: What is happening in this function - result/context is overwritten in each iteration
 def get_context(args):
     if not os.path.isfile(filename):
-        return "Context file missing"
+        return []
+
     with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
-        timeFormat = "%Y-%m-%d %H:%M"
-        for key, value in args.items():
-            if key == "meter":
-                if value == "all":
-                    continue
-                else:
-                    meters = args["meter"].split(";")
-            result = []
-            for i in range(len(context)):
-                if key in context[i]:
-                    if key == "id" or key == "author":
-                        if context[i][key].casefold() == value.casefold():
-                            result.append(context[i])
-                    if key == "type":
-                        # once recurring events are processed:
-                        # leave the recurring events in and add a recurring lookup table
-                        #if context[i][key] == "Recurring" or context[i][key].casefold() == value.casefold():
-                        if context[i][key].casefold() == value.casefold():
-                            result.append(context[i])
-                    if key == "meter":
-                        if context[i][key] in meters:
-                            result.append(context[i])
-                    # add fuzzy logic... not sure what/how
-                    if key == "start":
-                        try:
-                            if datetime.strptime(context[i]["end"], timeFormat) > datetime.strptime(value, timeFormat):
-                                result.append(context[i])
-                        except ValueError as e:
-                            print(f"Error: {e}")
-                    if (key == "end"):
-                        try:
-                            if datetime.strptime(context[i]["start"], timeFormat) < datetime.strptime(value, timeFormat):
-                                result.append(context[i])
-                        except ValueError as e:
-                            print(f"Error: {e}")
-            context = result
-    return result
+
+    # Parameters
+    meters = args.get("meter", "").split(",")
+    start_str = args.get("start")
+    end_str = args.get("end")
+
+    # Parse times
+    timeFormat = "%Y-%m-%d %H:%M"
+    try:
+        start_dt = datetime.strptime(start_str, timeFormat) if start_str else None
+        end_dt = datetime.strptime(end_str, timeFormat) if end_str else None
+    except ValueError:
+        return []
+
+    filtered = []
+
+    for entry in context:
+        entry_meter = entry.get("meter")
+        entry_start = datetime.strptime(entry["start"], timeFormat)
+        entry_end = datetime.strptime(entry["end"], timeFormat)
+
+        # 1. Meter match
+        if meters and entry_meter not in meters:
+            continue
+
+        # 2. Time overlap check
+        if start_dt and end_dt:
+            if entry_end < start_dt or entry_start > end_dt:
+                continue
+
+        filtered.append(entry)
+
+    return filtered
 
 def view_all():
     if not os.path.isfile(filename):

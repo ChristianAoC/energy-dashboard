@@ -65,17 +65,6 @@ function initHCTable() {
         sp_str += "This is the latest health check for the period between ";
         sp_str += new Date(browserData.hcMeta["from_time"] * 1000).toDateString()+" and "+new Date(browserData.hcMeta["to_time"] * 1000).toDateString();
         sp_str += ".<br>";
-        //sp_str += "This is the latest health check, retrieved at <b>"+new Date(hc_meta["timestamp"] * 1000).toDateString()+"</b>.<br>";
-        //sp_str += "It lists "+hc_meta["meters"]+" meters, analysing the time between ";
-        //sp_str += new Date(hc_meta["from_time"] * 1000).toDateString()+" and "+new Date(hc_meta["to_time"] * 1000).toDateString()
-        //sp_str += " ("+hc_meta["date_range"]+" days).<br>";
-        /*
-        if (hc_meta["new"] == 0) {
-            sp_str += "A new health check is being generated in the background and will be ready in roughly 5 minutes, reload this page then.<br>";
-        } else {
-            sp_str += "This health check snapshot is <b>"+hc_meta["age"]+" hours</b> old and will not be automatically updated. To force an update now click here (takes roughly 5 minutes).<br>";
-        }
-        */
     }
     document.getElementById("datespan").innerHTML = sp_str + "<br>";
 
@@ -101,18 +90,18 @@ function initHCTable() {
             $(row).addClass('colorScore'+data[metaLabel["HC_score"]]);
 
             // TODO: check date range applies
-            // TODO: fix context loading...
-            /*
-            for (c of context) {
-                if (data[metaLabel["meter_id"]] == c["meter"]) {
-                    if ($('td.lastCol', row).is(':empty')) {
-                        $('td.lastCol', row).html("<b>"+c["author"].split('@')[0]+"</b>"+": "+c["comment"]);
+            for (const c of browserData.context || []) {
+                if (data[metaLabel["meter_id"]] === c.meter) {
+                    const cell = $('td.lastCol', row);
+                    const commentHTML = `<b>${c.author.split('@')[0]}</b>: ${c.comment}`;
+
+                    if (cell.is(':empty')) {
+                        cell.html(commentHTML);
                     } else {
-                        $('td.lastCol', row).html($('td.lastCol', row).html() + "<br><b>" + c["author"].split('@')[0]+"</b>"+": "+c["comment"]);
+                        cell.append("<br>" + commentHTML);
                     }
                 }
             }
-            */
         },
         layout: {
             topStart: {
@@ -358,15 +347,22 @@ $(async function () {
 
     buildColumnToggles();
 
+    // note: this uses fetch/callApiJSON directly because of the stale headers etc
     try {
+        // Load meterHealth and headers directly (need X-Cache-State)
         let meterHealthResponse = await fetch(apiEndpoints.meterHealth);
         const cacheState = meterHealthResponse.headers.get('X-Cache-State');
         const meterHealth = await meterHealthResponse.json();
 
-        const hcMeta = await callApiJSON(apiEndpoints.hcMeta);
+        // Load hcMeta and context together using getData
+        const { hcMeta, allContext } = await getData({
+            hcMeta: {},
+            allContext: {}
+        });
 
         browserData.meterHealth = meterHealth;
         browserData.hcMeta = hcMeta;
+        browserData.context = allContext || [];
 
         if (browserData.hcMeta && browserData.meterHealth) {
             initHCTable();
@@ -375,28 +371,35 @@ $(async function () {
         if (cacheState === 'stale') {
             console.log("Cache is stale, setting up retry...");
 
-            // You can retry after 5s, or increase progressively
             const retryIntervalMs = 5000;
 
-            // Optional: show some “Updating...” message in the UI
             $('#healthcheckStatus').text('Updating health check... table will reload when done.');
 
             setTimeout(async () => {
                 try {
-                    const retryResp = await fetch(apiEndpoints.meterHealth + `?_=${Date.now()}`); // cache-bust
+                    const retryResp = await fetch(apiEndpoints.meterHealth + `?_=${Date.now()}`);
                     const retryCacheState = retryResp.headers.get('X-Cache-State');
                     const retryData = await retryResp.json();
 
                     if (retryCacheState === 'fresh') {
                         console.log("Fresh data loaded after retry");
 
+                        // Re-fetch meta and context too
+                        const { hcMeta: updatedMeta, allContext: updatedContext } = await getData({
+                            hcMeta: {},
+                            allContext: {}
+                        });
+
                         browserData.meterHealth = retryData;
-                        updateHCTable();  // re-init with new data
+                        browserData.hcMeta = updatedMeta;
+                        browserData.context = updatedContext || [];
+
+                        updateHCTable();
 
                         $('#healthcheckStatus').text('Updated');
                     } else {
                         $('#healthcheckStatus').text('Still updating...');
-                        // optionally: retry again with increasing timeout
+                        // Optionally retry again
                     }
                 } catch (err) {
                     console.error("Retry failed", err);

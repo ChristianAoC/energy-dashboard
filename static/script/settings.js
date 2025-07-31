@@ -53,7 +53,8 @@ document.addEventListener("change", function (e) {
         })
         .then(res => {
             if (!res.ok) throw new Error("Failed to update user");
-            return res.json();
+            // this used to return users if ok, but didn't do anything with it and was inconsistent anyways, so removed
+            //return res.json();
         })
         .then(data => {
         })

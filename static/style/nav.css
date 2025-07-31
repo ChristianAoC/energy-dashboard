@@ -1,0 +1,53 @@
+div#nav-parent {
+    position: fixed;
+    top: 0;
+    left: 0;
+    margin: auto;
+    width: 100%;
+    z-index: 9999;
+}
+
+nav#nav-top-bar {
+    position: sticky;
+    top: 0;
+    z-index: 50;
+    background-color: #fff;
+    padding: 0;
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    margin: 0;
+    border-bottom: 2px solid #ddd;
+    font-size: 1.1em;
+    white-space: nowrap;
+    box-shadow: 0 1px 3px rgba(0, 0, 0, 0.1);
+}
+
+.navlink {
+    flex: 1;
+    display: flex;
+    justify-content: center;
+}
+
+.navlink a {
+    text-align: center;
+    margin: 0;
+    text-decoration: none;
+    padding: 12px 0;
+    color: #333;
+    display: block;
+    width: 100%;
+    transition: background-color 200ms ease-in-out, color 200ms ease-in-out;
+}
+
+.navlink:hover a {
+    background-color: #f0f0f0;
+    color: #3f3f3f;
+    cursor: pointer;
+}
+
+.navlink.active a {
+    font-weight: bold;
+    color: #3f3f3f;
+    border-bottom: 5px solid #3f3f3f;
+}
