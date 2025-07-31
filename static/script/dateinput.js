@@ -14,6 +14,25 @@ function onDateInputChange() {
     }
 }
 
+function getCurPageStartDate() {
+    if (document.getElementById("sb-start-date")) {
+        return document.getElementById("sb-start-date").value+" 23:50";
+    } else {
+        let setDate = new Date(Date.now());
+        setDate.setDate(setDate.getDate()-7);
+        return setDate.toISOString().slice(0, 10)+" 00:00";
+    }
+};
+
+function getCurPageEndDate() {
+    if (document.getElementById("sb-end-date")) {
+        return document.getElementById("sb-end-date").value+" 23:50";
+    } else {
+        let setDate = new Date(Date.now());
+        return setDate.toISOString().slice(0, 10)+" 23:50";
+    }
+};
+
 $(async function () {
     const startInput = document.getElementById("sb-start-date");
     const endInput = document.getElementById("sb-end-date");

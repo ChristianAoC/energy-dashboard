@@ -6,7 +6,7 @@
 
 {% block content %}
 
-<div id="map-sidebar">
+<div id="sidebar">
 
 <label for="select-building"><b>Select a building:</b></label><br>
 <select name="select-building" id="select-building">
@@ -80,10 +80,11 @@
 
 <div id="start-content">
 
-<div id="b-content">
+<div id="view-browser">
 	<div id="b-plot-container">
 		<h3 id="b-plot-header">(No meter selected)</h3>
 		<div id="b-meta-info"></div>
+		<div id="b-context" class="hidden"></div>
 		<div id="b-plot" class="plot-div">
 		</div>
 	</div>

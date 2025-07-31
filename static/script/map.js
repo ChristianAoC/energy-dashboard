@@ -94,15 +94,16 @@ $(document).ready( async function () {
 
     // some css stuff as the map needs a bit special treatment
     let navHeight = document.getElementById("nav-top-bar").offsetHeight;
-    let sideW = document.getElementById("map-sidebar").offsetWidth;
+    let sideW = document.getElementById("sidebar").offsetWidth;
     document.getElementById("view-map").style.marginTop = navHeight + "px";
     document.getElementById("view-map").style.height = "calc(100% - " + navHeight + "px)";
     document.getElementById("view-map").style.marginLeft = sideW + "px";
     document.getElementById("view-map").style.width = "calc(100% - " + sideW + "px)";
     let h2 = parseInt(document.getElementById("nav-top-bar").offsetHeight) + 24;
-    document.getElementById("map-sidebar").style.height = "calc(100vh - " + h2 + "px)";                    
+    document.getElementById("sidebar").style.height = "calc(100vh - " + h2 + "px)";                    
 
-    document.getElementById("comment-bubble").classList.remove("hidden");
+    // TODO this needs first fixing to allow multiple meters to be added
+    //document.getElementById("comment-bubble").classList.remove("hidden");
     commentParent = "view-map";
 
     document.getElementById("building-search").addEventListener("input", filterMap);
@@ -140,8 +141,8 @@ function displayContextMarkers(contextData) {
 
                         const hoverText = "<b>Context:</b><br>" +
                             e.comment + ",<br><br>" +
-                            "  Start: " + (e.startfuzzy ? "ca. " : "") + e.start + "<br>" +
-                            "  End: " + (e.endfuzzy ? "ca. " : "") + e.end + "<br>" +
+                            "  Start: " + e.start + "<br>" +
+                            "  End: " + e.end + "<br>" +
                             "    (Added by: " + e.author + ")";
 
                         const popup = new Mazemap.mapboxgl.Popup({
@@ -196,6 +197,8 @@ function onMapClick(e) {
 
 	// Optional: commentMode logic (skip or update later if meter_uuid not available)
 	if (commentMode) {
+        // TODO: need to first add the ability to add multiple meters/entire buildings at once as comment
+        /*
 		for (const b of Object.values(browserData.filteredHierarchy)) {
 			const labels = b.meta?.[metaLabel["maze_map_label"]];
 			const labelArray = Array.isArray(labels) ? labels : [labels];
@@ -208,6 +211,7 @@ function onMapClick(e) {
 				}
 			}
 		}
+        */
 	}
 
 	building.properties.zLevel = 0;
@@ -264,7 +268,8 @@ function buildingPopup(building, e) {
 
 	const popupEl = document.getElementById("building-popup");
 	popupEl.innerHTML = text;
-	popupEl.style.top = e.point.y + "px";
+    // TODO figure out a better way, too often too low - seems good now?
+	//popupEl.style.top = e.point.y + "px";
 	popupEl.style.left = e.point.x + "px";
 	popupEl.style.display = "inline";
 }

@@ -2,7 +2,6 @@
 
 {% block head %}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
-<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/context.css') }}" />
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/datatables.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='script/context.js') }}"></script>
 {% endblock %}
@@ -16,8 +15,6 @@
 <table id="contextTable">
 </table>
 </div>
-
-<script>var context = JSON.parse('{{ data | tojson | safe}}');</script>
 
 <div id="context-edit-container" class="hidden" draggable="true">
     <div id="context-edit-header">Add Context Information</div>

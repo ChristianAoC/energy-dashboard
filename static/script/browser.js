@@ -163,6 +163,42 @@ function typeSelected() {
 	}
 };
 
+function renderContext() {
+    const startDate = document.getElementById("sb-start-date").value;
+    const endDate = document.getElementById("sb-end-date").value;
+    const selMeter = document.getElementById("select-meter").value;
+    const contextDiv = document.getElementById("b-context");
+    contextDiv.innerHTML = ""; // clear existing content
+
+    if (!selMeter || !browserData.context) {
+        contextDiv.innerText = "No context available.";
+        return;
+    }
+
+    const filtered = browserData.context.filter(c => {
+        if (c.meter !== selMeter) return false;
+
+        const withinStart = c.startnone || c.start <= endDate;
+        const withinEnd = c.endnone || c.end >= startDate;
+        return withinStart || withinEnd;
+    });
+
+    if (!filtered) return;
+    
+    contextDiv.classList.toggle("hidden");
+
+    for (const c of filtered) {
+        const author = c.author.split('@')[0];
+        const dateInfo = [
+            c.startnone ? "" : `start: ${c.start}`,
+            c.endnone ? "" : `end: ${c.end}`
+        ].filter(Boolean).join(", ");
+
+        const line = `<div><strong style="font-size: 1.1em">Comments:</strong><br><b>${author}</b>: ${c.comment}${dateInfo ? " <small>(for " + dateInfo + ")</small>" : ""}</div>`;
+        contextDiv.insertAdjacentHTML("beforeend", line);
+    }
+}
+
 // when a new building is selected - update cumultorate and redraw
 function meterSelected() {
     const selMeter = document.getElementById("select-meter").value;
@@ -219,6 +255,8 @@ function meterSelected() {
         cumulCheckbox.disabled = true;
     }
 
+    renderContext();
+
     redrawPlot();
 }
 
@@ -259,19 +297,7 @@ function randomMeter(buildingFilter = null) {
         return;
     }
 
-    // Build meter ID list from hierarchy
-    const meterIds = [];
-    for (const buildingId in browserData.hierarchy) {
-        // If filtering by building, skip others
-        if (buildingFilter && buildingId !== buildingFilter) continue;
-
-        const building = browserData.hierarchy[buildingId];
-        for (const utilType of Object.keys(building)) {
-            if (utilType === 'meta') continue;
-            const meters = building[utilType];
-            meters.forEach(meterId => meterIds.push(meterId));
-        }
-    }
+    let meterIds = getMeterListFromHierarchy(browserData.hierarchy, buildingFilter);
 
     if (meterIds.length === 0) {
         console.warn(`No meters found for building ${buildingFilter}`);
@@ -319,15 +345,15 @@ function dateChange() {
 
 $(document).ready(async function () {
     try {
-        // fetch both hierarchy and meters at once
-        const { hierarchy, meters } = await getData({
+        const { hierarchy, meters, allContext } = await getData({
             hierarchy: {},
-            meters: {}
+            meters: {},
+            allContext: {}
         });
 
-        // store them in your global browserData object
         browserData.hierarchy = hierarchy;
         browserData.meters = meters;
+        browserData.context = allContext;
 
         if (browserData.hierarchy) {
             const buildingEntries = Object.entries(browserData.hierarchy);
@@ -348,7 +374,7 @@ $(document).ready(async function () {
             let buildingFromUrl = params.get("building");
             let typeFromUrl     = params.get("utility_type");
             let meterFromUrl    = params.get("meter_id");
-            let randomRequest   = params.get("ref") === "map";
+            let randomRequest   = params.get("ref") === "view-map" || params.get("ref") === "benchmark";
 
             // Derive missing building/type from meter_id if needed
             if (meterFromUrl && (!buildingFromUrl || !typeFromUrl)) {
@@ -404,7 +430,7 @@ $(document).ready(async function () {
         console.error("Failed to load data", err);
     }
 	
-	commentParent = "browser";
+	commentParent = "view-browser";
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);

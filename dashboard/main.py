@@ -1,4 +1,4 @@
-from flask import render_template, send_file, request, Blueprint, make_response, current_app, redirect, Response
+from flask import render_template, send_file, request, Blueprint, make_response, current_app, redirect, Response, jsonify
 from markupsafe import escape
 import api.api as api_bp
 import dashboard.user as user
@@ -124,7 +124,6 @@ def setUserLevel():
     
     userChange["level"] = level
     
-    # TODO: This used to return False or users but now returns true or false, frontend should request the data again - not us
     success = user.update_user(userChange)
     if not success:
         return make_response("Failed to update user", 500)
@@ -174,7 +173,15 @@ def deleteContext():
 
 @dashboard_bp.route("/getcontext", methods=['GET'])
 def getContext():
-    return { "context": context.get_context(request.args) }
+    try:
+        context_data = context.get_context(request.args)
+        return { "context": context_data }
+    except Exception as e:
+        return { "error": str(e) }, 500
+
+@dashboard_bp.route("/allcontext", methods=['GET'])
+def allContext():
+    return jsonify(context.view_all())
 
 ###########################################################
 ###                 main web templates                  ###

@@ -1,5 +1,6 @@
 const browserData = {};
 const utilityTypes = ["gas", "electricity", "heat", "water"];
+const utilityUnits = {"gas": "m³", "electricity": "kWh", "heat": "MWh", "water": "m³"};
 
 let metaLabel = {
 
@@ -56,34 +57,6 @@ let metaLabel = {
     "HC_zeroes_score": "HC_zeroes_score"
 }
 
-// need this frequently, strangely JS has no native function for this
-function capFirst(str) {
-    return str.charAt(0).toUpperCase() + str.slice(1);
-};
-
-function uncapFirst(str) {
-    return str.charAt(0).toLowerCase() + str.slice(1);
-};
-
-// function to call api for json.
-async function callApiJSON(uri) {
-   try {
-        let url = encodeURI(uri);
-        const response = await fetch(url, { /* headers */});
-
-        if (!response.ok) {
-            console.error(`HTTP error ${response.status} for ${url}`);
-            return null;
-        }
-
-        const json = await response.json();
-        return json;
-    } catch (err) {
-        console.error('Failed fetching ${uri}:', err);
-        return null;
-    }
-};
-
 // A map of data keys to base endpoints
 const apiEndpoints = {
     // List of all meters (formerly "devices")
@@ -116,7 +89,78 @@ const apiEndpoints = {
     
     // Return time series data for given meter/time
     // params: id, to_time, from_time, format, aggregate, to_rate
-    obs: '/api/meter_obs'
+    obs: '/api/meter_obs',
+
+    // Gets specific context entries
+    // params: meter, start, end
+    getContext: '/getcontext',
+
+    // Gets all context entries
+    // noparams
+    allContext: '/allcontext'
+};
+
+// need this frequently, strangely JS has no native function for this
+function capFirst(str) {
+    return str.charAt(0).toUpperCase() + str.slice(1);
+};
+
+function uncapFirst(str) {
+    return str.charAt(0).toLowerCase() + str.slice(1);
+};
+
+// sometimes i need only the raw list of meters from hierarchy
+function getMeterListFromHierarchy(hierarchy, buildingFilter = null) {
+    const meterIds = [];
+    for (const buildingId in hierarchy) {
+        // If filtering by building, skip others
+        if (buildingFilter && buildingId !== buildingFilter) continue;
+
+        const building = hierarchy[buildingId];
+        for (const utilType of Object.keys(building)) {
+            if (utilType === 'meta') continue;
+            let meters = building[utilType];
+            meters.forEach(meterId => meterIds.push(meterId));
+        }
+    }
+    return meterIds;
+}
+
+// sometimes i need only the raw list of meters from summary
+function getMeterListFromSummary(summary, buildingFilter = null) {
+    let meters = [];
+    for (const buildingKey in summary) {
+        const building = summary[buildingKey];
+
+        utilityTypes.forEach(utility => {
+            const ms = building[utility];
+            if (ms) {
+                for (const meterName in ms) {
+                    meters.push(meterName);
+                }
+            }
+        });
+    }
+    return meters;
+}
+
+// function to call api for json.
+async function callApiJSON(uri) {
+   try {
+        let url = encodeURI(uri);
+        const response = await fetch(url, { /* headers */});
+
+        if (!response.ok) {
+            console.error(`HTTP error ${response.status} for ${url}`);
+            return null;
+        }
+
+        const json = await response.json();
+        return json;
+    } catch (err) {
+        console.error('Failed fetching ${uri}:', err);
+        return null;
+    }
 };
 
 /**

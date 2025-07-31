@@ -123,8 +123,7 @@ function setRanges(num, min, max) {
 };
 
 $(document).ready( function () {
-    // oof this was terrible programming, stackoverflow crap. rewrite.
-    // why the fuck all those const? clutter! TODO
+    // oof this was terrible programming, stackoverflow crap. consider rewriting... if time
     const fromSlider1 = document.querySelector('#fromSlider1');
     const toSlider1 = document.querySelector('#toSlider1');
     const fromInput1 = document.querySelector('#fromInput1');
