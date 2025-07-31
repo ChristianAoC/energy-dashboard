@@ -11,6 +11,10 @@ import threading
 import math
 from functools import wraps
 import sys
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import requests
+import base64
 
 from database import db
 import models
@@ -40,14 +44,10 @@ meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
 buildings_usage_file = os.path.join(DATA_DIR, "input", 'UniHierarchyWithUsage.json')
 
-if not offlineMode:
-    meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
-else:
-    meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
-    meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
+meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
 if not os.path.exists(meter_health_score_files):
     os.makedirs(meter_health_score_files)
+meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
 if not os.path.exists(meter_snapshots_files):
     os.makedirs(meter_snapshots_files)
 
@@ -64,26 +64,46 @@ meters_anon_file = os.path.join(DATA_DIR, "input", 'anon_meters.json')
 buildings_anon_file = os.path.join(DATA_DIR, "input", 'anon_buildings.json')
 usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 
+val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
+background_task_timing = val.split(":")
+
+mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
+
+cannot_initialise = False
+
 if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode without any offline data!")
     print("\tPlease place your data in ./data/offline/")
-    print("\n" + "="*20)
-    sys.exit(1)
+    print("="*20 + "\n")
+    cannot_initialise = True
 
 if offlineMode and not os.path.exists(offline_meta_file):
     print("\n" + "="*20)
     print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
     print("\tPlease place your metadata in ./data/meta/offline_data.json")
-    print("\n" + "="*20)
-    sys.exit(1)
+    print("="*20 + "\n")
+    cannot_initialise = True
 
 if not os.path.exists(benchmark_data_file):
     print("\n" + "="*20)
     print("\tERROR: You have removed the included benchmark data!")
     print("\tPlease place the benchmark data in ./data/meta/offline_data.json")
+    print("="*20 + "\n")
+    cannot_initialise = True
+
+if not os.path.exists(mazemap_polygons_file):
     print("\n" + "="*20)
+    print("\tERROR: You don't have any mazemap polygons defined!")
+    print("\tPlease place the data in ./data/mazemap_polygons.json")
+    print("="*20 + "\n")
+    cannot_initialise = True
+
+# Show all error messages before exiting
+if cannot_initialise:
     sys.exit(1)
+
+internal_api_key = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
 
 ## #################################################################
 ## constants - should not be changed later in code
@@ -269,7 +289,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         xcount = int((to_time - from_time).total_seconds()//600) - 1
 
     # Bring SQL update output back in line with the original output (instead of just returning calculated values)
-    out = m.to_dict()
+    # Filter out SEED_UUID and invoiced
+    keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    out: dict = models.data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
     if not offlineMode:
@@ -669,6 +691,11 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
 
 def is_admin() -> bool:
     try:
+        # Run all internal calls at admin level
+        if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == internal_api_key:
+            print("Bypassed admin level check for internal call")
+            return True
+        
         cookies = request.cookies
         required_level = int(current_app.config["USER_LEVEL_ADMIN"])
         email = cookies.get("Email", None)
@@ -686,6 +713,11 @@ def required_user_level(level_config_key):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
+            # Bypass authentication for internal calls
+            if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == internal_api_key:
+                print("Bypassed user level authorization for internal call")
+                return function(*args, **kwargs)
+            
             try:
                 cookies = request.cookies
                 level = int(current_app.config[level_config_key])
@@ -733,7 +765,19 @@ def meters():
     if not is_admin():
         statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
     data = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
-    return make_response(jsonify(data), 200)
+    
+    # Filter out SEED_UUID and invoiced
+    try:
+        keys = request.args["columns"]
+        if keys is None:
+            raise Exception
+        keys = keys.split(";")
+    except:
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    
+    out = models.data_cleaner(data, keys)
+    
+    return make_response(jsonify(out), 200)
 
 ## Health check cache meta
 @api_bp.route('/hc_meta')
@@ -1052,10 +1096,10 @@ def meter_obs():
     else:
         return make_response(jsonify(out), 200)
 
-def get_health(args, returning=False, app=None):
+def get_health(args, returning=False, app_context=None):
     # Because this function can be run in a separate thread, we need to
-    if app is not None:
-        app.app_context().push()
+    if app_context is not None:
+        app_context.push()
 
     try:
         meter_ids = args["id"] # this is url decoded
@@ -1219,7 +1263,7 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app._get_current_object()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()), name="updateMainHC", daemon=True)
             thread.start()
 
         if hc_cache:
@@ -1394,6 +1438,13 @@ def offline_meta():
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
+@api_bp.route("/mazemap_polygons")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+def mazemap_polygons():
+    with open(mazemap_polygons_file, "r") as f:
+        data = json.load(f)
+    return make_response(jsonify(data), 200)
+
 @api_bp.route('/populate_database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
@@ -1445,3 +1496,35 @@ def populate_database():
     # summary()
     
     return make_response("OK", 200)
+
+## #############################################################################################
+
+def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, params: dict = {}, data: dict = {}):
+    request_response = requests.request(method=method, url=url, headers=headers, data=data, params=params)
+    
+    if request_response.status_code != 200:
+        print("\n" + "="*20)
+        print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
+        print("\tPlease manually call the endpoint to complete the scheduled task")
+        print("="*20 + "\n")
+    else:
+        print(f"Finished scheduled request to: {url}")
+
+scheduler = BackgroundScheduler()
+trigger = CronTrigger(
+    hour = background_task_timing[0],
+    minute = background_task_timing[1],
+    timezone = dt.timezone.utc,
+    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+)
+
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="meter_health_cache_generation",
+                  args=("http://127.0.0.1:5000/api/regeneratecache", "get", {"Authorization": internal_api_key}))
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="usage_summary_cache_generation",
+                  args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": internal_api_key}))
+
+scheduler.start()
