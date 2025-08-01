@@ -6,11 +6,17 @@ import sys
 sys.path.append(dname)
 
 from flask import Flask
+from apscheduler.schedulers.background import BackgroundScheduler
+from apscheduler.triggers.cron import CronTrigger
+import base64
+from datetime import timezone
+from dotenv import load_dotenv
+import requests
+
 from api.api import api_bp
 from dashboard.main import dashboard_bp
-from dotenv import load_dotenv
-
 import database
+
 app = Flask(__name__)
 database.init(app)
 # needed because sometimes WSGI is a bit thick
@@ -62,6 +68,42 @@ app.config["USER_LEVEL_VIEW_COMMENTS"] = int(os.getenv("USER_LEVEL_VIEW_COMMENTS
 app.config["USER_LEVEL_SUBMIT_COMMENTS"] = int(os.getenv("USER_LEVEL_SUBMIT_COMMENTS", "3"))
 app.config["USER_LEVEL_EDIT_COMMENTS"] = int(os.getenv("USER_LEVEL_EDIT_COMMENTS", "4"))
 app.config["USER_LEVEL_ADMIN"] = int(os.getenv("USER_LEVEL_ADMIN", "5"))
+
+app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
+
+# #################################################################
+def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, params: dict = {}, send_data: dict = {}):
+    request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
+    
+    if request_response.status_code != 200:
+        print("\n" + "="*20)
+        print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
+        print("\tPlease manually call the endpoint to complete the scheduled task")
+        print("="*20 + "\n")
+    else:
+        print(f"Finished scheduled request to: {url}")
+
+val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
+background_task_timing = val.split(":")
+
+scheduler = BackgroundScheduler()
+trigger = CronTrigger(
+    hour = background_task_timing[0],
+    minute = background_task_timing[1],
+    timezone = timezone.utc,
+    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+)
+
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="meter_health_cache_generation",
+                  args=("http://127.0.0.1:5000/api/regeneratecache", "get", {"Authorization": app.config["internal_api_key"]}))
+scheduler.add_job(run_scheduled_requests,
+                  trigger,
+                  id="usage_summary_cache_generation",
+                  args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": app.config["internal_api_key"]}))
+
+scheduler.start()
 
 if __name__ == "__main__":
     app.run(host="0.0.0.0", port=5000)

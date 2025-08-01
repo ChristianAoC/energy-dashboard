@@ -1,20 +1,6 @@
 from database import db
 from sqlalchemy import CheckConstraint
-
-
-# Uses a whitelist for which keys are allowed to be returned to the user to help stop leaking data
-def data_cleaner(data: list[dict]|dict, keys: list) -> list[dict]|dict:
-    if keys is None or keys == {}:
-        return data
-    
-    if type(data) == dict:
-        return {key: data.get(key) for key in keys}
-    
-    out = []
-    for data_point in data:
-        out.append({key: data_point.get(key) for key in keys})
-    
-    return out
+from api.helpers import data_cleaner
 
 
 class Meter(db.Model):
@@ -41,6 +27,8 @@ class Meter(db.Model):
     scaling_factor = db.Column(db.Float, nullable=False, default=1)
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
     building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
+    
+    hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter')
 
     def __init__(self, meter_id_clean: str, raw_uuid: str, meter_name: str, building_level_meter: bool,
                  utility_type: str, reading_type: str, units: str, resolution: float, unit_conversion_factor: float,
@@ -63,7 +51,7 @@ class Meter(db.Model):
         self.invoiced = tenant
         self.building_id = building
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
@@ -95,6 +83,8 @@ class Building(db.Model):
     
     occupancy_type = db.Column(db.String(11), CheckConstraint(occupancy_type_check_constraint), nullable=False)
     maze_map_label = db.Column(db.JSON)
+    
+    ud_record = db.relationship("UtilityData", uselist=False, back_populates='building')
 
     def __init__(self, building_code: str, building_name: str, floor_area: int, year_built: int, occupancy_type: str, maze_map_label: list):
         self.id = building_code
@@ -108,7 +98,7 @@ class Building(db.Model):
         
         self.maze_map_label = maze_map_label
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "building_id": self.id,
             "building_name": self.name,
@@ -152,7 +142,7 @@ class HealthCheck(db.Model):
     outliers_ignz = db.Column(db.Integer)
     outliers_ignz_perc = db.Column(db.Integer)
 
-    meter = db.relationship("Meter", backref="meter.id")
+    meter = db.relationship(Meter, back_populates="hc_record")
 
     def __init__(self, meter_id: str, hc_data: dict = {}):
         self.meter_id = meter_id
@@ -207,14 +197,10 @@ class HealthCheck(db.Model):
         self.outliers_ignz = hc_data.get("outliers_ignz")
         self.outliers_ignz_perc = hc_data.get("outliers_ignz_per")
 
-    def to_dict(self):
-        meter = db.session.execute(db.select(Meter).where(Meter.id == self.meter_id)).scalar_one_or_none()
-        if meter is None:
-            return {}
-        
+    def to_dict(self) -> dict:
         # Filter out SEED_UUID and invoiced
         keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
-        meter_dict: dict = data_cleaner(meter.to_dict(), keys) # type: ignore
+        meter_dict: dict = data_cleaner(self.meter.to_dict(), keys) # type: ignore
         
         return {
             **meter_dict,
@@ -250,9 +236,10 @@ class HealthCheck(db.Model):
 
 class CacheMeta(db.Model):
     meta_type = db.Column(db.String, primary_key=True)
-    to_time = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
-    from_time = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
-    timestamp = db.Column(db.Float, nullable=False) # Could this be a DateTime object?
+    # Could these be DateTime objects?
+    to_time = db.Column(db.Float, nullable=False)
+    from_time = db.Column(db.Float, nullable=False)
+    timestamp = db.Column(db.Float, nullable=False)
     processing_time = db.Column(db.Float, nullable=False)
 
     def __init__(self, meta_type: str, new_meta: dict):
@@ -260,10 +247,7 @@ class CacheMeta(db.Model):
             raise ValueError("Invalid meta type")
 
         self.meta_type = meta_type
-        self.to_time = new_meta["to_time"]
-        self.from_time = new_meta["from_time"]
-        self.timestamp = new_meta["timestamp"]
-        self.processing_time = new_meta["processing_time"]
+        self.update(new_meta)
 
     def update(self, new_meta: dict):
         self.to_time = new_meta["to_time"]
@@ -271,7 +255,7 @@ class CacheMeta(db.Model):
         self.timestamp = new_meta["timestamp"]
         self.processing_time = new_meta["processing_time"]
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
         return {
             "to_time": self.to_time,
             "from_time": self.from_time,
@@ -301,6 +285,8 @@ class UtilityData(db.Model):
     gas = db.Column(db.JSON)
     heat = db.Column(db.JSON)
     water = db.Column(db.JSON)
+    
+    building = db.relationship(Building, back_populates="ud_record")
 
     def __init__(self, building_id: str, electricity: dict, gas: dict, heat: dict, water: dict):
         self.building_id = building_id
@@ -335,8 +321,13 @@ class UtilityData(db.Model):
         self.heat = heat
         self.water = water
 
-    def to_dict(self):
+    def to_dict(self) -> dict:
+        # Filter out building id as the data is indexed with it
+        keys = ["building_name", "floor_area", "year_built", "occupancy_type", "maze_map_label"]
+        building_dict: dict = data_cleaner(self.building.to_dict(), keys) # type: ignore
+        
         return {
+            "meta": building_dict,
             "electricity": self.electricity,
             "gas": self.gas,
             "heat": self.heat,
