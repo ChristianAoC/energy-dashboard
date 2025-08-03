@@ -3,7 +3,6 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import json
 
-import models
 from api.constants import offlineMode, meters_anon_file, meters_file, buildings_anon_file, buildings_file
 
 db = SQLAlchemy()
@@ -15,7 +14,16 @@ def init(app):
     with app.app_context():
         db.create_all()
 
-def initial_database_population():
+def initial_database_population() -> bool:
+    # Import here to stop circular import issue
+    import models
+    
+    if len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0:
+        return False
+    
+    if len(db.session.execute(db.select(models.Building)).scalars().all()) > 0:
+        return False
+    
     if offlineMode:
         buildings = json.load(open(buildings_anon_file))
     else:
@@ -68,3 +76,4 @@ def initial_database_population():
         except Exception as e:
             print(e)
             print(meter)
+    return True

@@ -481,5 +481,7 @@ def regenerate_cache():
 @api_bp.route('/populate_database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
-    initial_database_population()
-    return make_response("OK", 200)
+    result = initial_database_population()
+    if result:
+        return make_response("OK", 200)
+    return make_response("ERROR", 500)
