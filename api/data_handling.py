@@ -19,23 +19,37 @@ from api.helpers import calculate_time_args, is_admin, data_cleaner, clean_file_
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def query_pandas(m: models.Meter, from_time, to_time):
+def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
+    if offlineMode:
+        try:
+            with open(os.path.join(offline_data_files, f"{m.id}.json"), "r") as f:
+                obs = json.load(f)
 
-    if m.SEED_uuid is None: ## can't get data
+            obs = pd.DataFrame.from_dict(obs)
+            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
+            obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
+            return obs
+        except:
+            return pd.DataFrame()
+
+    if m.SEED_uuid is None:
         return pd.DataFrame()
 
-    ## format query
+    # format query
     qry = 'SELECT * as value FROM "SEED"."autogen"."' + m.SEED_uuid + \
         '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
-        ' AND time < \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
+        ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
 
-    ## create client for influx
+    # create client for influx
     client = InfluxDBClient(host = InfluxURL,
                             port = InfluxPort,
                             username = InfluxUser,
                             password = InfluxPass)
+    result = client.query(qry)
 
-    return pd.DataFrame(client.query(qry).get_points())
+    return pd.DataFrame(result.get_points())
 
 ## Get Data from influx
 ## m - a meter object
@@ -64,43 +78,8 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
         "unit": m.units
     }
 
-    obs = []
-
-    if not offlineMode:
-        if m.SEED_uuid is None: # can't get data
-            return out
-
-        # format query
-        qry = 'SELECT * as value FROM "SEED"."autogen"."' + m.SEED_uuid + \
-            '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
-            ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
-
-        # create client for influx
-        client = InfluxDBClient(host = InfluxURL,
-                                port = InfluxPort,
-                                username = InfluxUser,
-                                password = InfluxPass)
-
-        result = client.query(qry)
-
-        # get as list of dictionaries
-        obs = list(result.get_points())
-
-    else:
-        try:
-            with open(os.path.join(offline_data_files, f"{m.id}.json"), "r") as f:
-                obs = json.load(f)
-
-            obs = pd.DataFrame.from_dict(obs)
-            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
-            obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
-            obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
-            obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
-            obs = obs.to_dict('records')
-        except:
-            return out
-
-    if len(obs)==0:
+    df = query_influx(m, from_time, to_time)
+    if df.empty:
         return out
 
     # standardise the value based on resolution and format time
@@ -110,14 +89,13 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     else:
         kappa = 1.0
         rho = 1.0
-
-    for o in obs:
-        o['value'] = round( rho * round(o["value"] * kappa) ,10 )
-        if o['time'][:-1] == "Z":
-            o['time'] = o['time'][:-1] + '+0000'
+    
+    df['value'] = round(rho * round(df['value'] * kappa), 10)
+    df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
 
     ## uncumulate if required
     if to_rate and (m.reading_type == "cumulative"):
+        obs = df.to_dict('records')
         xcur = obs[-1]["value"]
         for ii in reversed(range(len(obs)-1)):
             if obs[ii]["value"]==0:
@@ -142,20 +120,16 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
                 obs[ii+1]["value"] -= obs[ii]["value"] ## change to rate
 
         obs[0]["value"] = None
-
+        df = pd.DataFrame(obs)
+    
     ## aggregate and scale
     if agg != "raw":
-        df = pd.DataFrame.from_dict(obs)
-        df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
         df.set_index('time', inplace=True)
         df = df.resample(agg, origin='end').mean() ## windows go backwards
-
         df.reset_index(inplace=True)
-        df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
-
-        obs = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originally used pd.DataFrame.to_dict(df,orient="records")
-
-    out["obs"] = obs
+    
+    df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z') ## check keeps utc?
+    out["obs"] = json.loads(df.to_json(orient='records')) #This is ugly but seems to avoid return NaN rather than null - originally used pd.DataFrame.to_dict(df,orient="records")
     return out
 
 ## Retrieve data from influx and process it for meter health
@@ -183,28 +157,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
-    if not offlineMode:
-        m_obs = query_pandas(m, from_time, to_time)
-    else:
-        try:
-            with open(f"data/offline/{m.id}.json", "r") as f:
-                obs = json.load(f)
-
-            m_obs = pd.DataFrame.from_dict(obs)
-            m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
-            m_obs.drop(m_obs[m_obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
-            m_obs.drop(m_obs[m_obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
-        except FileNotFoundError as e:
-            print(f"Offline data: {e.filename} does not exist")
-            return None
-        except:
-            out["HC_count"] = 0
-            out["HC_count_perc"] = "0%"
-            out["HC_score"] = 0
-
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
-            return out
+    m_obs = query_influx(m, from_time, to_time)
+    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
 
     # count values. if no values, stop
     out["HC_count"] = len(m_obs)
