@@ -3,7 +3,7 @@ from flask import request, current_app
 import datetime as dt
 import json
 
-from api.constants import *
+from constants import *
 import dashboard.user as user
 
 

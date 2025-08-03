@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import json
 
-from api.constants import offlineMode, meters_anon_file, meters_file, buildings_anon_file, buildings_file
+from constants import offlineMode, meters_anon_file, meters_file, buildings_anon_file, buildings_file
 
 db = SQLAlchemy()
 
