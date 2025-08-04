@@ -336,3 +336,28 @@ class UtilityData(db.Model):
     
     def __repr__(self) -> str:
         return f"<UtilityData {self.building_id}>"
+
+class User(db.Model):
+    # 254 characters is the maximum characters an email can contain (RFC 5321, Section 4.5.3.1)
+    email = db.Column(db.String(254), primary_key=True)
+    level = db.Column(db.Integer)
+    logincount = db.Column(db.Integer)
+    lastlogin = db.Column(db.Float)
+    
+    def __init__(self, email: str, level: int, logincount: int, lastlogin: dict):
+        self.email = email
+        self.level = level
+        self.logincount = logincount
+        self.lastlogin = lastlogin
+    
+    def to_dict(self) -> dict:
+        # Add sessions to this dict
+        return {
+            "email": self.email,
+            "level": self.level,
+            "logincount": self.logincount,
+            "lastlogin": self.lastlogin
+        }
+    
+    def __repr__(self) -> str:
+        return f"<User {self.email}>"
