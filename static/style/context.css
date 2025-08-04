@@ -1,5 +1,5 @@
 /* Context container (usually appears beside elements or on hover) */
-.context-container {
+/*.context-container {
     position: absolute;
     max-width: 240px;
     background-color: white;
@@ -8,6 +8,32 @@
     padding: 8px;
     z-index: 1000;
     box-shadow: 0 2px 8px rgba(0, 0, 0, 0.2);
+}*/
+
+div.context-container {
+    position: fixed;
+    z-index: 99;
+    left: 400px;
+    top: 150px;
+    background: rgb(232, 232, 232);
+    border-radius: 5px;
+    border: 1px solid black;
+    box-shadow: 10px 10px 10px grey;
+    min-width: 500px;
+}
+
+div#context-content {
+    padding: 10px 24px 10px 24px;
+    gap: 8px;
+    display: grid;
+    grid-template-columns: min-content auto 3.5em auto;
+    grid-template-areas:
+        "gc-meters-label gc-meters gc-meters gc-meters"
+        "gc-datefrom-label gc-datefrom gc-dateto-label gc-dateto"
+        ". gc-datefrom-none . gc-dateto-none"
+        "gc-typeradios-label gc-typeradios . ."
+        "gc-comment-label gc-comment gc-comment gc-comment"
+        ". . . gc-button";
 }
 
 /* Tooltip for comment icon (on hover) */
@@ -75,4 +101,30 @@
     background: transparent;
     pointer-events: none;
     z-index: 999;
+}
+
+div.context-header {
+    background: rgb(202, 202, 202);
+    padding: 10px 24px 10px 24px;
+    font-weight: bold;
+    cursor: move;
+}
+
+#context-type-other {
+    margin-top: 8px;
+}
+
+div#gc-button {
+    text-align: right;
+}
+
+textarea#context-comment {
+    width: 100%;
+    height: 5em;
+}
+
+div.context-footer {
+    padding: 0px 20px 10px 0px;
+    margin: auto;
+    text-align: right;
 }

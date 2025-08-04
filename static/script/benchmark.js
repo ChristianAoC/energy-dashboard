@@ -78,8 +78,8 @@ function redrawGraph() {
     // add x-axis title
     if (document.getElementById("toggleGraph").checked) {
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
-            " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) + " for " +
-            //" [" + unitsEUIPlain[activeTab] + "], scaled up to annual based on " +
+            " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) +
+            " [" + utilityUnits[activeTab] + "/m²], over " +
             dateDiff + " days (starting " +
             document.getElementById("sb-start-date").value + ")";
 
@@ -130,8 +130,8 @@ function redrawGraph() {
         pLayoutGraph["shapes"] = [];
 
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
-            " " + uncapFirst($('label[for="toggleGraph"]')[0].firstElementChild.innerHTML) + " for " +
-            //" [" + unitsConsPlain[activeTab] + "], over " +
+            " " + uncapFirst($('label[for="toggleGraph"]')[0].firstElementChild.innerHTML) +
+            " [" + utilityUnits[activeTab] + "], over " +
             dateDiff + " days (starting " +
             document.getElementById("sb-start-date").value + ")";
     }
@@ -145,52 +145,63 @@ function redrawGraph() {
         if (data.points[0].customdata != null && data.points[0].customdata != "") {
             contextMeterClicked = data.points[0].customdata.split(";")[0];
             if (!commentMode) {
-                //viewEnergyData(contextMeterClicked.slice(0, 5));
-                window.location.href = "browser?ref=map&meter_id="+contextMeterClicked.slice(0, 5);
+                window.location.href = "browser?ref=benchmark&meter_id="+contextMeterClicked;
             }
         }
     });
 
-    /* TBD context
-    const meters = [];
-    for (const [buildingId, buildingData] of Object.entries(browserData.hierarchy)) {
-        for (const utility of utilityTypes) {
-            if (buildingData[utility]) {
-                meters.push(...buildingData[utility]);
-            }
-        }
-    }
+    // Get date strings (in ISO format or compatible with your backend)
+    const startDate = document.getElementById("sb-start-date").value + " 00:00";
+    const endDate = document.getElementById("sb-end-date").value + " 23:59";
 
-    let uri = "getcontext?meter="+meters+"&start="+getCurPageStartDate()+"&end="+getCurPageEndDate();
-    fetch(uri, {method: 'GET'})
-    .then(response => response.json())
-    .then(data => {
-        // '⚠️' data error
-        // 'ℹ️' or '&#128161;' one-off/recurring
-        // more: https://html-css-js.com/html/character-codes/icons/
-        let annotations = [];
-        for (e of data["context"]) {
-            for (d in pData.customdata) {
-                if (e.meter == pData.customdata[d]) {
+    // Collect all meters from the loaded summary
+    let meters = getMeterListFromSummary(browserData.summary);
+
+    const annotations = [];
+
+    if (browserData.context) {
+        const start = new Date(startDate);
+        const end = new Date(endDate);
+
+        for (const e of browserData.context) {
+            if (!meters.includes(e.meter)) continue;
+
+            // Handle optional start/end
+            const ctxStart = e.startnone ? null : new Date(e.start);
+            const ctxEnd = e.endnone ? null : new Date(e.end);
+
+            // Determine if there's any overlap
+            const overlaps =
+                (!ctxStart || ctxStart <= end) &&
+                (!ctxEnd || ctxEnd >= start);
+
+            if (!overlaps) continue;
+
+            for (let d in pData.customdata) {
+                if (e.meter === pData.customdata[d]) {
+                    let hover = "<b>Context:</b><br>" + e.comment + ",<br><br>";
+
+                    if (!e.startnone) hover += "  Start: " + e.start + "<br>";
+                    else hover += "  (no start date)<br>";
+                    if (!e.endnone) hover += "  End: " + e.end + "<br>";
+                    else hover += "  (no end date)<br>";
+
+                    hover += "    (Added by: " + e.author + ")";
+
                     annotations.push({
                         x: pData.x[d],
                         y: pData.y[d],
                         showarrow: false,
                         text: '&#128161;',
-                        hovertext:
-                            "<b>Context:</b><br>" +
-                            e.comment + ",<br><br>" +
-                            "  Start: " + (e.startfuzzy ? "ca. " : "") + e.start + "<br>" +
-                            "  End: " + (e.endfuzzy ? "ca. " : "") + e.end + "<br>" +
-                            "    (Added by: " + e.author + ")"
-                    })
+                        hovertext: hover
+                    });
                 }
             }
         }
-        Plotly.relayout("comparison-plot", { annotations });
-    })
-    */
-};
+    }
+
+    Plotly.relayout("comparison-plot", { annotations });
+}
 
 function toggleGraph() {
     redrawGraph();
@@ -241,8 +252,8 @@ function utilityClick(source) {
     activeTab = source.id.toLowerCase();
 
     // Update unit labels if needed
-    // document.getElementById("span-intensity").innerHTML = "[" + unitsEUI[activeTab] + "]";
-    // document.getElementById("span-consumption").innerHTML = "[" + unitsCons[activeTab] + "]";
+    document.getElementById("span-intensity").innerHTML = "[" + utilityUnits[activeTab] + "/m²]";
+    document.getElementById("span-consumption").innerHTML = "[" + utilityUnits[activeTab] + "]";
 
     getGraphSliderRanges();
     filterGraph();
@@ -293,19 +304,23 @@ async function getNewSummary() {
     const startDate = document.getElementById("sb-start-date").value;
     const endDate = document.getElementById("sb-end-date").value;
 
-    const params = {
-        summary: {
-            from_time: startDate,
-            to_time: endDate
-        }
-    };
-
     try {
-        const result = await getData(params, true); // forceReload = true to bypass cache
-        if (result.summary) {
-            browserData.filteredSummary = result.summary;
-            browserData.Summary = [...result.summary];  // optional deep copy
+        const { summary, allContext } = await getData({
+            summary: {
+                from_time: startDate,
+                to_time: endDate
+            },
+            allContext: {}
+        });
+
+        if (summary) {
+            if (allContext) browserData.context = allContext;
+            else browserData.context = [];
+            browserData.summary = summary;
+            browserData.filteredSummary = Object.values(summary);
             getGraphSliderRanges();
+            document.getElementById("span-total").innerHTML = Object.keys(browserData.summary).length;
+            redrawGraph();
         } else {
             console.warn("No summary data returned");
         }
@@ -319,7 +334,8 @@ async function getNewSummary() {
 }
 
 $(document).ready(async function () {
-    commentParent = "view-graph";
+
+    commentParent = "view-benchmark";
 
     document.getElementById("comment-bubble").classList.remove("hidden");
 
@@ -334,20 +350,5 @@ $(document).ready(async function () {
     document.getElementById("fromSlider3").addEventListener("input", filterGraph);
     document.getElementById("toSlider3").addEventListener("input", filterGraph);
 
-    try {
-        const { summary } = await getData({
-            summary: {}
-        });
-
-        browserData.summary = summary;
-        browserData.filteredSummary = Object.values(browserData.summary);
-
-        if (browserData.summary) {
-            document.getElementById("span-total").innerHTML = Object.keys(browserData.summary).length;
-            redrawGraph();
-            getGraphSliderRanges();
-        }
-    } catch (err) {
-        console.error("Failed to load data", err);
-    }
+    getNewSummary();
 });

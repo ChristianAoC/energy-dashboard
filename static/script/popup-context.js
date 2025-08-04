@@ -38,38 +38,14 @@ function closeContextDialog() {
     document.getElementById("context-container").classList.add("hidden");
 }
 
-// filters the DD list based on the current view and adds it to the UI.
+// filters the DD list
 function populateDD() {
     var curDD = [];
 
-    if (commentParent == "view-map" || commentParent == "view-list" || commentParent == "view-graph") {
-        let meterIDs = [];
-        if (commentParent == "view-graph") {
-            for (m of narrowML) {
-                meterIDs.push(...m[activeTab]["meter_uuid"]);
-            }
-        } else {
-            for (m of masterList) {
-                for (t of ["electricity", "gas", "heat", "water"]) {
-                    meterIDs.push(...m[t]["meter_uuid"]);
-                }
-            }
-        }
+    if (commentParent == "view-benchmark" && browserData.summary) {
+        let meterIDs = getMeterListFromSummary(browserData.summary);
         for (m of fullDD) {
             if (meterIDs.includes(m.id)) {
-                curDD.push(m);
-            }
-        }
-    } else if (commentParent == "building-data") {
-        for (m of fullDD) {
-            if ([...document.getElementsByClassName("b-input-radio")].map(o => o.value).includes(m.id)) {
-                curDD.push(m);
-            }
-        }
-    } else if (commentParent == "browser") {
-        for (m of fullDD) {
-            // this isn't working anymore, find other way to hand over meter name
-            if (document.getElementById('button-generic').dataset.meter) {
                 curDD.push(m);
             }
         }
@@ -107,22 +83,16 @@ function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
-        document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
         document.getElementById("none-to").checked = true;
         document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
-        document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
         }
 
     populateDD();
     document.getElementById("context-container").classList.remove("hidden");
 
-    document.getElementById("fuzzy-from").checked = false;
-    document.getElementById("fuzzy-to").checked = false;
     document.getElementById("context-type-oneoff").checked = true;
     document.getElementById("context-other-text").value = "";
     document.getElementById("context-comment").value = "";
-    document.getElementById("recurring-number").value = 1;
-    document.getElementById("context-recurring-weeks").checked = true;
 
     var ddElem = document.getElementById("contextDD");
 
@@ -144,34 +114,23 @@ function clickCheck(e) {
 
     var clickedMeter = "";
 
-    // add meter pre-set
-    if ((commentParent == "deviceTable") || (commentParent == "healthcheckTable")) {
-        clickedMeter = e.target.closest("tr").getAttribute("data-meter");
-
-    } else if (commentParent == "view-map") {
+    // TODO: this needs to have a functionality to allow to add to multiple meters (all of one building...)
+    if (commentParent == "view-map") {
         if (clickedOn != "") {
             clickedMeter = clickedOn;
         }
 
-    } else if (commentParent == "view-list") {
-        var currentDDArray = [...document.getElementById("contextDD").options].map(o => o.value);
-        if (currentDDArray.includes(e.target.innerHTML)) {
-            clickedMeter = e.target.innerHTML;
-        } else {
-            clickedMeter = e.target.closest("tr").getAttribute("data-meter");
-        }
-
-    } else if (commentParent == "view-graph") {
+    } else if (commentParent == "view-benchmark") {
         if (contextMeterClicked != "") {
             clickedMeter = contextMeterClicked;
             contextMeterClicked = "";
         }
 
-    } else if (commentParent == "building-data") {
-        clickedMeter = document.querySelector('input[name="meter"]:checked').value;
+    } else if (commentParent == "view-browser") {
+        clickedMeter = document.getElementById('select-meter').value;
 
-    } else if (commentParent == "browser") {
-        clickedMeter = document.getElementById('button-generic').dataset.meter;
+    } else if (commentParent == "healthcheckTable") {
+        clickedMeter = e.target.closest("tr").getAttribute("data-meter");
     }
 
     var fromContext = getCurPageStartDate();
@@ -179,26 +138,6 @@ function clickCheck(e) {
 
     createContextDialog(clickedMeter, fromContext, toContext)
     leaveCommentMode();
-};
-
-function getCurPageStartDate() {
-    if (["view-map", "view-list", "view-graph", "browser"].includes(commentParent)) {
-    } else {
-        let setDate = new Date(Date.now());
-        setDate.setDate(setDate.getDate()-7);
-        return setDate.toISOString().slice(0, 10)+" 00:00";
-    }
-};
-
-function getCurPageEndDate() {
-    if (["view-map", "view-list", "view-graph"].includes(commentParent)) {
-        return document.getElementById("sb-end-date").value+" 23:50";
-    } else if (["building-data", "browser"].includes(commentParent)) {
-        return document.getElementById("b-end-date").value+" 23:50";
-    } else {
-        let setDate = new Date(Date.now());
-        return setDate.toISOString().slice(0, 10)+" 23:50";
-    }
 };
 
 function htmlEscape(text) {
@@ -238,21 +177,16 @@ function saveContext() {
         "meter": document.getElementById("contextDD").value,
         "startnone": document.getElementById("none-from").checked,
         "start": document.getElementById("con-start-date").value,
-        "startfuzzy": document.getElementById("fuzzy-from").checked,
         "endnone": document.getElementById("none-to").checked,
         "end": document.getElementById("con-end-date").value,
-        "endfuzzy": document.getElementById("fuzzy-to").checked,
         "type": submitType,
         "comment": htmlEscape(document.getElementById("context-comment").value)
-    }
-    if (submitType == "Recurring") {
-        toSubmit["recurring-number"] = document.getElementById("recurring-number").value;
-        toSubmit["recurring-time"] = document.querySelector('input[name="context-recurring"]:checked').value;
     }
 
     var action = document.getElementById("context-button").getAttribute("action");
     toSubmit["id"] = document.getElementById("context-button").getAttribute("context-id");
 
+    // this dialog is used to call either savecontext or editcontext endpoint
     fetch(action+"context", {
         "method": "POST",
         "headers": {"Content-Type": "application/json"},
@@ -292,17 +226,13 @@ $(document).ready(async function () {
     }
 
     document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
-    document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
     $('input#none-from').change(function(){
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
-        document.getElementById("fuzzy-from").disabled = $('input#none-from').is(':checked');
     });
 
     document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
-    document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
     $('input#none-to').change(function(){
         document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
-        document.getElementById("fuzzy-to").disabled = $('input#none-to').is(':checked');
     });
 
     document.getElementById("context-other-text").disabled = !$('#context-type-other').is(':checked');
@@ -312,18 +242,6 @@ $(document).ready(async function () {
     });
     $('input[type=radio]').not('#context-type-other').change(function(){
         document.getElementById("context-other-text").disabled = true;
-    });
-
-    document.getElementById("recurring-number").disabled = !$('#context-type-recurring').is(':checked');
-    setRadioButtons("context-recurring", !$('#context-type-recurring').is(':checked'));
-
-    $('input#context-type-recurring').change(function(){
-        document.getElementById("recurring-number").disabled = !$('#context-type-recurring').is(':checked');
-        setRadioButtons("context-recurring", !$('#context-type-recurring').is(':checked'));
-    });
-    $('input[type=radio]').not('#context-type-recurring').change(function(){
-        document.getElementById("recurring-number").disabled = !$('#context-type-recurring').is(':checked');
-        setRadioButtons("context-recurring", !$('#context-type-recurring').is(':checked'));
     });
 
     // https://xdsoft.net/jqplugins/datetimepicker/
