@@ -420,25 +420,46 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
 
             if meter_type not in units.keys():
                 continue
-
-            x = query_time_series(m, from_time, to_time, agg="raw", to_rate=True)
-            # No data available
-            if len(x['obs']) == 0:
-                continue
-
-            df = pd.DataFrame.from_dict(x['obs'])
-            df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
-            df.set_index('time', inplace=True)
-            df = df.resample(agg, origin='end').sum()
-            df.reset_index(inplace=True)
-            df['time'] = df['time'].dt.strftime('%Y-%m-%dT%H:%M:%S%z')
-            x['obs'] = json.loads(df.to_json(orient='records'))
-
-            if len(x['obs']) == 0:
-                continue
-
-            usage = x['obs'][0]['value']
-
+            
+            # Calculate usage
+            usage = None
+            
+            # This is faster than the normal calculation
+            if m.reading_type == "cumulative":
+                x = query_time_series(m, from_time, to_time, agg="raw", to_rate=False)
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
+                
+                df = pd.DataFrame.from_dict(x['obs'])
+                df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+                df.set_index('time', inplace=True)
+                lower_index = df.first_valid_index()
+                upper_index = df.last_valid_index()
+                if lower_index is None or upper_index is None or lower_index == upper_index:
+                    usage = None
+                else:
+                    lower_value = df['value'][lower_index]
+                    upper_value = df['value'][upper_index]
+                    
+                    if lower_value > upper_value:
+                        usage = None
+                    else:
+                        usage = upper_value - lower_value
+            
+            # This is the original calculation, it is slower but is more likely to get a usage value
+            if m.reading_type == "rate" or usage is None:
+                x = query_time_series(m, from_time, to_time, agg="raw", to_rate=True)
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
+                
+                df = pd.DataFrame.from_dict(x['obs'])
+                df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+                df.set_index('time', inplace=True)
+                df = df.resample(agg, origin='end').sum()
+                usage = x['obs'][0]['value']
+            
             if usage is None:
                 usage = 0
 
