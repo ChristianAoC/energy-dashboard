@@ -167,9 +167,9 @@ def hc_meta():
 def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time)
-
-    valid_cache = True
+    from_time, to_time, days = calculate_time_args(from_time, to_time, 365)
+    
+    valid_cache = set(request.args).isdisjoint({"from_time", "to_time"})
     
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -197,7 +197,7 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
-        data = generate_summary(from_time, to_time, cache_result)
+        data = generate_summary(from_time, to_time, days, cache_result)
     return make_response(jsonify(data), 200)
 
 ## time series of data for a given meter
