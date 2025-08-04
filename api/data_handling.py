@@ -59,7 +59,6 @@ def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=False):
     # set some constants
-    # TODO: Why was 10 years chosen here?
     max_time_interval = dt.timedelta(days=3650)
 
     # convert to UTC for influx
@@ -444,10 +443,10 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
                 usage = 0
 
             # handle unit changes
-            if x['unit'] != units[meter_type]:
-                if meter_type == "heat" and x['unit'] == "kWh":
+            if m.units != units[meter_type]:
+                if meter_type == "heat" and m.units == "kWh":
                     usage *= 1e-3  # to MWh
-                elif meter_type == "heat" and x['unit'] == "kW":
+                elif meter_type == "heat" and m.units == "kW":
                     # presume 10 minute data, round to nearest kWh
                     usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
                 else:
