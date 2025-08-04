@@ -136,7 +136,6 @@ def query_pandas(m: models.Meter, from_time, to_time):
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=False):
     # set some constants
-    # TODO: Why was 10 years chosen here?
     max_time_interval = dt.timedelta(days=3650)
 
     # convert to UTC for influx
