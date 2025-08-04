@@ -24,7 +24,7 @@ if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass i
     InfluxPass = None
     offlineMode = True
 
-DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), '..', 'data'))
+DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
 
 hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
 
