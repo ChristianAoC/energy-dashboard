@@ -140,7 +140,7 @@ function getMeterListFromSummary(summary, buildingFilter = null) {
             const ms = building[utility];
             if (ms) {
                 for (const meterName in ms) {
-                    meters.push(meterName);
+                    meters.push([meterName, buildingKey]);
                 }
             }
         });

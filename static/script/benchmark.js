@@ -20,9 +20,9 @@ var pLayoutGraph = {
         }
     };
 
-function convertMLToPlotly(barType) {
+function convertToPlotly(barType) {
     const toPlot = document.getElementById("toggleGraph").checked ? metaLabel["EUI"] : metaLabel["consumption"];
-    const dataToPlot = browserData.filteredSummary || [];
+    const dataToPlot = Object.values(browserData.filteredSummary || {});
 
     let x = [];
     let y = [];
@@ -73,7 +73,7 @@ function convertMLToPlotly(barType) {
 function redrawGraph() {
     let dateDiff = new Date(document.getElementById("sb-end-date").value) - new Date(document.getElementById("sb-start-date").value);
     dateDiff = dateDiff / (24*3600*1000);
-    var pData = convertMLToPlotly("bar");
+    var pData = convertToPlotly("bar");
 
     // add x-axis title
     if (document.getElementById("toggleGraph").checked) {
@@ -211,8 +211,14 @@ function filterGraph() {
     const occType = metaLabel["occupancy_type"];
     const nameKey = metaLabel["building_name"];
     const areaKey = metaLabel["floor_area"];
+    const unmute = document.getElementById("unmute").checked;
 
-    let filtered = Object.values(browserData.summary);
+    let filtered = Object.entries(browserData.summary).map(([buildingId, data]) => {
+        return {
+            buildingId,
+            ...data
+        };
+    });
 
     const searchInput = document.getElementById("building-search").value.toLowerCase();
     if (searchInput.length > 0) {
@@ -236,7 +242,80 @@ function filterGraph() {
         return !isNaN(area) && area >= min && area <= max;
     });
 
-    browserData.filteredSummary = filtered;
+    const minConsumption = parseFloat(document.getElementById("fromInput3").value) || 0;
+    const maxConsumption = parseFloat(document.getElementById("toInput3").value) || Infinity;
+
+    filtered = filtered.filter(building => {
+        const utilityData = building[activeTab];
+        if (!utilityData) return false;
+
+        const total = Object.values(utilityData).reduce((sum, meter) => {
+            return sum + (meter.consumption || 0);
+        }, 0);
+
+        return total >= minConsumption && total <= maxConsumption;
+    });
+
+    if (!unmute) {
+        const userEmail = getCookie("Email");
+        let mutedCount = 0;
+
+        filtered = filtered.filter(building => {
+            const buildingId = building.buildingId;
+
+            const isBuildingMuted = browserData.context?.some(entry =>
+                entry.target_type === "Building" &&
+                entry.target_id === buildingId &&
+                (
+                    entry.type === "Global-mute" ||
+                    (entry.type === "User-mute" && entry.author === userEmail)
+                )
+            );
+
+            if (isBuildingMuted) {
+                mutedCount++;
+                return false;
+            }
+
+            const meterIds = utilityTypes.flatMap(type => Object.keys(building[type] || {}));
+
+            const isAnyMeterMuted = meterIds.some(meterId =>
+                browserData.context?.some(entry =>
+                    entry.target_type === "Meter" &&
+                    entry.target_id === meterId &&
+                    (
+                        entry.type === "Global-mute" ||
+                        (entry.type === "User-mute" && entry.author === userEmail)
+                    )
+                )
+            );
+
+            if (isAnyMeterMuted) {
+                mutedCount++;
+                return false;
+            }
+
+            return true;
+        });
+
+        // Show/hide muted-div and update muted count
+        const mutedDiv = document.getElementById("muted-div");
+        const mutedSpan = document.getElementById("span-mutedCount");
+        if (mutedDiv) mutedDiv.style.display = mutedCount > 0 ? "block" : "none";
+        if (mutedSpan) mutedSpan.textContent = mutedCount;
+    } else {
+        // If unmuting is on, still check if there *are* any muted to show the checkbox
+        const userEmail = getCookie("Email");
+        const hasMuted = browserData.context?.some(entry =>
+            (entry.type === "User-mute" && entry.author === userEmail) ||
+            entry.type === "Global-mute"
+        );
+        const mutedDiv = document.getElementById("muted-div");
+        if (mutedDiv) mutedDiv.style.display = hasMuted ? "block" : "none";
+    }
+
+    // Restore to object keyed by building ID
+    browserData.filteredSummary = Object.fromEntries(filtered.map(b => [b.buildingId, b]));
 
     document.getElementById("span-total").innerHTML = filtered.length;
     redrawGraph();
@@ -255,12 +334,12 @@ function utilityClick(source) {
     document.getElementById("span-intensity").innerHTML = "[" + utilityUnits[activeTab] + "/m²]";
     document.getElementById("span-consumption").innerHTML = "[" + utilityUnits[activeTab] + "]";
 
-    getGraphSliderRanges();
+    setGraphSliderRanges();
     filterGraph();
     redrawGraph();
 }
 
-function getGraphSliderRanges() {
+function setGraphSliderRanges() {
     const summaryArray = Object.values(browserData.summary);
 
     // Range 1: floor area
@@ -318,8 +397,8 @@ async function getNewSummary() {
             else browserData.context = [];
             browserData.summary = summary;
             browserData.filteredSummary = Object.values(summary);
-            getGraphSliderRanges();
-            document.getElementById("span-total").innerHTML = Object.keys(browserData.summary).length;
+            setGraphSliderRanges();
+            filterGraph();
             redrawGraph();
         } else {
             console.warn("No summary data returned");
@@ -349,6 +428,7 @@ $(document).ready(async function () {
     document.getElementById("toSlider2").addEventListener("input", filterGraph);
     document.getElementById("fromSlider3").addEventListener("input", filterGraph);
     document.getElementById("toSlider3").addEventListener("input", filterGraph);
+    document.getElementById("unmute").addEventListener("change", filterGraph);
 
     getNewSummary();
 });

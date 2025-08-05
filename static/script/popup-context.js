@@ -44,8 +44,8 @@ function populateDD() {
 
     if (commentParent == "view-benchmark" && browserData.summary) {
         let meterIDs = getMeterListFromSummary(browserData.summary);
-        for (m of fullDD) {
-            if (meterIDs.includes(m.id)) {
+        for (let m of fullDD) {
+            if (meterIDs.some(idPair => idPair[0] === m.id)) {
                 curDD.push(m);
             }
         }
