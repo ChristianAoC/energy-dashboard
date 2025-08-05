@@ -279,4 +279,19 @@ $(document).ready(async function () {
             handle: "#context-header"
         });
     });
+
+    const ddElem = document.getElementById("contextDD");
+    const curBuilding = document.getElementById("current-context-building");
+
+    ddElem.addEventListener("change", () => {
+        const clickedMeter = ddElem.value;
+
+        if (!clickedMeter || clickedMeter === "select") {
+            curBuilding.textContent = "(No building selected)";
+        } else {
+            const meter = browserData.meters.find(m => m[metaLabel["meter_id"]] === clickedMeter);
+            const buildingId = meter?.[metaLabel["building_id"]] || "(Unknown building)";
+            curBuilding.textContent = buildingId;
+        }
+    });
 });
