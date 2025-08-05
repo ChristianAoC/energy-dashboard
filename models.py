@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from database import db
 from sqlalchemy import CheckConstraint
 from api.helpers import data_cleaner
@@ -340,24 +342,36 @@ class UtilityData(db.Model):
 class User(db.Model):
     # 254 characters is the maximum characters an email can contain (RFC 5321, Section 4.5.3.1)
     email = db.Column(db.String(254), primary_key=True)
-    level = db.Column(db.Integer)
-    logincount = db.Column(db.Integer)
-    lastlogin = db.Column(db.Float)
+    level = db.Column(db.Integer, nullable=False)
+    login_count = db.Column(db.Integer, nullable=False)
+    last_login = db.Column(db.DateTime)
     
     sessions = db.relationship("Sessions", back_populates="user")
+    login_codes = db.relationship("LoginCode", back_populates="user")
     
-    def __init__(self, email: str, level: int, logincount: int, lastlogin: dict):
+    def __init__(self, email: str, level: int, last_login: datetime|None, login_count: int|None = None):
+        if len(email.split('@')) < 2:
+            raise ValueError("Invalid Email Address")
         self.email = email
-        self.level = level
-        self.logincount = logincount
-        self.lastlogin = lastlogin
+        
+        self.update(level=level, last_login=last_login, login_count=login_count)
+    
+    def update(self, level: int|None = None, last_login: datetime|None = None, login_count: int|None = None):
+        if level is not None:
+            self.level = level
+        
+        if last_login is not None:
+            self.last_login = last_login
+        
+        if login_count is not None:
+            self.login_count = login_count
     
     def to_dict(self) -> dict:
         return {
             "email": self.email,
             "level": self.level,
-            "logincount": self.logincount,
-            "lastlogin": self.lastlogin,
+            "logincount": self.login_count,
+            "lastlogin": self.last_login.timestamp(),
             "sessions": [session.to_dict() for session in self.sessions]
         }
     
@@ -367,11 +381,11 @@ class User(db.Model):
 class Sessions(db.Model):
     id = db.Column(db.String, primary_key=True)
     email = db.Column(db.String(254), db.ForeignKey("user.email"), primary_key=True)
-    last_seen = db.Column(db.Float)
+    last_seen = db.Column(db.DateTime, nullable=False)
     
     user = db.relationship(User, back_populates="sessions")
 
-    def __init__(self, session_id: str, email: str, last_seen: float):
+    def __init__(self, session_id: str, email: str, last_seen: datetime):
         self.id = session_id
         self.email = email
         self.last_seen = last_seen
