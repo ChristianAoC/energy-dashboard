@@ -79,27 +79,47 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
-function createContextDialog(clickedMeter, from, to) {
+async function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
         document.getElementById("none-to").checked = true;
         document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+    }
+
+    const userEmail = getCookie("Email");
+    const sessionID = getCookie("SessionID");
+
+    const userLevelData = await getData({
+        userLevel: {
+            email: userEmail,
+            SessionID: sessionID
         }
+    });
+
+    const userLevel = parseInt(userLevelData.userLevel);
+
+    if (userLevel >= 4) {
+        document.getElementById("mute-global-row").style.display = "block";
+    }
 
     populateDD();
     document.getElementById("context-container").classList.remove("hidden");
 
-    document.getElementById("context-type-oneoff").checked = true;
+    document.getElementById("context-type-comment").checked = true;
     document.getElementById("context-other-text").value = "";
     document.getElementById("context-comment").value = "";
 
     var ddElem = document.getElementById("contextDD");
+    var curBuilding = document.getElementById("current-context-building");
 
     if (clickedMeter == "" || clickedMeter == null) {
         ddElem.value = "select";
+        curBuilding.innerHTML = "(No building selected)";
     } else {
         ddElem.value = clickedMeter;
+        // TODO respond with building name instead of building id
+        curBuilding.innerHTML = browserData.meters.find(m => m[metaLabel["meter_id"]] == clickedMeter)[metaLabel["building_id"]];
     }
 
     document.getElementById("con-start-date").value = from;
@@ -136,7 +156,7 @@ function clickCheck(e) {
     var fromContext = getCurPageStartDate();
     var toContext = getCurPageEndDate();
 
-    createContextDialog(clickedMeter, fromContext, toContext)
+    createContextDialog(clickedMeter, fromContext, toContext);
     leaveCommentMode();
 };
 

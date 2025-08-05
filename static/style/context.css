@@ -20,6 +20,7 @@ div.context-container {
     border: 1px solid black;
     box-shadow: 10px 10px 10px grey;
     min-width: 500px;
+    max-width: 650px;
 }
 
 div#context-content {
@@ -29,11 +30,25 @@ div#context-content {
     grid-template-columns: min-content auto 3.5em auto;
     grid-template-areas:
         "gc-meters-label gc-meters gc-meters gc-meters"
+        ". gc-context-building gc-context-building gc-context-building"
         "gc-datefrom-label gc-datefrom gc-dateto-label gc-dateto"
         ". gc-datefrom-none . gc-dateto-none"
-        "gc-typeradios-label gc-typeradios . ."
+        "gc-typeradios-label gc-typeradios gc-typeradios gc-typeradios"
         "gc-comment-label gc-comment gc-comment gc-comment"
         ". . . gc-button";
+}
+
+select#contextDD {
+    width: 100%;
+    max-width: 100%;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+    overflow: hidden;
+}
+
+#context-type-mute-global,
+label[for="context-type-mute-global"] {
+    display: none;
 }
 
 /* Tooltip for comment icon (on hover) */

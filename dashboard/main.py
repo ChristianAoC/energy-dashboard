@@ -98,13 +98,13 @@ def verifyLogin():
     
     return setCookies(email, result[1])
 
-@dashboard_bp.route("/get_user_level", methods=['POST'])
+@dashboard_bp.route("/get_user_level", methods=['GET', 'POST'])
 def getUserLevel():
     sessionID = request.args.get('SessionID')
     email = request.args.get('email')
     if email == None or email == "" or sessionID == None or sessionID == "":
-        return "Couldn't get user level or session"
-    return make_response(user.get_user_level(email, sessionID))
+        return make_response("Couldn't get user level or session", 400)
+    return make_response(str(user.get_user_level(email, sessionID)), 200)
 
 @dashboard_bp.route("/admin/set_user_level", methods=['POST'])
 @required_user_level("USER_LEVEL_ADMIN")
@@ -170,14 +170,6 @@ def editContext():
 def deleteContext():
     contextID = request.args.get('contextID')
     return context.delete_context(contextID)
-
-@dashboard_bp.route("/getcontext", methods=['GET'])
-def getContext():
-    try:
-        context_data = context.get_context(request.args)
-        return { "context": context_data }
-    except Exception as e:
-        return { "error": str(e) }, 500
 
 @dashboard_bp.route("/allcontext", methods=['GET'])
 def allContext():

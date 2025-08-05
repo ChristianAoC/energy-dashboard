@@ -56,16 +56,6 @@ function initMap() {
         }
 
         // TODO get context
-        /*
-        let uri = "getcontext?meter=" + meters +
-                "&start=" + getCurPageStartDate() +
-                "&end=" + getCurPageEndDate();
-
-        fetch(uri, { method: 'GET' })
-            .then(response => response.json())
-            .then(data => {
-                displayContextMarkers(data["context"]);
-            });
         */
 
         highlightBuildingsList();
