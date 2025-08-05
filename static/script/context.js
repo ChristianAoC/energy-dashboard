@@ -53,7 +53,8 @@ function initContextTable() {
         columns: [
             {data: "id", visible: false},
             {data: "author", title: "Author"},
-            {data: "meter", title: "Meter"},
+            {data: "target_type", title: "Scope"},
+            {data: "target_id", title: "Meter or Building ID"},
             {data: "start", title: "Start",
                 render: function (data, type, row) {
                     if (row["startnone"] == true) {
@@ -94,7 +95,6 @@ $(document).ready(async function () {
 
         if (browserData.context) {
             initContextTable();
-            console.log(allContext)
         }
     } catch (err) {
         console.error("Failed to load data", err);

@@ -369,8 +369,6 @@ $(async function () {
         }
 
         if (cacheState === 'stale') {
-            console.log("Cache is stale, setting up retry...");
-
             const retryIntervalMs = 5000;
 
             $('#healthcheckStatus').text('Updating health check... table will reload when done.');
@@ -382,8 +380,6 @@ $(async function () {
                     const retryData = await retryResp.json();
 
                     if (retryCacheState === 'fresh') {
-                        console.log("Fresh data loaded after retry");
-
                         // Re-fetch meta and context too
                         const { hcMeta: updatedMeta, allContext: updatedContext } = await getData({
                             hcMeta: {},

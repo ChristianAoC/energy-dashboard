@@ -79,6 +79,32 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
+function updateBuildingSpan() {
+    const ddElem = document.getElementById("contextDD");
+    const curBuilding = document.getElementById("current-context-building");
+    const clickedMeter = ddElem.value;
+
+    if (!clickedMeter || clickedMeter === "select") {
+        curBuilding.textContent = "(No building selected)";
+        curBuilding.removeAttribute("data-building-id");
+    } else {
+        const meterObj = browserData.meters.find(m => m[metaLabel["meter_id"]] === clickedMeter);
+
+        if (!meterObj) {
+            curBuilding.textContent = "(Unknown building)";
+            curBuilding.removeAttribute("data-building-id");
+            return;
+        }
+
+        const buildingId = meterObj[metaLabel["building_id"]];
+        
+        // TODO change this to building name once backend provides it
+        curBuilding.textContent = buildingId;
+        
+        curBuilding.setAttribute("data-building-id", buildingId);
+    }
+}
+
 async function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
@@ -118,8 +144,7 @@ async function createContextDialog(clickedMeter, from, to) {
         curBuilding.innerHTML = "(No building selected)";
     } else {
         ddElem.value = clickedMeter;
-        // TODO respond with building name instead of building id
-        curBuilding.innerHTML = browserData.meters.find(m => m[metaLabel["meter_id"]] == clickedMeter)[metaLabel["building_id"]];
+        updateBuildingSpan();
     }
 
     document.getElementById("con-start-date").value = from;
@@ -200,10 +225,10 @@ function saveContext() {
     let targetType, targetId;
 
     if (applyToBuilding) {
-        targetType = "building";
+        targetType = "Building";
         targetId = document.getElementById("current-context-building").textContent.trim();
     } else {
-        targetType = "meter";
+        targetType = "Meter";
         targetId = selectedMeter;
     }
 
@@ -296,18 +321,5 @@ $(document).ready(async function () {
         });
     });
 
-    const ddElem = document.getElementById("contextDD");
-    const curBuilding = document.getElementById("current-context-building");
-
-    ddElem.addEventListener("change", () => {
-        const clickedMeter = ddElem.value;
-
-        if (!clickedMeter || clickedMeter === "select") {
-            curBuilding.textContent = "(No building selected)";
-        } else {
-            const meter = browserData.meters.find(m => m[metaLabel["meter_id"]] === clickedMeter);
-            const buildingId = meter?.[metaLabel["building_id"]] || "(Unknown building)";
-            curBuilding.textContent = buildingId;
-        }
-    });
+    document.getElementById("contextDD").addEventListener("change", updateBuildingSpan);
 });
