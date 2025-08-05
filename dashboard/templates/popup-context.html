@@ -5,8 +5,8 @@
     </div>
 
     <div id="context-content">
+        <!-- row 1: meter select -->
         <div id="gc-meters-label" class="gc-grid-element">
-            <!--<label for="context-meters">Meter:</label>-->
             Meter:
         </div>
         <div id="gc-meters" class="gc-grid-element">
@@ -14,19 +14,19 @@
                 <select name="context-meters" id="contextDD"></select>
             </form>
         </div>
+
+        <!-- row 2: entire building check box -->
+        <div id="gc-context-building" class="gc-grid-element">
+            <input type="checkbox" id="context-building" value="context-building" name="context-building" />
+            <label for="context-building">Apply to entire building: <span id="current-context-building"></span></label>
+        </div>
+
+        <!-- row 3: date inputs -->
         <div id="gc-datefrom-label" class="gc-grid-element">
             <label for="con-start-date">Start:</label>
         </div>
-        <div id="gc-datefrom-none" class="gc-grid-element">
-            <input type="checkbox" id="none-from" value="none-from" name="none-from" />
-            <label for="none-from">No/unknown start date</label>
-        </div>
         <div id="gc-dateto-label" class="gc-grid-element">
             <label for="con-end-date">End:</label>
-        </div>
-        <div id="gc-dateto-none" class="gc-grid-element">
-            <input type="checkbox" id="none-to" value="none-to" name="none-to" />
-            <label for="none-to">No/unknown end date</label>
         </div>
         <div id="gc-datefrom" class="gc-grid-element">
             <input type="text" id="con-start-date" class="datetimepicker" />
@@ -34,17 +34,33 @@
         <div id="gc-dateto" class="gc-grid-element">
             <input type="text" id="con-end-date" class="datetimepicker" />
         </div>
+
+        <!-- row 4: no/unknown start/end date -->
+        <div id="gc-datefrom-none" class="gc-grid-element">
+            <input type="checkbox" id="none-from" value="none-from" name="none-from" />
+            <label for="none-from">No/unknown start date</label>
+        </div>
+        <div id="gc-dateto-none" class="gc-grid-element">
+            <input type="checkbox" id="none-to" value="none-to" name="none-to" />
+            <label for="none-to">No/unknown end date</label>
+        </div>
+
+        <!-- row 5: comment type radio buttons -->
         <div id="gc-typeradios-label" class="gc-grid-element">Type:</div>
         <div id="gc-typeradios" class="gc-grid-element">
-            <input type="radio" id="context-type-oneoff" class="context-type" name="context-type" value="One-off" />
-            <label for="context-type-oneoff">One-off event</label><br>
-            <input type="radio" id="context-type-dataerror" class="context-type" name="context-type" value="Data Error" />
-            <label for="context-type-dataerror">Data error</label><br>
-            <input type="radio" id="context-type-sitefeedback" class="context-type" name="context-type" value="Site feedback" />
-            <label for="context-type-sitefeedback">Site feedback</label><br>
+            <input type="radio" id="context-type-comment" class="context-type" name="context-type" value="Comment" />
+            <label for="context-type-comment">Data comment</label><br>
+            <input type="radio" id="context-type-user-mute" class="context-type" name="context-type" value="User-mute" />
+            <label for="context-type-user-mute">Mute (hide this meter from comparison views for you)</label><br>
+            <div id="mute-global-row" style="display: none;">
+                <input type="radio" id="context-type-global-mute" class="context-type" name="context-type" value="Global-mute" />
+                <label for="context-type-global-mute">Global mute (hide this meter for all users - only admins can set this)</label><br>
+            </div>
             <input type="radio" id="context-type-other" class="context-type" name="context-type" value="Other" />
             <input type="text" for="context-type-other" id="context-other-text" name="context-other-text" maxlength="64" />
         </div>
+
+        <!-- row 6: text input -->
         <div id="gc-comment-label" class="gc-grid-element">
             Text:
         </div>

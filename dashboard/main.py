@@ -98,13 +98,13 @@ def verifyLogin():
     
     return setCookies(email, result[1])
 
-@dashboard_bp.route("/get_user_level", methods=['POST'])
+@dashboard_bp.route("/get_user_level", methods=['GET', 'POST'])
 def getUserLevel():
     sessionID = request.args.get('SessionID')
     email = request.args.get('email')
     if email == None or email == "" or sessionID == None or sessionID == "":
-        return "Couldn't get user level or session"
-    return make_response(user.get_user_level(email, sessionID))
+        return make_response("Couldn't get user level or session", 400)
+    return make_response(str(user.get_user_level(email, sessionID)), 200)
 
 @dashboard_bp.route("/admin/set_user_level", methods=['POST'])
 @required_user_level("USER_LEVEL_ADMIN")
@@ -159,25 +159,42 @@ def listUsers():
 @dashboard_bp.route("/addcontext", methods=['POST'])
 def addContext():
     contextElem = request.json
+    # for global mute run user level check just to be sure
+    if contextElem["type"] == "Global-mute":
+        cookies = request.cookies
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        if user.get_user_level(email, sessionID) < 4:
+            return make_response("Unauthorised", 401)
     return context.add_context(contextElem)
 
 @dashboard_bp.route("/editcontext", methods=['POST'])
 def editContext():
     contextElem = request.json
+    if not contextElem:
+        return make_response("Missing context element", 400)
+    if contextElem["type"] == "Global-mute":
+        cookies = request.cookies
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        if user.get_user_level(email, sessionID) < 4:
+            return make_response("Unauthorised", 401)
     return context.edit_context(contextElem)
 
 @dashboard_bp.route("/deletecontext", methods=['POST'])
 def deleteContext():
     contextID = request.args.get('contextID')
+    if not contextID:
+        return make_response("Missing contextID", 400)
+    cookies = request.cookies
+    email = cookies.get("Email", None)
+    sessionID = cookies.get("SessionID", None)
+    if email is None or sessionID is None:
+        return make_response("Unauthorised", 401)
+    user_level = user.get_user_level(email, sessionID)
+    if user_level < 4:
+        return make_response("Unauthorised", 401)
     return context.delete_context(contextID)
-
-@dashboard_bp.route("/getcontext", methods=['GET'])
-def getContext():
-    try:
-        context_data = context.get_context(request.args)
-        return { "context": context_data }
-    except Exception as e:
-        return { "error": str(e) }, 500
 
 @dashboard_bp.route("/allcontext", methods=['GET'])
 def allContext():
