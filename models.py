@@ -398,3 +398,18 @@ class Sessions(db.Model):
     
     def __repr__(self) -> str:
         return f"<Session {self.id} for {self.email}>"
+
+class LoginCode(db.Model):
+    email = db.Column(db.String(254), db.ForeignKey("user.email"), primary_key=True)
+    code = db.Column(db.String(6), primary_key=True)
+    timestamp = db.Column(db.DateTime, primary_key=True)
+    
+    user = db.relationship(User, back_populates="login_codes")
+    
+    def __init__(self, email: str, code: str, timestamp: datetime):
+        self.email = email
+        self.code = code
+        self.timestamp = timestamp
+    
+    def __repr__(self) -> str:
+        return f"<LoginCode {self.code} for {self.email}>"
