@@ -43,40 +43,27 @@ function initMap() {
         myMap.on('click', onMapClick);
         // Add zoom and rotation controls to the map.
         myMap.addControl(new Mazemap.mapboxgl.NavigationControl());
-        
-        /*
-        const meters = [];
 
-        for (const [buildingId, buildingData] of Object.entries(browserData.hierarchy)) {
-            for (const utility of utilityTypes) {
-                if (buildingData[utility]) {
-                    meters.push(...buildingData[utility]);
-                }
-            }
-        }
-
-        // TODO get context
-        */
-
-        highlightBuildingsList();
+        filterMap();
     });
 }
 
 $(document).ready( async function () {
     try {
-        const [hierarchyData, allBuildings] = await Promise.all([
+        const [hierarchyData, mazemapPolygons, getcontext] = await Promise.all([
             getData({ hierarchy: {} }).then(res => res.hierarchy),
-            fetch(apiEndpoints.mazemap_polygons).then(res => res.json())
+            fetch(apiEndpoints.mazemap_polygons).then(res => res.json()),
+            fetch(apiEndpoints.getcontext).then(res => res.json())
         ]);
 
         browserData.hierarchy = hierarchyData;
         browserData.filteredHierarchy = Object.values(hierarchyData);
-        browserData.allBuildings = allBuildings;
+        browserData.mazemapPolygons = mazemapPolygons;
+        browserData.context = getcontext;
 
         if (browserData.hierarchy) {
             initMap();
             getMapSliderRanges();
-            document.getElementById("span-total").innerHTML = Object.keys(browserData.hierarchy).length;
         }
     } catch (err) {
         console.error("Failed to load data", err);
@@ -92,8 +79,7 @@ $(document).ready( async function () {
     let h2 = parseInt(document.getElementById("nav-top-bar").offsetHeight) + 24;
     document.getElementById("sidebar").style.height = "calc(100vh - " + h2 + "px)";                    
 
-    // TODO this needs first fixing to allow multiple meters to be added
-    //document.getElementById("comment-bubble").classList.remove("hidden");
+    document.getElementById("comment-bubble").classList.remove("hidden");
     commentParent = "view-map";
 
     document.getElementById("building-search").addEventListener("input", filterMap);
@@ -102,7 +88,31 @@ $(document).ready( async function () {
     document.getElementById("mixed").addEventListener("click", filterMap);
     document.getElementById("fromSlider1").addEventListener("input", filterMap);
     document.getElementById("toSlider1").addEventListener("input", filterMap);
+    document.getElementById("unmute").addEventListener("change", filterMap);
 });
+
+function updateMutedCount() {
+    if (!browserData.context) return;
+    const mutedMeterIds = new Set(
+    browserData.context
+        .filter(ctx => ctx.target_type === "Meter" && ctx.type.toLowerCase().includes("mute"))
+        .map(ctx => ctx.target_id)
+    );
+
+    const mutedCount = mutedMeterIds.size;
+
+    // Update the muted meters count display
+    const spanMutedCount = document.getElementById("span-mutedCount");
+    if (spanMutedCount) {
+        spanMutedCount.textContent = mutedCount;
+    }
+
+    // Show or hide the checkbox container based on mutedCount
+    const mutedDiv = document.getElementById("muted-div");
+    if (mutedDiv) {
+        mutedDiv.style.display = mutedCount > 0 ? "block" : "none";
+    }
+}
 
 function clearContextMarkers() {
     for (let m of contextMarkers) {
@@ -111,53 +121,75 @@ function clearContextMarkers() {
     contextMarkers = [];
 }
 
-function displayContextMarkers(contextData) {
+function displayContextMarkers() {
     clearContextMarkers();
 
-    for (let e of contextData) {
-        for (let b of browserData.filteredHierarchy) {
-            for (let t of utilityTypes) {
-                if (b[t] && b[t]["meter_uuid"].includes(e.meter)) {
-                    // Found the building this meter is in
-                    const matchedBuilding = browserData.allBuildings.find(f => f.properties.id == b[varNameMLMazeMapID]);
+    for (let e of browserData.context) {
+        if (e.target_type === "Meter") {
+            for (let [buildingCode, buildingObj] of Object.entries(browserData.hierarchy)) {
+                for (let t of utilityTypes) {
+                    const meterList = buildingObj[t] || [];
+                    if (meterList.includes(e.target_id)) {
+                        const mazeMapId = buildingObj.meta.maze_map_label?.[0]; // get first MazeMap ID
+                        if (mazeMapId) {
+                            const matchedBuilding = browserData.mazemapPolygons.find(f => f.properties.id === mazeMapId);
+                            if (matchedBuilding) {
+                                placeContextMarker(matchedBuilding, e);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+
+        if (e.target_type === "Building") {
+            const buildingObj = browserData.hierarchy[e.target_id];
+            if (buildingObj) {
+                const mazeMapId = buildingObj.meta.maze_map_label?.[0];
+                if (mazeMapId) {
+                    const matchedBuilding = browserData.mazemapPolygons.find(f => f.properties.id === mazeMapId);
                     if (matchedBuilding) {
-                        const lngLat = Mazemap.Util.getPoiLngLat(matchedBuilding);
-                        
-                        const el = document.createElement('div');
-                        el.className = 'context-marker';
-                        el.innerHTML = "&#128161;";
-                        el.style.fontSize = "20px";
-                        el.style.cursor = "pointer";
-
-                        const hoverText = "<b>Context:</b><br>" +
-                            e.comment + ",<br><br>" +
-                            "  Start: " + e.start + "<br>" +
-                            "  End: " + e.end + "<br>" +
-                            "    (Added by: " + e.author + ")";
-
-                        const popup = new Mazemap.mapboxgl.Popup({
-                            closeButton: true,
-                            closeOnClick: true
-                        }).setHTML(hoverText);
-
-                        const marker = new Mazemap.mapboxgl.Marker(el)
-                            .setLngLat(lngLat)
-                            .addTo(myMap);
-
-                        el.addEventListener('mouseenter', () => {
-                            popup.setLngLat(lngLat).addTo(myMap);
-                        });
-
-                        el.addEventListener('mouseleave', () => {
-                            popup.remove();
-                        });
-                        
-                        contextMarkers.push(marker);
+                        placeContextMarker(matchedBuilding, e);
                     }
                 }
             }
         }
     }
+}
+
+function placeContextMarker(building, contextEntry) {
+    const lngLat = Mazemap.Util.getPoiLngLat(building);
+    
+    const el = document.createElement('div');
+    el.className = 'context-marker';
+    el.innerHTML = "&#128161;";
+    el.style.fontSize = "20px";
+    el.style.cursor = "pointer";
+
+    const hoverText = "<b>Context:</b><br>" +
+        contextEntry.type + (contextEntry.comment ? ": " + contextEntry.comment : "") + "<br><br>" +
+        "Start: " + contextEntry.start + "<br>" +
+        "End: " + contextEntry.end + "<br>" +
+        "(Added by: " + contextEntry.author + ")";
+
+    const popup = new Mazemap.mapboxgl.Popup({
+        closeButton: true,
+        closeOnClick: true
+    }).setHTML(hoverText);
+
+    const marker = new Mazemap.mapboxgl.Marker(el)
+        .setLngLat(lngLat)
+        .addTo(myMap);
+
+    el.addEventListener('mouseenter', () => {
+        popup.setLngLat(lngLat).addTo(myMap);
+    });
+
+    el.addEventListener('mouseleave', () => {
+        popup.remove();
+    });
+
+    contextMarkers.push(marker);
 }
 
 // Utility function for getting the first feature matching the given layer name
@@ -182,26 +214,19 @@ function onMapClick(e) {
 	let buildingId = buildingLabel ? buildingLabel.properties.id : buildingFeature.properties.id;
 
 	// Lookup building directly from polygon list
-	const building = browserData.allBuildings.find(b => b.properties.id == buildingId);
+	const building = browserData.mazemapPolygons.find(b => b.properties.id == buildingId);
 	if (!building) return;
 
 	// Optional: commentMode logic (skip or update later if meter_uuid not available)
 	if (commentMode) {
-        // TODO: need to first add the ability to add multiple meters/entire buildings at once as comment
-        /*
-		for (const b of Object.values(browserData.filteredHierarchy)) {
-			const labels = b.meta?.[metaLabel["maze_map_label"]];
-			const labelArray = Array.isArray(labels) ? labels : [labels];
-			if (labelArray.includes(buildingId)) {
-				for (const t of utilityTypes) {
-					if (b[t]?.meter_uuid?.length > 0) {
-						clickedOn = b[t].meter_uuid[0];
-						return;
-					}
-				}
-			}
-		}
-        */
+        for (const b of Object.values(browserData.filteredHierarchy)) {
+            const labels = b.meta?.[metaLabel["maze_map_label"]];
+            const labelArray = Array.isArray(labels) ? labels : [labels];
+            if (labelArray.includes(buildingId)) {
+                clickedOn = b;
+                return;
+            }
+        }
 	}
 
 	building.properties.zLevel = 0;
@@ -258,7 +283,7 @@ function buildingPopup(building, e) {
 
 	const popupEl = document.getElementById("building-popup");
 	popupEl.innerHTML = text;
-    // TODO figure out a better way, too often too low - seems good now?
+    // figure out a better way, too often too low - seems good now?
 	//popupEl.style.top = e.point.y + "px";
 	popupEl.style.left = e.point.x + "px";
 	popupEl.style.display = "inline";
@@ -272,7 +297,7 @@ window.addEventListener('keydown', function (event) {
 
 function highlightBuildingsList() {
     const selectedBuildings = [];
-    const buildingLookup = new Map(browserData.allBuildings.map(b => [b.properties.id, b]));
+    const buildingLookup = new Map(browserData.mazemapPolygons.map(b => [b.properties.id, b]));
 
     for (const buildingData of Object.values(browserData.filteredHierarchy)) {
         const labels = buildingData.meta?.maze_map_label;
@@ -341,10 +366,61 @@ function filterMap() {
         return !isNaN(val) && val >= min && val <= max;
     });
 
-    // Save filtered result
+    // Mute filter: exclude buildings with only muted meters if "unmute" is unchecked
+    const includeMuted = document.getElementById("unmute").checked;
+
+    if (!includeMuted && browserData.context) {
+        filtered = filtered.filter(building => {
+            // Check if building itself is muted
+            const buildingMuted = browserData.context.some(ctx =>
+            ctx.target_type === "Building" &&
+            ctx.target_id === building.meta.building_id &&
+            ctx.type.toLowerCase().includes("mute")
+            );
+
+            if (buildingMuted) {
+            // building muted, so exclude it
+            return false;
+            }
+
+            // Now check meters inside building
+            for (let utility of utilityTypes) {
+            if (building[utility]) {
+                for (let meterId of building[utility]) {
+                const meterMuted = browserData.context.some(ctx =>
+                    ctx.target_type === "Meter" &&
+                    ctx.target_id === meterId &&
+                    ctx.type.toLowerCase().includes("mute")
+                );
+                if (!meterMuted) {
+                    // found at least one meter NOT muted
+                    return true;
+                }
+                }
+            }
+            }
+
+            // All meters muted or no meters
+            return false;
+        });
+    }
+
     browserData.filteredHierarchy = filtered;
 
-    // Update UI
     document.getElementById("span-total").innerHTML = filtered.length;
+
+    // Filter context meters matching filtered buildings + muted filter
+    let filteredContextMeters = browserData.context.filter(meter => {
+        const isInFilteredBuildings = filtered.some(b => b.id === meter.buildingId);
+        if (!isInFilteredBuildings) return false;
+
+        if (!document.getElementById("unmute").checked && meter.muted === true) {
+            return false;
+        }
+        return true;
+    });
+
+    updateMutedCount();
+    displayContextMarkers();
     highlightBuildingsList();
 }

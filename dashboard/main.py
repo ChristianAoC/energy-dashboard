@@ -196,8 +196,8 @@ def deleteContext():
         return make_response("Unauthorised", 401)
     return context.delete_context(contextID)
 
-@dashboard_bp.route("/allcontext", methods=['GET'])
-def allContext():
+@dashboard_bp.route("/getcontext", methods=['GET'])
+def getContext():
     return jsonify(context.view_all())
 
 ###########################################################

@@ -97,7 +97,7 @@ const apiEndpoints = {
 
     // Gets all context entries
     // noparams
-    allContext: '/allcontext',
+    getcontext: '/getcontext',
 
     // get user level
     // params: email, SessionID
@@ -140,7 +140,7 @@ function getMeterListFromSummary(summary, buildingFilter = null) {
             const ms = building[utility];
             if (ms) {
                 for (const meterName in ms) {
-                    meters.push(meterName);
+                    meters.push([meterName, buildingKey]);
                 }
             }
         });

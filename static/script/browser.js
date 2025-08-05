@@ -344,15 +344,15 @@ function dateChange() {
 
 $(document).ready(async function () {
     try {
-        const { hierarchy, meters, allContext } = await getData({
+        const { hierarchy, meters, getcontext } = await getData({
             hierarchy: {},
             meters: {},
-            allContext: {}
+            getcontext: {}
         });
 
         browserData.hierarchy = hierarchy;
         browserData.meters = meters;
-        browserData.context = allContext;
+        browserData.context = getcontext;
 
         if (browserData.hierarchy) {
             const buildingEntries = Object.entries(browserData.hierarchy);

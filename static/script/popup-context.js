@@ -44,8 +44,8 @@ function populateDD() {
 
     if (commentParent == "view-benchmark" && browserData.summary) {
         let meterIDs = getMeterListFromSummary(browserData.summary);
-        for (m of fullDD) {
-            if (meterIDs.includes(m.id)) {
+        for (let m of fullDD) {
+            if (meterIDs.some(idPair => idPair[0] === m.id)) {
                 curDD.push(m);
             }
         }
@@ -159,10 +159,33 @@ function clickCheck(e) {
 
     var clickedMeter = "";
 
-    // TODO: this needs to have a functionality to allow to add to multiple meters (all of one building...)
     if (commentParent == "view-map") {
         if (clickedOn != "") {
-            clickedMeter = clickedOn;
+            for (let utility of utilityTypes) {
+                const meters = clickedOn[utility];
+                if (Array.isArray(meters) && meters.length > 0) {
+                    clickedMeter = meters[0];
+
+                    console.log(clickedOn)
+                    const buildingId = clickedOn.meta[metaLabel["building_id"]];
+                    const buildingName = clickedOn.meta[metaLabel["building_name"]];
+
+                    const buildingCheckbox = document.getElementById("context-building");
+                    buildingCheckbox.checked = true;
+
+                    const curBuilding = document.getElementById("current-context-building");
+                    curBuilding.textContent = buildingName; // overwritten anyways... fix below once we have that info
+                    curBuilding.setAttribute("data-building-id", buildingId);
+
+                    document.getElementById("con-start-date").disabled = true;
+                    document.getElementById("con-end-date").disabled = true;
+
+                    document.getElementById("none-from").checked = true;
+                    document.getElementById("none-to").checked = true;
+
+                    break;
+                }
+            }
         }
 
     } else if (commentParent == "view-benchmark") {
