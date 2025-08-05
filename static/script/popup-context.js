@@ -192,16 +192,32 @@ function saveContext() {
     if (submitType == "Other") {
         submitType = document.getElementById("context-other-text").value;
     }
-    var toSubmit = {
-        "author": (getCookie("Email") != "") ? getCookie("Email") : "(anonymous)",
-        "meter": document.getElementById("contextDD").value,
-        "startnone": document.getElementById("none-from").checked,
-        "start": document.getElementById("con-start-date").value,
-        "endnone": document.getElementById("none-to").checked,
-        "end": document.getElementById("con-end-date").value,
-        "type": submitType,
-        "comment": htmlEscape(document.getElementById("context-comment").value)
+
+    const selectedMeter = document.getElementById("contextDD").value;
+    const applyToBuilding = document.getElementById("context-building").checked;
+
+    // Use building ID if checkbox is ticked; else use meter ID
+    let targetType, targetId;
+
+    if (applyToBuilding) {
+        targetType = "building";
+        targetId = document.getElementById("current-context-building").textContent.trim();
+    } else {
+        targetType = "meter";
+        targetId = selectedMeter;
     }
+
+    const toSubmit = {
+        author: getCookie("Email") || "(anonymous)",
+        target_type: targetType,
+        target_id: targetId,
+        startnone: document.getElementById("none-from").checked,
+        start: document.getElementById("con-start-date").value,
+        endnone: document.getElementById("none-to").checked,
+        end: document.getElementById("con-end-date").value,
+        type: submitType,
+        comment: htmlEscape(document.getElementById("context-comment").value)
+    };
 
     var action = document.getElementById("context-button").getAttribute("action");
     toSubmit["id"] = document.getElementById("context-button").getAttribute("context-id");

@@ -159,11 +159,24 @@ def listUsers():
 @dashboard_bp.route("/addcontext", methods=['POST'])
 def addContext():
     contextElem = request.json
+    # for global mute run user level check just to be sure
+    if contextElem["type"] == "Global-mute":
+        cookies = request.cookies
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        if user.get_user_level(email, sessionID) < 4:
+            return make_response("Unauthorised", 401)
     return context.add_context(contextElem)
 
 @dashboard_bp.route("/editcontext", methods=['POST'])
 def editContext():
     contextElem = request.json
+    if contextElem["type"] == "Global-mute":
+        cookies = request.cookies
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        if user.get_user_level(email, sessionID) < 4:
+            return make_response("Unauthorised", 401)
     return context.edit_context(contextElem)
 
 @dashboard_bp.route("/deletecontext", methods=['POST'])
