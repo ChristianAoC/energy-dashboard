@@ -344,6 +344,8 @@ class User(db.Model):
     logincount = db.Column(db.Integer)
     lastlogin = db.Column(db.Float)
     
+    sessions = db.relationship("Sessions", back_populates="user")
+    
     def __init__(self, email: str, level: int, logincount: int, lastlogin: dict):
         self.email = email
         self.level = level
@@ -351,13 +353,34 @@ class User(db.Model):
         self.lastlogin = lastlogin
     
     def to_dict(self) -> dict:
-        # Add sessions to this dict
         return {
             "email": self.email,
             "level": self.level,
             "logincount": self.logincount,
-            "lastlogin": self.lastlogin
+            "lastlogin": self.lastlogin,
+            "sessions": [session.to_dict() for session in self.sessions]
         }
     
     def __repr__(self) -> str:
         return f"<User {self.email}>"
+
+class Sessions(db.Model):
+    id = db.Column(db.String, primary_key=True)
+    email = db.Column(db.String(254), db.ForeignKey("user.email"), primary_key=True)
+    last_seen = db.Column(db.Float)
+    
+    user = db.relationship(User, back_populates="sessions")
+
+    def __init__(self, session_id: str, email: str, last_seen: float):
+        self.id = session_id
+        self.email = email
+        self.last_seen = last_seen
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "lastseen": self.last_seen,
+        }
+    
+    def __repr__(self) -> str:
+        return f"<Session {self.id} for {self.email}>"
