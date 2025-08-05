@@ -4,7 +4,7 @@ import datetime as dt
 import json
 
 from constants import *
-import dashboard.user as user
+from api.user import get_user_level
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
@@ -70,7 +70,7 @@ def is_admin() -> bool:
         email = cookies.get("Email", None)
         sessionID = cookies.get("SessionID", None)
         
-        if user.get_user_level(email, sessionID) < required_level:
+        if get_user_level(email, sessionID) < required_level:
             return False
     except:
         return False

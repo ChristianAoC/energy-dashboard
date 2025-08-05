@@ -493,7 +493,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, cache_result:
         new_meta = {
             "to_time": to_time.timestamp(),
             "from_time": from_time.timestamp(),
-            "timestamp": dt.datetime.now().timestamp(),
+            "timestamp": dt.datetime.now(tz=dt.timezone.utc).timestamp(),
             "processing_time": end_time - start_time
         }
         

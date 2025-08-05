@@ -13,7 +13,7 @@ import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
 from api.helpers import calculate_time_args, is_admin, data_cleaner
-import dashboard.user as user
+from api.user import get_user_level
 
 
 api_bp = Blueprint('api_bp', __name__, static_url_path='')
@@ -38,7 +38,7 @@ def required_user_level(level_config_key):
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)
                 
-                if user.get_user_level(email, sessionID) < level:
+                if get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
             except:
                 print("No or wrong cookie")

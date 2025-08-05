@@ -1,9 +1,11 @@
 from flask import render_template, send_file, request, Blueprint, make_response, current_app, redirect, Response, jsonify
-from markupsafe import escape
-import api.api as api_bp
-import dashboard.user as user
-import dashboard.context as context
+
 from functools import wraps
+from markupsafe import escape
+
+import api.api as api_bp
+import api.user as user
+import dashboard.context as context
 
 dashboard_bp = Blueprint('dashboard_bp'
     , __name__,
@@ -51,7 +53,7 @@ def required_user_level(level_config_key):
     return decorator
 
 def setCookies(email: str, sessionID: str) -> Response:
-    resp = make_response(render_template('settings.html', user = user.get_user(email)))
+    resp = make_response(render_template('settings.html', user = user.get_user_dict(email)))
     resp.set_cookie("SessionID", sessionID, 60*60*24*365)
     resp.set_cookie("Email", email, 60*60*24*365)
     resp.status_code = 200
@@ -70,7 +72,7 @@ def logout():
 @dashboard_bp.route("/loginrequest", methods=['POST'])
 def loginRequest():
     email = request.args.get('email')
-    if email == None or email == "":
+    if email is None or email == "":
         return make_response("No email provided.", 400)
     
     result = user.login_request(email)
@@ -81,7 +83,7 @@ def loginRequest():
     if result[0] is str:
         return make_response(result[0], result[1])
     
-    return setCookies(result[0][1], result[0][2])
+    return setCookies(result[0][0], result[0][1])
 
 @dashboard_bp.route("/verify_login")
 def verifyLogin():
@@ -117,7 +119,7 @@ def setUserLevel():
     if email == None or level == None:
         return make_response("No email or level specified", 400)
     
-    userChange = user.get_user(email)
+    userChange = user.get_user_dict(email)
     
     if userChange is None:
         return make_response("Couldn't load user", 500)
@@ -219,4 +221,4 @@ def about():
 
 @dashboard_bp.route("/settings")
 def settings():
-    return render_template('settings.html', user = user.get_user())
+    return render_template('settings.html', user = user.get_user_dict())
