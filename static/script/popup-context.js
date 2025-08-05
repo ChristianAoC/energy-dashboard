@@ -160,6 +160,7 @@ function clickCheck(e) {
     var clickedMeter = "";
 
     // TODO: this needs to have a functionality to allow to add to multiple meters (all of one building...)
+    // TBD NEXT
     if (commentParent == "view-map") {
         if (clickedOn != "") {
             clickedMeter = clickedOn;

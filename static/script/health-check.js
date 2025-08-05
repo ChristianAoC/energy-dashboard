@@ -355,14 +355,14 @@ $(async function () {
         const meterHealth = await meterHealthResponse.json();
 
         // Load hcMeta and context together using getData
-        const { hcMeta, allContext } = await getData({
+        const { hcMeta, getcontext } = await getData({
             hcMeta: {},
-            allContext: {}
+            getcontext: {}
         });
 
         browserData.meterHealth = meterHealth;
         browserData.hcMeta = hcMeta;
-        browserData.context = allContext || [];
+        browserData.context = getcontext || [];
 
         if (browserData.hcMeta && browserData.meterHealth) {
             initHCTable();
@@ -381,9 +381,9 @@ $(async function () {
 
                     if (retryCacheState === 'fresh') {
                         // Re-fetch meta and context too
-                        const { hcMeta: updatedMeta, allContext: updatedContext } = await getData({
+                        const { hcMeta: updatedMeta, getcontext: updatedContext } = await getData({
                             hcMeta: {},
-                            allContext: {}
+                            getcontext: {}
                         });
 
                         browserData.meterHealth = retryData;

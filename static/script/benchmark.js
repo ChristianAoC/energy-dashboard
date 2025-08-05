@@ -384,16 +384,16 @@ async function getNewSummary() {
     const endDate = document.getElementById("sb-end-date").value;
 
     try {
-        const { summary, allContext } = await getData({
+        const { summary, getcontext } = await getData({
             summary: {
                 from_time: startDate,
                 to_time: endDate
             },
-            allContext: {}
+            getcontext: {}
         });
 
         if (summary) {
-            if (allContext) browserData.context = allContext;
+            if (getcontext) browserData.context = getcontext;
             else browserData.context = [];
             browserData.summary = summary;
             browserData.filteredSummary = Object.values(summary);

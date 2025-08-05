@@ -90,11 +90,11 @@ function initContextTable(userEmail, userLevel) {
 
 $(document).ready(async function () {
     try {
-        const { allContext } = await getData({
-            allContext: {}
+        const { getcontext } = await getData({
+            getcontext: {}
         });
 
-        browserData.context = allContext;
+        browserData.context = getcontext;
 
         const userEmail = getCookie("Email");
         const sessionID = getCookie("SessionID");
