@@ -62,7 +62,6 @@ $(document).ready( async function () {
         browserData.context = getcontext;
 
         if (browserData.hierarchy) {
-            console.log(browserData.mazemapPolygons)
             initMap();
             getMapSliderRanges();
         }
@@ -220,22 +219,14 @@ function onMapClick(e) {
 
 	// Optional: commentMode logic (skip or update later if meter_uuid not available)
 	if (commentMode) {
-        // TODO: need to first add the ability to add multiple meters/entire buildings at once as comment
-        // TBD NEXT get the building id/name here
-        /*
-		for (const b of Object.values(browserData.filteredHierarchy)) {
-			const labels = b.meta?.[metaLabel["maze_map_label"]];
-			const labelArray = Array.isArray(labels) ? labels : [labels];
-			if (labelArray.includes(buildingId)) {
-				for (const t of utilityTypes) {
-					if (b[t]?.meter_uuid?.length > 0) {
-						clickedOn = b[t].meter_uuid[0];
-						return;
-					}
-				}
-			}
-		}
-        */
+        for (const b of Object.values(browserData.filteredHierarchy)) {
+            const labels = b.meta?.[metaLabel["maze_map_label"]];
+            const labelArray = Array.isArray(labels) ? labels : [labels];
+            if (labelArray.includes(buildingId)) {
+                clickedOn = b;
+                return;
+            }
+        }
 	}
 
 	building.properties.zLevel = 0;
