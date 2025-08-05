@@ -171,6 +171,8 @@ def addContext():
 @dashboard_bp.route("/editcontext", methods=['POST'])
 def editContext():
     contextElem = request.json
+    if not contextElem:
+        return make_response("Missing context element", 400)
     if contextElem["type"] == "Global-mute":
         cookies = request.cookies
         email = cookies.get("Email", None)
@@ -182,6 +184,16 @@ def editContext():
 @dashboard_bp.route("/deletecontext", methods=['POST'])
 def deleteContext():
     contextID = request.args.get('contextID')
+    if not contextID:
+        return make_response("Missing contextID", 400)
+    cookies = request.cookies
+    email = cookies.get("Email", None)
+    sessionID = cookies.get("SessionID", None)
+    if email is None or sessionID is None:
+        return make_response("Unauthorised", 401)
+    user_level = user.get_user_level(email, sessionID)
+    if user_level < 4:
+        return make_response("Unauthorised", 401)
     return context.delete_context(contextID)
 
 @dashboard_bp.route("/allcontext", methods=['GET'])

@@ -36,7 +36,7 @@ function deleteContext(id) {
     });
 };
 
-function initContextTable() {
+function initContextTable(userEmail, userLevel) {
     // remove all "deleted" context elements, can add some checkbox for that later
     var contextFiltered = [];
     for (i in browserData.context) {
@@ -76,10 +76,13 @@ function initContextTable() {
             {data: "type", title: "Type of Context"},
             {data: "comment", title: "Comment"},
             {data: "id", title: "",
-                render: function (data) {
-                    return "<button type='button' onclick='showContextEdit("+data+")'>Edit</button> "+
-                        "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) deleteContext("+data+");'>Delete</button>";
-                }                
+                render: function (data, type, row) {
+                    if (userLevel >= 4 || row.author === userEmail) {
+                        return "<button type='button' onclick='showContextEdit("+data+")'>Edit</button> "+
+                            "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) deleteContext("+data+");'>Delete</button>";
+                    }
+                    return "";
+                }
             }
         ]
 	});
@@ -93,8 +96,18 @@ $(document).ready(async function () {
 
         browserData.context = allContext;
 
+        const userEmail = getCookie("Email");
+        const sessionID = getCookie("SessionID");
+        const userLevelData = await getData({
+            userLevel: {
+                email: userEmail,
+                SessionID: sessionID
+            }
+        });
+        const userLevel = parseInt(userLevelData.userLevel);
+
         if (browserData.context) {
-            initContextTable();
+            initContextTable(userEmail, userLevel);
         }
     } catch (err) {
         console.error("Failed to load data", err);
