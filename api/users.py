@@ -106,10 +106,8 @@ def update_session(email: str, session_id: str, new_timestamp: dt.datetime):
     db.session.add(new_session)
     db.session.commit()
 
-# save/update user entry in DB
-# login - update the login counter (when admin changes settings, this is false)
-def update_user(u: dict, login: bool = False) -> bool:
-    if "email" not in u:
+def set_level(email: str, level: int) -> bool:
+    if email is None:
         return False
 
     if not user_exists(email):
@@ -117,19 +115,23 @@ def update_user(u: dict, login: bool = False) -> bool:
     
     user = get_user(email)
     if user is None:
-        login_count = 0
-        if login:
-            login_count += 1
-        new_user = models.User(email=u["email"], level=u["level"], last_login=None, login_count=login_count)
-        db.session.add(new_user)
-        db.session.commit()
-        return True
+        return False
     
-    login_count = u.get("login_count")
-    if type(login_count) is int:
-        login_count += 1
+    user.level = level
+    db.session.commit()
+    return True
+
+# save/update user entry in DB
+# login - update the login counter (when admin changes settings, this is false)
+def create_user(email: str, level: int, timestamp: dt.datetime|None = None) -> bool:
+    if email is None:
+        return False
+
+    if user_exists(email):
+        return False
     
-    user.update(level=u.get("level"), last_login=u.get("lastlogin"), login_count=login_count)
+    new_user = models.User(email=email, level=level)
+    db.session.add(new_user)
     db.session.commit()
     return True
 
@@ -152,15 +154,9 @@ def login_request(email: str) -> tuple:
         if len(demo_domains) != 0 and email_domain in demo_domains:
             sessionID = str(uuid.uuid4())
             timestamp = dt.datetime.now()
-            u = {
-                "email": email,
-                "level": current_app.config["DEFAULT_USER_LEVEL"],
-                "lastlogin": timestamp,
-            }
-            added = update_user(u)
-            if not added:
-                added = update_session(email, sessionID, timestamp)
+            create_user(email, current_app.config["DEFAULT_USER_LEVEL"], timestamp)
             
+            added = update_session(email, sessionID, timestamp)
             if not added:
                 return ("Could not generate demo user.", 400)
             return ((email, sessionID), 200)
@@ -172,22 +168,17 @@ def login_request(email: str) -> tuple:
     
     if len(required_domains) != 0 and email_domain not in required_domains:
         return ("Email needs to have one of those domains: "+", ".join(required_domains), 400)
-
-    u = get_user_dict(email)
     
-    # user not in DB, create new
-    if u is None:
-        u = {
-            "email": email,
-            "level": current_app.config["DEFAULT_USER_LEVEL"]
-        }
+    if not user_exists(email):
+        level = current_app.config["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
-            u["level"] = 5
-    
-    added = update_user(u)
-    if not added:
-        return ("Could not generate a login token for this user.", 500)
+            level = 5
+        
+        added = create_user(email, level)
+        
+        if not added:
+            return ("Could not generate a login token for this user.", 500)
     
     code = str(random.randrange(100000,999999))
     code_time = dt.datetime.now()
