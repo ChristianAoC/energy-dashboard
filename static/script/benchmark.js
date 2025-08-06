@@ -79,7 +79,7 @@ function redrawGraph() {
     if (document.getElementById("toggleGraph").checked) {
         pLayoutGraph["xaxis"]["title"]["text"] = capFirst(activeTab) +
             " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) +
-            " [" + utilityUnits[activeTab] + "/m²], over " +
+            " (EUI) [" + utilityUnits[activeTab] + "/m²], extrapolated to a year based on " +
             dateDiff + " days (starting " +
             document.getElementById("sb-start-date").value + ")";
 
