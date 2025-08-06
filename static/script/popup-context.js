@@ -170,7 +170,6 @@ function clickCheck(e) {
                 if (Array.isArray(meters) && meters.length > 0) {
                     clickedMeter = meters[0];
 
-                    console.log(clickedOn)
                     const buildingId = clickedOn.meta[metaLabel["building_id"]];
                     const buildingName = clickedOn.meta[metaLabel["building_name"]];
 

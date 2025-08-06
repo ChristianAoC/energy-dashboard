@@ -19,7 +19,7 @@ let metaLabel = {
     "scaling_factor": "scaling_factor",
 
     // metadata from buildings list/hierarchy
-    "maze_map_label": "maze_map_label",
+    "mazemap_label": "maze_map_label",
     "floor_area": "floor_area",
     "building_name": "building_name",
     "occupancy_type": "occupancy_type",
