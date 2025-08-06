@@ -10,7 +10,7 @@ users_api_bp = Blueprint('users_api_bp',
                          static_folder='static')
 
 def setCookies(email: str, sessionID: str) -> Response:
-    resp = make_response(render_template('settings.html', user = user.get_user_dict(email)))
+    resp = make_response(render_template('settings.html', user = users.get_user_info(email)))
     resp.set_cookie("SessionID", sessionID, 60*60*24*365)
     resp.set_cookie("Email", email, 60*60*24*365)
     resp.status_code = 200

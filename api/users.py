@@ -11,22 +11,27 @@ import models
 
 
 def get_user(email: str|None = None) -> models.User|None:
-    if email == None:
+    if email is None:
+        return None
+    
+    return db.session.execute(db.select(models.User).where(models.User.email == email)).scalar_one_or_none()
+
+# Get user info for settings.json
+def get_user_info(email: str|None = None) -> dict|None:
+    if email is None:
         try:
             cookies = request.cookies
             email = cookies["Email"]
         except:
             return None
     
-    return db.session.execute(db.select(models.User).where(models.User.email == email)).scalar_one_or_none()
-
-# get current user from JSON DB
-def get_user_dict(email: str|None = None) -> dict|None:
     user = get_user(email)
-    if user is None:
-        return
-    
-    return user.to_dict()
+    if user is not None:
+        return {
+            "email": user.email,
+            "level": user.level
+        }
+
 
 def user_exists(email: str) -> bool:
     if email is None:
@@ -52,7 +57,6 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
         .where(models.User.email == email)
         .where(models.Sessions.id == session_id)
     ).scalar_one_or_none()
-    
     if user is None:
         return 0
     

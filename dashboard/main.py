@@ -128,4 +128,4 @@ def about():
 
 @dashboard_bp.route("/settings")
 def settings():
-    return render_template('settings.html', user = user.get_user_dict())
+    return render_template('settings.html', user = users.get_user_info())
