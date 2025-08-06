@@ -130,7 +130,7 @@ function displayContextMarkers() {
                 for (let t of utilityTypes) {
                     const meterList = buildingObj[t] || [];
                     if (meterList.includes(e.target_id)) {
-                        const mazeMapId = buildingObj.meta.maze_map_label?.[0]; // get first MazeMap ID
+                        const mazeMapId = buildingObj.meta[metaLabel["mazemap_label"]]?.[0]; // get first MazeMap ID
                         if (mazeMapId) {
                             const matchedBuilding = browserData.mazemapPolygons.find(f => f.properties.id === mazeMapId);
                             if (matchedBuilding) {
@@ -145,7 +145,7 @@ function displayContextMarkers() {
         if (e.target_type === "Building") {
             const buildingObj = browserData.hierarchy[e.target_id];
             if (buildingObj) {
-                const mazeMapId = buildingObj.meta.maze_map_label?.[0];
+                const mazeMapId = buildingObj.meta[metaLabel["mazemap_label"]]?.[0];
                 if (mazeMapId) {
                     const matchedBuilding = browserData.mazemapPolygons.find(f => f.properties.id === mazeMapId);
                     if (matchedBuilding) {
@@ -220,7 +220,7 @@ function onMapClick(e) {
 	// Optional: commentMode logic (skip or update later if meter_uuid not available)
 	if (commentMode) {
         for (const b of Object.values(browserData.filteredHierarchy)) {
-            const labels = b.meta?.[metaLabel["maze_map_label"]];
+            const labels = b.meta?.[metaLabel["mazemap_label"]];
             const labelArray = Array.isArray(labels) ? labels : [labels];
             if (labelArray.includes(buildingId)) {
                 clickedOn = b;
@@ -246,12 +246,12 @@ function clearBuildingMarker() {
 };
 
 function buildingPopup(building, e) {
-	// Get matching hierarchy entry by maze_map_label
+	// Get matching hierarchy entry by mazemap_label
 	let curBuilding = null;
 	const buildingId = building.properties.id;
 
 	for (const b of Object.values(browserData.filteredHierarchy)) {
-		const labels = b.meta?.[metaLabel["maze_map_label"]];
+		const labels = b.meta?.[metaLabel["mazemap_label"]];
 		const labelArray = Array.isArray(labels) ? labels : [labels];
 		if (labelArray.includes(buildingId)) {
 			curBuilding = b;
@@ -300,7 +300,7 @@ function highlightBuildingsList() {
     const buildingLookup = new Map(browserData.mazemapPolygons.map(b => [b.properties.id, b]));
 
     for (const buildingData of Object.values(browserData.filteredHierarchy)) {
-        const labels = buildingData.meta?.maze_map_label;
+        const labels = buildingData.meta[metaLabel["mazemap_label"]];
         if (!labels) continue;
 
         const labelArray = Array.isArray(labels) ? labels : [labels];
@@ -339,6 +339,8 @@ function getMapSliderRanges() {
 function filterMap() {
     // Start from full dataset
     let filtered = Object.values(browserData.hierarchy);
+    const userEmail = getCookie("Email");
+    let mutedCount = 0;
 
     // Text search
     const searchInput = document.getElementById("building-search").value.toLowerCase();
@@ -358,7 +360,7 @@ function filterMap() {
         filtered = filtered.filter(b => b["meta"][metaLabel["occupancy_type"]] !== "Split Use");
     }
 
-    // Floor area range filter
+    // Floor area filter
     let min = parseInt(document.getElementById("fromInput1").value);
     let max = parseInt(document.getElementById("toInput1").value);
     filtered = filtered.filter(b => {
@@ -366,59 +368,70 @@ function filterMap() {
         return !isNaN(val) && val >= min && val <= max;
     });
 
-    // Mute filter: exclude buildings with only muted meters if "unmute" is unchecked
+    // Mute filter
     const includeMuted = document.getElementById("unmute").checked;
-
     if (!includeMuted && browserData.context) {
         filtered = filtered.filter(building => {
-            // Check if building itself is muted
-            const buildingMuted = browserData.context.some(ctx =>
-            ctx.target_type === "Building" &&
-            ctx.target_id === building.meta.building_id &&
-            ctx.type.toLowerCase().includes("mute")
+            const buildingId = building.meta[metaLabel["building_id"]];
+
+            // Check if building is muted
+            const isBuildingMuted = browserData.context.some(entry =>
+                entry.target_type === "Building" &&
+                entry.target_id === buildingId &&
+                (
+                    entry.type === "Global-mute" ||
+                    (entry.type === "User-mute" && entry.author === userEmail)
+                )
             );
 
-            if (buildingMuted) {
-            // building muted, so exclude it
-            return false;
+            if (isBuildingMuted) {
+                mutedCount++;
+                return false;
             }
 
-            // Now check meters inside building
-            for (let utility of utilityTypes) {
-            if (building[utility]) {
-                for (let meterId of building[utility]) {
-                const meterMuted = browserData.context.some(ctx =>
-                    ctx.target_type === "Meter" &&
-                    ctx.target_id === meterId &&
-                    ctx.type.toLowerCase().includes("mute")
-                );
-                if (!meterMuted) {
-                    // found at least one meter NOT muted
-                    return true;
-                }
-                }
-            }
+            // Flatten all meter IDs from utilityTypes
+            const allMeterIds = utilityTypes.flatMap(type => building[type] || []);
+
+            const allMetersMuted = allMeterIds.length > 0 && allMeterIds.every(meterId =>
+                browserData.context.some(entry =>
+                    entry.target_type === "Meter" &&
+                    entry.target_id === meterId &&
+                    (
+                        entry.type === "Global-mute" ||
+                        (entry.type === "User-mute" && entry.author === userEmail)
+                    )
+                )
+            );
+
+            if (allMetersMuted) {
+                mutedCount++;
+                return false;
             }
 
-            // All meters muted or no meters
-            return false;
+            return true;
         });
     }
 
+    // Store result
     browserData.filteredHierarchy = filtered;
 
+    // Update UI
     document.getElementById("span-total").innerHTML = filtered.length;
 
-    // Filter context meters matching filtered buildings + muted filter
-    let filteredContextMeters = browserData.context.filter(meter => {
-        const isInFilteredBuildings = filtered.some(b => b.id === meter.buildingId);
-        if (!isInFilteredBuildings) return false;
+    // Show/hide muted info
+    const mutedDiv = document.getElementById("muted-div");
+    const mutedSpan = document.getElementById("span-mutedCount");
 
-        if (!document.getElementById("unmute").checked && meter.muted === true) {
-            return false;
-        }
-        return true;
-    });
+    if (!includeMuted) {
+        if (mutedDiv) mutedDiv.style.display = mutedCount > 0 ? "block" : "none";
+        if (mutedSpan) mutedSpan.textContent = mutedCount;
+    } else {
+        const hasMuted = browserData.context.some(entry =>
+            (entry.type === "User-mute" && entry.author === userEmail) ||
+            entry.type === "Global-mute"
+        );
+        if (mutedDiv) mutedDiv.style.display = hasMuted ? "block" : "none";
+    }
 
     updateMutedCount();
     displayContextMarkers();
