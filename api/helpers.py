@@ -4,7 +4,6 @@ import datetime as dt
 import json
 
 from constants import *
-from api.user import get_user_level
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
@@ -59,6 +58,8 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     return (from_time, to_time, days)
 
 def is_admin() -> bool:
+    # Import here to stop circular import issue
+    from api.user import get_user_level
     try:
         # Run all internal calls at admin level
         if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
