@@ -69,8 +69,8 @@ class Meter(db.Model):
     def __repr__(self) -> str:
         return f"<Meter {self.id}>"
 
-
-occupancy_type_check_constraint = "occupancy_type IN ('sport', 'lecture theatre', 'library', 'catering', 'administration', 'academic bio', 'academic arts', 'academic physics', 'academic engineering', 'academic other', 'Residential', 'Non Res', 'Split Use')"
+allowed_occupancy_types = ['sport', 'lecture theatre', 'library', 'catering', 'administration', 'academic bio', 'academic arts', 'academic physics', 'academic engineering', 'academic other', 'Residential', 'Non Res', 'Split Use']
+occupancy_type_check_constraint = "occupancy_type IN ('" + "', '".join(allowed_occupancy_types) + "')"
 class Building(db.Model):
     id = db.Column(db.String(20), primary_key=True)
     name = db.Column(db.String(75), nullable=False, unique=True)
@@ -92,7 +92,7 @@ class Building(db.Model):
         self.floor_area = floor_area
         self.year_built = year_built
 
-        if occupancy_type == "Unknown" or occupancy_type is None:
+        if occupancy_type == "Unknown" or occupancy_type is None or occupancy_type not in allowed_occupancy_types:
             occupancy_type = "academic other"
         self.occupancy_type = occupancy_type
         

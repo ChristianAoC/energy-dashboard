@@ -28,8 +28,11 @@ DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
 
 hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
 
-meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
-buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
+# meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
+# buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
+metadata_file = os.path.join(DATA_DIR, "input", "SingleSourceOfTruth.xlsx")
+meter_sheet = "Energie points"
+building_sheet = "Buildings"
 
 meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
 if not os.path.exists(meter_health_score_files):
