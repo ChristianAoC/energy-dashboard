@@ -371,7 +371,7 @@ class User(db.Model):
             "email": self.email,
             "level": self.level,
             "logincount": self.login_count,
-            "lastlogin": self.last_login.timestamp(),
+            "lastlogin": self.last_login.timestamp() if self.last_login is not None else None,
             "sessions": [session.to_dict() for session in self.sessions]
         }
     
