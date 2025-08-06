@@ -95,13 +95,13 @@ const apiEndpoints = {
     // params: id, to_time, from_time, format, aggregate, to_rate
     obs: '/api/meter_obs',
 
-    // Gets specific context entries
-    // params: meter, start, end
-    getContext: '/getcontext',
-
     // Gets all context entries
     // noparams
-    allContext: '/allcontext'
+    getcontext: '/getcontext',
+
+    // get user level
+    // params: email, SessionID
+    userLevel: '/get_user_level'
 };
 
 // need this frequently, strangely JS has no native function for this
@@ -140,7 +140,7 @@ function getMeterListFromSummary(summary, buildingFilter = null) {
             const ms = building[utility];
             if (ms) {
                 for (const meterName in ms) {
-                    meters.push(meterName);
+                    meters.push([meterName, buildingKey]);
                 }
             }
         });
@@ -151,7 +151,9 @@ function getMeterListFromSummary(summary, buildingFilter = null) {
 // function to call api for json.
 async function callApiJSON(uri) {
    try {
-        let url = encodeURI(uri);
+        // this was double encoding... removed this (turned @ into %2540)
+        //let url = encodeURI(uri);
+        let url = uri;
         const response = await fetch(url, { /* headers */});
 
         if (!response.ok) {

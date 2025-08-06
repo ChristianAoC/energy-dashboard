@@ -355,22 +355,20 @@ $(async function () {
         const meterHealth = await meterHealthResponse.json();
 
         // Load hcMeta and context together using getData
-        const { hcMeta, allContext } = await getData({
+        const { hcMeta, getcontext } = await getData({
             hcMeta: {},
-            allContext: {}
+            getcontext: {}
         });
 
         browserData.meterHealth = meterHealth;
         browserData.hcMeta = hcMeta;
-        browserData.context = allContext || [];
+        browserData.context = getcontext || [];
 
         if (browserData.hcMeta && browserData.meterHealth) {
             initHCTable();
         }
 
         if (cacheState === 'stale') {
-            console.log("Cache is stale, setting up retry...");
-
             const retryIntervalMs = 5000;
 
             $('#healthcheckStatus').text('Updating health check... table will reload when done.');
@@ -382,12 +380,10 @@ $(async function () {
                     const retryData = await retryResp.json();
 
                     if (retryCacheState === 'fresh') {
-                        console.log("Fresh data loaded after retry");
-
                         // Re-fetch meta and context too
-                        const { hcMeta: updatedMeta, allContext: updatedContext } = await getData({
+                        const { hcMeta: updatedMeta, getcontext: updatedContext } = await getData({
                             hcMeta: {},
-                            allContext: {}
+                            getcontext: {}
                         });
 
                         browserData.meterHealth = retryData;

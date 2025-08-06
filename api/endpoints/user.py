@@ -55,13 +55,13 @@ def verify():
     
     return users.set_cookies(email, result[1])
 
-@users_api_bp.route("/get-level", methods=['POST'])
+@users_api_bp.route("/get-level", methods=['GET', 'POST'])
 def get_level():
     sessionID = request.args.get('SessionID')
     email = request.args.get('email')
     if email == None or email == "" or sessionID == None or sessionID == "":
-        return "Couldn't get user level or session"
-    return make_response(users.get_user_level(email, sessionID))
+        return make_response("Couldn't get user level or session", 400)
+    return make_response(str(users.get_user_level(email, sessionID)), 200)
 
 @users_api_bp.route("/set-level", methods=['POST'])
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")

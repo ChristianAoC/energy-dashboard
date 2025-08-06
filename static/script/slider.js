@@ -100,6 +100,10 @@ function initiateSliders(knob, index) {
 }
 
 function setRanges(num, min, max) {
+    //if (min < -1000000) min = -1000000;
+    //if (max < -1000000) max = -1000000;
+    //if (min > 10000000) min = 10000000;
+    //if (max > 10000000) max = 10000000;
     document.getElementById("fromInput"+num).min = min;
     document.getElementById("toInput"+num).min = min;
     document.getElementById("fromSlider"+num).min = min;

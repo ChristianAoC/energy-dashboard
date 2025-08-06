@@ -60,7 +60,6 @@ def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
 ## to_rate - logical, should data be "un-cumulated"
 def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=False):
     # set some constants
-    # TODO: Why was 10 years chosen here?
     max_time_interval = dt.timedelta(days=3650)
 
     # convert to UTC for influx
@@ -385,9 +384,12 @@ def update_health_check(values: dict):
         existing_hc.update(values)
     db.session.commit()
 
-def generate_summary(from_time: dt.datetime, to_time: dt.datetime, cache_result: bool) -> dict:
-    data = {}
+def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, cache_result: bool) -> dict:
     start_time = time.time()
+    data = {}
+    
+    agg = f"{days*24*2}h"
+    time_days_multiplier = 365/days
     
     buildings = db.session.execute(
         db.select(models.Building)
@@ -413,37 +415,67 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, cache_result:
         
         if len(meters) == 0:
             continue
-
+        
         for m in meters:
             meter_type = m.utility_type
 
             if meter_type not in units.keys():
                 continue
-
-            # TODO: calculate agg number from time diff
-            x = query_time_series(m, from_time, to_time, agg='876000h', to_rate=True)
-
-            # No data available
-            if len(x['obs']) == 0:
-                continue
-
-            usage = x['obs'][0]['value']
-
+            
+            # Calculate usage
+            usage = None
+            
+            # This is faster than the normal calculation
+            if m.reading_type == "cumulative":
+                x = query_time_series(m, from_time, to_time, agg="raw", to_rate=False)
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
+                
+                df = pd.DataFrame.from_dict(x['obs'])
+                df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+                df.set_index('time', inplace=True)
+                lower_index = df.first_valid_index()
+                upper_index = df.last_valid_index()
+                if lower_index is None or upper_index is None or lower_index == upper_index:
+                    usage = None
+                else:
+                    lower_value = df['value'][lower_index]
+                    upper_value = df['value'][upper_index]
+                    
+                    if lower_value > upper_value:
+                        usage = None
+                    else:
+                        usage = upper_value - lower_value
+            
+            # This is the original calculation, it is slower but is more likely to get a usage value
+            if m.reading_type == "rate" or usage is None:
+                x = query_time_series(m, from_time, to_time, agg="raw", to_rate=True)
+                # No data available
+                if len(x['obs']) == 0:
+                    continue
+                
+                df = pd.DataFrame.from_dict(x['obs'])
+                df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+                df.set_index('time', inplace=True)
+                df = df.resample(agg, origin='end').sum()
+                usage = x['obs'][0]['value']
+            
             if usage is None:
                 usage = 0
 
             # handle unit changes
-            if x['unit'] != units[meter_type]:
-                if meter_type == "heat" and x['unit'] == "kWh":
+            if m.units != units[meter_type]:
+                if meter_type == "heat" and m.units == "kWh":
                     usage *= 1e-3  # to MWh
-                elif meter_type == "heat" and x['unit'] == "kW":
+                elif meter_type == "heat" and m.units == "kW":
                     # presume 10 minute data, round to nearest kWh
                     usage = round(usage * 1e-3 * (1.0 / 6.0), 3)
                 else:
                     continue
 
             # process EUI
-            eui = float(f"{(usage / b.floor_area):.2g}")
+            eui = float(f"{(usage * time_days_multiplier/ b.floor_area):.2g}")
 
             # Create utility entries on occurrence so that the response is smaller
             if meter_type not in building_response:
@@ -483,7 +515,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, cache_result:
                     water=building_response.get("water", {})
                 )
             db.session.commit()
-        
+    
         data[b.id] = building_response
     
     end_time = time.time()

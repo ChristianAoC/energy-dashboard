@@ -606,3 +606,7 @@ div#b-plot {
 span.hidden {
     display: none;
 }
+
+div#muted-div {
+    display: none;
+}

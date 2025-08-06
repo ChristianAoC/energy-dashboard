@@ -64,46 +64,6 @@ def delete_context(contextID):
     os.replace(tempfile, filename)
     return "success"
 
-def get_context(args):
-    if not os.path.isfile(filename):
-        return []
-
-    with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
-        context = json.load(openfile)
-
-    # Parameters
-    meters = args.get("meter", "").split(",")
-    start_str = args.get("start")
-    end_str = args.get("end")
-
-    # Parse times
-    timeFormat = "%Y-%m-%d %H:%M"
-    try:
-        start_dt = datetime.strptime(start_str, timeFormat) if start_str else None
-        end_dt = datetime.strptime(end_str, timeFormat) if end_str else None
-    except ValueError:
-        return []
-
-    filtered = []
-
-    for entry in context:
-        entry_meter = entry.get("meter")
-        entry_start = datetime.strptime(entry["start"], timeFormat)
-        entry_end = datetime.strptime(entry["end"], timeFormat)
-
-        # 1. Meter match
-        if meters and entry_meter not in meters:
-            continue
-
-        # 2. Time overlap check
-        if start_dt and end_dt:
-            if entry_end < start_dt or entry_start > end_dt:
-                continue
-
-        filtered.append(entry)
-
-    return filtered
-
 def view_all():
     if not os.path.isfile(filename):
         return "Context file missing"

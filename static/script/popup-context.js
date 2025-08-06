@@ -44,8 +44,8 @@ function populateDD() {
 
     if (commentParent == "view-benchmark" && browserData.summary) {
         let meterIDs = getMeterListFromSummary(browserData.summary);
-        for (m of fullDD) {
-            if (meterIDs.includes(m.id)) {
+        for (let m of fullDD) {
+            if (meterIDs.some(idPair => idPair[0] === m.id)) {
                 curDD.push(m);
             }
         }
@@ -79,27 +79,72 @@ function leaveCommentMode() {
     document.getElementById(commentParent).removeEventListener("click", clickCheck);
 }
 
-function createContextDialog(clickedMeter, from, to) {
+function updateBuildingSpan() {
+    const ddElem = document.getElementById("contextDD");
+    const curBuilding = document.getElementById("current-context-building");
+    const clickedMeter = ddElem.value;
+
+    if (!clickedMeter || clickedMeter === "select") {
+        curBuilding.textContent = "(No building selected)";
+        curBuilding.removeAttribute("data-building-id");
+    } else {
+        const meterObj = browserData.meters.find(m => m[metaLabel["meter_id"]] === clickedMeter);
+
+        if (!meterObj) {
+            curBuilding.textContent = "(Unknown building)";
+            curBuilding.removeAttribute("data-building-id");
+            return;
+        }
+
+        const buildingId = meterObj[metaLabel["building_id"]];
+        
+        // TODO change this to building name once backend provides it
+        curBuilding.textContent = buildingId;
+        
+        curBuilding.setAttribute("data-building-id", buildingId);
+    }
+}
+
+async function createContextDialog(clickedMeter, from, to) {
     if (commentParent == "healthcheckTable") {
         document.getElementById("none-from").checked = true;
         document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
         document.getElementById("none-to").checked = true;
         document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+    }
+
+    const userEmail = getCookie("Email");
+    const sessionID = getCookie("SessionID");
+
+    const userLevelData = await getData({
+        userLevel: {
+            email: userEmail,
+            SessionID: sessionID
         }
+    });
+
+    const userLevel = parseInt(userLevelData.userLevel);
+
+    if (userLevel >= 4) {
+        document.getElementById("mute-global-row").style.display = "block";
+    }
 
     populateDD();
     document.getElementById("context-container").classList.remove("hidden");
 
-    document.getElementById("context-type-oneoff").checked = true;
+    document.getElementById("context-type-comment").checked = true;
     document.getElementById("context-other-text").value = "";
     document.getElementById("context-comment").value = "";
 
     var ddElem = document.getElementById("contextDD");
+    var curBuilding = document.getElementById("current-context-building");
 
     if (clickedMeter == "" || clickedMeter == null) {
         ddElem.value = "select";
+        curBuilding.innerHTML = "(No building selected)";
     } else {
         ddElem.value = clickedMeter;
+        updateBuildingSpan();
     }
 
     document.getElementById("con-start-date").value = from;
@@ -114,10 +159,33 @@ function clickCheck(e) {
 
     var clickedMeter = "";
 
-    // TODO: this needs to have a functionality to allow to add to multiple meters (all of one building...)
     if (commentParent == "view-map") {
         if (clickedOn != "") {
-            clickedMeter = clickedOn;
+            for (let utility of utilityTypes) {
+                const meters = clickedOn[utility];
+                if (Array.isArray(meters) && meters.length > 0) {
+                    clickedMeter = meters[0];
+
+                    console.log(clickedOn)
+                    const buildingId = clickedOn.meta[metaLabel["building_id"]];
+                    const buildingName = clickedOn.meta[metaLabel["building_name"]];
+
+                    const buildingCheckbox = document.getElementById("context-building");
+                    buildingCheckbox.checked = true;
+
+                    const curBuilding = document.getElementById("current-context-building");
+                    curBuilding.textContent = buildingName; // overwritten anyways... fix below once we have that info
+                    curBuilding.setAttribute("data-building-id", buildingId);
+
+                    document.getElementById("con-start-date").disabled = true;
+                    document.getElementById("con-end-date").disabled = true;
+
+                    document.getElementById("none-from").checked = true;
+                    document.getElementById("none-to").checked = true;
+
+                    break;
+                }
+            }
         }
 
     } else if (commentParent == "view-benchmark") {
@@ -136,7 +204,7 @@ function clickCheck(e) {
     var fromContext = getCurPageStartDate();
     var toContext = getCurPageEndDate();
 
-    createContextDialog(clickedMeter, fromContext, toContext)
+    createContextDialog(clickedMeter, fromContext, toContext);
     leaveCommentMode();
 };
 
@@ -172,16 +240,32 @@ function saveContext() {
     if (submitType == "Other") {
         submitType = document.getElementById("context-other-text").value;
     }
-    var toSubmit = {
-        "author": (getCookie("Email") != "") ? getCookie("Email") : "(anonymous)",
-        "meter": document.getElementById("contextDD").value,
-        "startnone": document.getElementById("none-from").checked,
-        "start": document.getElementById("con-start-date").value,
-        "endnone": document.getElementById("none-to").checked,
-        "end": document.getElementById("con-end-date").value,
-        "type": submitType,
-        "comment": htmlEscape(document.getElementById("context-comment").value)
+
+    const selectedMeter = document.getElementById("contextDD").value;
+    const applyToBuilding = document.getElementById("context-building").checked;
+
+    // Use building ID if checkbox is ticked; else use meter ID
+    let targetType, targetId;
+
+    if (applyToBuilding) {
+        targetType = "Building";
+        targetId = document.getElementById("current-context-building").textContent.trim();
+    } else {
+        targetType = "Meter";
+        targetId = selectedMeter;
     }
+
+    const toSubmit = {
+        author: getCookie("Email") || "(anonymous)",
+        target_type: targetType,
+        target_id: targetId,
+        startnone: document.getElementById("none-from").checked,
+        start: document.getElementById("con-start-date").value,
+        endnone: document.getElementById("none-to").checked,
+        end: document.getElementById("con-end-date").value,
+        type: submitType,
+        comment: htmlEscape(document.getElementById("context-comment").value)
+    };
 
     var action = document.getElementById("context-button").getAttribute("action");
     toSubmit["id"] = document.getElementById("context-button").getAttribute("context-id");
@@ -259,4 +343,6 @@ $(document).ready(async function () {
             handle: "#context-header"
         });
     });
+
+    document.getElementById("contextDD").addEventListener("change", updateBuildingSpan);
 });
