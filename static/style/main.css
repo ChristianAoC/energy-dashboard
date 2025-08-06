@@ -593,6 +593,11 @@ div#b-plot-container {
     margin: auto;
 }
 
+div.sb-button-container {
+    margin: auto;
+    text-align: center;
+}
+
 div#b-plot {
     width: 60vw;
     aspect-ratio: 2 / 1;

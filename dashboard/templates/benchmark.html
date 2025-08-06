@@ -111,10 +111,13 @@ Buildings with data: <span id="span-total">0</span> (for <span id="span-type">el
     <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" onchange="onDateInputChange()" />
 </div>
 
-<button onclick="getNewSummary()">Reload data</button>
+<div class="clear-float"></div>
+
+<div class="sb-button-container">
+  <button onclick="getNewSummary()" class="button-generic">Reload data</button>
+</div>
 
 <div id="loading"> &nbsp; &nbsp; &nbsp;<span id="loading-text" class="hidden">Reloading data... please wait</span>&nbsp;</div>
-<div class="clear-float"></div>
 
 </div>
 
