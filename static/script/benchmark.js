@@ -81,7 +81,11 @@ function redrawGraph() {
             " " + uncapFirst($('label[for="toggleGraph"]')[0].lastElementChild.innerHTML) +
             " (EUI) [" + utilityUnits[activeTab] + "/m²], extrapolated to a year based on " +
             dateDiff + " days (starting " +
-            document.getElementById("sb-start-date").value + ")";
+            document.getElementById("sb-start-date").value + ")<br><br>" +
+            "The blue and black lines indicate "+
+            "<a href='https://www.cibse.org/knowledge-research/knowledge-resources/knowledge-toolbox/benchmarking-registration'>" +
+            "\"typical\" and \"good\" benchmarks</a>, " +
+            "respectively, according to industry standards</a>.<br>";
 
         // add benchmarkt stuff
         var benchmarkLines = [];
