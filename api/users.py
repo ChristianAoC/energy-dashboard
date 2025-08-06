@@ -60,7 +60,7 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
     if user is None:
         return 0
     
-    update_session(email, session_id, dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
+    update_session(email, session_id, dt.datetime.now())
     
     return user.level
 
@@ -90,7 +90,7 @@ def is_admin(user: models.User|None = None) -> bool:
         return False
     return True
 
-def update_session(email: str, session_id: str, timestamp: dt.datetime):
+def update_session(email: str, session_id: str, new_timestamp: dt.datetime):
     session = db.session.execute(
         db.select(models.Sessions)
         .where(models.Sessions.email == email)
@@ -98,11 +98,11 @@ def update_session(email: str, session_id: str, timestamp: dt.datetime):
     ).scalar_one_or_none()
     
     if session is not None:
-        session.last_seen = timestamp
+        session.last_seen = new_timestamp
         db.session.commit()
         return
     
-    new_session = models.Sessions(session_id, email, timestamp)
+    new_session = models.Sessions(session_id, email, new_timestamp)
     db.session.add(new_session)
     db.session.commit()
 
@@ -151,7 +151,7 @@ def login_request(email: str) -> tuple:
         
         if len(demo_domains) != 0 and email_domain in demo_domains:
             sessionID = str(uuid.uuid4())
-            timestamp = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+            timestamp = dt.datetime.now()
             u = {
                 "email": email,
                 "level": current_app.config["DEFAULT_USER_LEVEL"],
@@ -237,7 +237,7 @@ def check_code(email: str, code: str) -> tuple:
         return (False, "Code outdated. Generate a new login token!")
 
     sessionid = str(uuid.uuid4())
-    timestamp = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
+    timestamp = dt.datetime.now()
     update_session(email, sessionid, timestamp)
     
     db.session.delete(code_record)
