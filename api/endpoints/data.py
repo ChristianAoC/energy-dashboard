@@ -12,8 +12,8 @@ from database import db, initial_database_population
 import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
-from api.helpers import calculate_time_args, is_admin, data_cleaner
-from api.user import get_user_level
+from api.helpers import calculate_time_args, data_cleaner
+from api.users import get_user_level, is_admin
 
 
 data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')

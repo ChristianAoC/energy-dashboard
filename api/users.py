@@ -47,6 +47,32 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
     
     return user.level
 
+def is_admin(user: models.User|None = None) -> bool:
+    # Import here to stop circular import issue
+    from api.users import get_user_level
+    try:
+        # Run all internal calls at admin level
+        if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
+            print("Bypassed admin level check for internal call")
+            return True
+        
+        required_level = int(current_app.config["USER_LEVEL_ADMIN"])
+        
+        cookies = request.cookies
+        email = cookies.get("Email", None)
+        sessionID = cookies.get("SessionID", None)
+        
+        if user is None:
+            user_level = get_user_level(email, sessionID)
+        else:
+            user_level = user.level
+        
+        if user_level < required_level:
+            return False
+    except:
+        return False
+    return True
+
 def update_session(email: str, session_id: str, timestamp: dt.datetime):
     session = db.session.execute(
         db.select(models.Sessions)

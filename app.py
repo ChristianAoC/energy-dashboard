@@ -14,7 +14,7 @@ from dotenv import load_dotenv
 import requests
 
 from api.endpoints.data import data_api_bp
-from api.endpoints.users import users_api_bp
+from api.endpoints.user import users_api_bp
 from dashboard.main import dashboard_bp
 import database
 

@@ -92,17 +92,7 @@ $(document).ready( function () {
                         }
                     },
                     { data: "logincount", title: "Total logins"},
-                    {
-                        data: 'sessions', title: "Total sessions",
-                        render: function (sessions) {
-                            return sessions.length;
-                            /*
-                            return sessions.map(s => {
-                                return `<div><code>${s.id}</code> <small>(${s.lastseen})</small></div>`;
-                            }).join('');
-                            */
-                        }
-                    },
+                    { data: 'sessions', title: "Total sessions"},
                     {
                         data: null, title: "Actions",
                         render: function (u, type, row) {

@@ -2,7 +2,7 @@ from flask import render_template, send_file, request, Blueprint, make_response,
 
 from functools import wraps
 
-import api.user as user
+import api.users as users
 import dashboard.context as context
 
 dashboard_bp = Blueprint('dashboard_bp'

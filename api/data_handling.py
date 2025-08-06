@@ -12,7 +12,8 @@ import time
 from constants import *
 from database import db
 import models
-from api.helpers import calculate_time_args, is_admin, data_cleaner, clean_file_name
+from api.helpers import calculate_time_args, data_cleaner, clean_file_name
+from api.users import is_admin
 
 
 ## Minimal/efficient call - get time series as Pandas
