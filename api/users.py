@@ -1,4 +1,4 @@
-from flask import request, current_app
+from flask import request, current_app, Response, make_response, render_template
 
 import datetime as dt
 import random
@@ -31,7 +31,6 @@ def get_user_info(email: str|None = None) -> dict|None:
             "email": user.email,
             "level": user.level
         }
-
 
 def user_exists(email: str) -> bool:
     if email is None:
@@ -89,6 +88,13 @@ def is_admin(user: models.User|None = None) -> bool:
     except:
         return False
     return True
+
+def set_cookies(email: str, sessionID: str) -> Response:
+    resp = make_response(render_template('settings.html', user = get_user_info(email)))
+    resp.set_cookie("SessionID", sessionID, 60*60*24*365)
+    resp.set_cookie("Email", email, 60*60*24*365)
+    resp.status_code = 200
+    return resp
 
 def update_session(email: str, session_id: str, new_timestamp: dt.datetime):
     session = db.session.execute(

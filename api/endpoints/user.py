@@ -1,4 +1,4 @@
-from flask import Blueprint, make_response, request, Response, render_template
+from flask import Blueprint, make_response, request, render_template
 
 import api.users as users
 import dashboard.main as dashboard_bp
@@ -8,13 +8,6 @@ users_api_bp = Blueprint('users_api_bp',
                          static_url_path='/static',
                          template_folder='/dashboard/templates',
                          static_folder='static')
-
-def setCookies(email: str, sessionID: str) -> Response:
-    resp = make_response(render_template('settings.html', user = users.get_user_info(email)))
-    resp.set_cookie("SessionID", sessionID, 60*60*24*365)
-    resp.set_cookie("Email", email, 60*60*24*365)
-    resp.status_code = 200
-    return resp
 
 @users_api_bp.route("/logout", methods=['POST'])
 def logout():
@@ -45,7 +38,7 @@ def login():
     if result[0] is str:
         return make_response(result[0], result[1])
     
-    return setCookies(result[0][0], result[0][1])
+    return users.set_cookies(result[0][0], result[0][1])
 
 @users_api_bp.route("/verify")
 def verify():
@@ -60,7 +53,7 @@ def verify():
     if result[0] == False:
         return make_response(result[1], 500)
     
-    return setCookies(email, result[1])
+    return users.set_cookies(email, result[1])
 
 @users_api_bp.route("/get-level", methods=['POST'])
 def get_level():
