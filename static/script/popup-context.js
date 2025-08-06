@@ -106,13 +106,6 @@ function updateBuildingSpan() {
 }
 
 async function createContextDialog(clickedMeter, from, to) {
-    if (commentParent == "healthcheckTable") {
-        document.getElementById("none-from").checked = true;
-        document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
-        document.getElementById("none-to").checked = true;
-        document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
-    }
-
     const userEmail = getCookie("Email");
     const sessionID = getCookie("SessionID");
 
@@ -147,8 +140,19 @@ async function createContextDialog(clickedMeter, from, to) {
         updateBuildingSpan();
     }
 
-    document.getElementById("con-start-date").value = from;
-    document.getElementById("con-end-date").value = to;
+    if (from == null) {
+        document.getElementById("none-from").checked = true;
+        document.getElementById("con-start-date").disabled = $('input#none-from').is(':checked');
+    } else {
+        document.getElementById("con-start-date").value = from;
+    }
+
+    if (to == null) {
+        document.getElementById("none-to").checked = true;
+        document.getElementById("con-end-date").disabled = $('input#none-to').is(':checked');
+    } else {
+        document.getElementById("con-end-date").value = to;
+    }
 };
 
 function clickCheck(e) {
@@ -201,10 +205,7 @@ function clickCheck(e) {
         clickedMeter = e.target.closest("tr").getAttribute("data-meter");
     }
 
-    var fromContext = getCurPageStartDate();
-    var toContext = getCurPageEndDate();
-
-    createContextDialog(clickedMeter, fromContext, toContext);
+    createContextDialog(clickedMeter, getCurPageStartDate(), getCurPageEndDate());
     leaveCommentMode();
 };
 

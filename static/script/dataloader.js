@@ -1,6 +1,7 @@
 const browserData = {};
 const utilityTypes = ["gas", "electricity", "heat", "water"];
 const utilityUnits = {"gas": "m³", "electricity": "kWh", "heat": "MWh", "water": "m³"};
+const defaultDateRanges = {"benchmark": 365, "browser": 365, "health-check": 30};
 
 let metaLabel = {
 
