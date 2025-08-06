@@ -433,6 +433,9 @@ $(document).ready(async function () {
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);
+    document.getElementsByName("agg").forEach( function(radio) {
+        radio.addEventListener('click', redrawPlot);
+    });
 
     document.getElementById("select-building").addEventListener("change", () => {
         buildingSelected();
