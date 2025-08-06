@@ -368,7 +368,7 @@ class User(db.Model):
             "email": self.email,
             "level": self.level,
             "logincount": self.login_count,
-            "lastlogin": self.last_login.timestamp() if self.last_login is not None else None,
+            "lastlogin": self.last_login.isoformat(sep=" ") if self.last_login is not None else None,
             "sessions": len(self.sessions)
         }
     
