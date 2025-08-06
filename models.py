@@ -30,7 +30,7 @@ class Meter(db.Model):
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
     building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
     
-    hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter')
+    hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter', cascade="all, delete-orphan")
 
     def __init__(self, meter_id_clean: str, raw_uuid: str, meter_name: str, building_level_meter: bool,
                  utility_type: str, reading_type: str, units: str, resolution: float, unit_conversion_factor: float,
@@ -86,7 +86,7 @@ class Building(db.Model):
     occupancy_type = db.Column(db.String(11), CheckConstraint(occupancy_type_check_constraint), nullable=False)
     maze_map_label = db.Column(db.JSON)
     
-    ud_record = db.relationship("UtilityData", uselist=False, back_populates='building')
+    ud_record = db.relationship("UtilityData", uselist=False, back_populates='building', cascade="all, delete-orphan")
 
     def __init__(self, building_code: str, building_name: str, floor_area: int, year_built: int, occupancy_type: str, maze_map_label: list):
         self.id = building_code
@@ -346,8 +346,8 @@ class User(db.Model):
     login_count = db.Column(db.Integer, nullable=False)
     last_login = db.Column(db.DateTime)
     
-    sessions = db.relationship("Sessions", back_populates="user")
-    login_codes = db.relationship("LoginCode", back_populates="user")
+    sessions = db.relationship("Sessions", back_populates="user", cascade="all, delete-orphan")
+    login_codes = db.relationship("LoginCode", back_populates="user", cascade="all, delete-orphan")
     
     def __init__(self, email: str, level: int, last_login: datetime|None, login_count: int|None = None):
         if len(email.split('@')) < 2:
