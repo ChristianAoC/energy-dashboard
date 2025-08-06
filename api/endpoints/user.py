@@ -1,6 +1,6 @@
 from flask import Blueprint, make_response, request, Response, render_template
 
-import api.user as user
+import api.users as users
 import dashboard.main as dashboard_bp
 
 users_api_bp = Blueprint('users_api_bp',
@@ -21,6 +21,11 @@ def logout():
     email = request.args.get('email')
     if email == None or email == "":
         return "No email provided."
+    
+    session_id = request.cookies.get('SessionID')
+    if session_id is not None:
+        users.delete_session(email, session_id)
+    
     resp = make_response(render_template('settings.html'))
     resp.delete_cookie('SessionID')
     resp.delete_cookie('Email')
@@ -32,7 +37,7 @@ def login():
     if email is None or email == "":
         return make_response("No email provided.", 400)
     
-    result = user.login_request(email)
+    result = users.login_request(email)
     
     if result[1] != 200:
         return make_response(result[0], result[1])
@@ -51,7 +56,7 @@ def verify():
     if code is None or code == "":
         return make_response("No code provided.", 400)
 
-    result = user.check_code(email, code)
+    result = users.check_code(email, code)
     if result[0] == False:
         return make_response(result[1], 500)
     
@@ -63,7 +68,7 @@ def get_level():
     email = request.args.get('email')
     if email == None or email == "" or sessionID == None or sessionID == "":
         return "Couldn't get user level or session"
-    return make_response(user.get_user_level(email, sessionID))
+    return make_response(users.get_user_level(email, sessionID))
 
 @users_api_bp.route("/set-level", methods=['POST'])
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
@@ -71,17 +76,14 @@ def set_level():
     data = request.get_json()
     if not data:
         return make_response("No JSON data received", 400)
+    
     email = data.get('email')
-    level = data.get('level')    
-    if email == None or level == None:
-        return make_response("No email or level specified", 400)
+    if email == None:
+        return make_response("No email specified", 400)
     
-    userChange = user.get_user_dict(email)
-    
-    if userChange is None:
-        return make_response("Couldn't load user", 500)
-    
-    userChange["level"] = level
+    level = data.get('level')
+    if level == None:
+        return make_response("No level specified", 400)
     
     success = user.update_user(userChange)
     if not success:
@@ -100,7 +102,7 @@ def delete():
     if email == None:
         return make_response("No email specified", 400)
     
-    result = user.delete_user(email)
+    result = users.delete_user(email)
     if not result:
         return make_response(f"Couldn't remove user {email}", 500)
     
@@ -109,4 +111,4 @@ def delete():
 @users_api_bp.route('/list')
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
 def list():
-    return user.list_users()
+    return users.list_users()
