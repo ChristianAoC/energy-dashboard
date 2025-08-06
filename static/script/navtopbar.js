@@ -9,7 +9,7 @@ function createNavbar() {
 	navItems.push(['Map', 'map']);
 	navItems.push(['Benchmark', 'benchmark']);
 	navItems.push(['Browser', 'browser']);
-	navItems.push(['Health Check', 'health-check?hidden=;4;7;8;9;13;14;15;16;17;18;19;20;21;22;25;26;27;28;']);
+	navItems.push(['Health Check', 'health-check?hidden=;3;4;5;6;8;9;10;11;14;15;16;17;18;19;20;21;22;23;24;25;26;29;30;31;32;33;']);
 	navItems.push(['Context', 'context']);
 	navItems.push(['About', 'about']);
 
