@@ -240,7 +240,8 @@ def check_code(email: str, code: str) -> tuple:
     timestamp = dt.datetime.now()
     update_session(email, sessionid, timestamp)
     
-    db.session.delete(code_record)
+    # Invalidate other codes
+    db.session.execute(db.delete(models.LoginCode).where(models.LoginCode.email == email))
     db.session.commit()
     
     return (True, sessionid)
