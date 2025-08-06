@@ -30,7 +30,6 @@ hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
 
 meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
 buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
-buildings_usage_file = os.path.join(DATA_DIR, "input", 'UniHierarchyWithUsage.json')
 
 meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
 if not os.path.exists(meter_health_score_files):
@@ -46,10 +45,6 @@ benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
 offline_meta_file = os.path.join(DATA_DIR, "meta", "offline_data.json")
 offline_data_files = os.path.join(DATA_DIR, "offline")
-
-meters_anon_file = os.path.join(DATA_DIR, "input", 'anon_meters.json')
-buildings_anon_file = os.path.join(DATA_DIR, "input", 'anon_buildings.json')
-usage_anon_file = os.path.join(DATA_DIR, "input", 'anon_usage.json')
 
 mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
 

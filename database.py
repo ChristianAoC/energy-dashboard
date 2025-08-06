@@ -3,7 +3,7 @@ from flask_sqlalchemy import SQLAlchemy
 import os
 import json
 
-from constants import offlineMode, meters_anon_file, meters_file, buildings_anon_file, buildings_file
+from constants import meters_file, buildings_file
 
 db = SQLAlchemy()
 
@@ -24,11 +24,7 @@ def initial_database_population() -> bool:
     if len(db.session.execute(db.select(models.Building)).scalars().all()) > 0:
         return False
     
-    if offlineMode:
-        buildings = json.load(open(buildings_anon_file))
-    else:
-        buildings = json.load(open(buildings_file))
-    
+    buildings = json.load(open(buildings_file))
     for building in buildings:
         new_building = models.Building(
             building["building_code"],
@@ -42,11 +38,7 @@ def initial_database_population() -> bool:
         db.session.add(new_building)
         db.session.commit()
 
-    if offlineMode:
-        meters = json.load(open(meters_anon_file))
-    else:
-        meters = json.load(open(meters_file))
-    
+    meters = json.load(open(meters_file))
     for meter in meters:
         try:
             # Some entries in meters_all.json are broken - skip them
