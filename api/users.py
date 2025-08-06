@@ -106,6 +106,19 @@ def update_session(email: str, session_id: str, new_timestamp: dt.datetime):
     db.session.add(new_session)
     db.session.commit()
 
+def delete_session(email: str, session_id: str):
+    session = db.session.execute(
+        db.select(models.Sessions)
+        .where(models.Sessions.email == email)
+        .where(models.Sessions.id == session_id)
+    ).scalar_one_or_none()
+    
+    if session is None:
+        return
+    
+    db.session.delete(session)
+    db.session.commit()
+
 def set_level(email: str, level: int) -> bool:
     if email is None:
         return False
