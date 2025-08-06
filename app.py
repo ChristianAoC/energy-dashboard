@@ -13,7 +13,8 @@ from datetime import timezone
 from dotenv import load_dotenv
 import requests
 
-from api.api import api_bp
+from api.endpoints.data import data_api_bp
+from api.endpoints.users import users_api_bp
 from dashboard.main import dashboard_bp
 import database
 
@@ -22,7 +23,8 @@ database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
 
-app.register_blueprint(api_bp, url_prefix='/api')
+app.register_blueprint(data_api_bp, url_prefix='/api')
+app.register_blueprint(users_api_bp, url_prefix='/api/user')
 app.register_blueprint(dashboard_bp)
 
 load_dotenv()
