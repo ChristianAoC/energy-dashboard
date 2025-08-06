@@ -349,22 +349,19 @@ class User(db.Model):
     sessions = db.relationship("Sessions", back_populates="user", cascade="all, delete-orphan")
     login_codes = db.relationship("LoginCode", back_populates="user", cascade="all, delete-orphan")
     
-    def __init__(self, email: str, level: int, last_login: datetime|None, login_count: int|None = None):
+    def __init__(self, email: str, level: int, login_count: int = 0, last_login: datetime|None = None):
         if len(email.split('@')) < 2:
             raise ValueError("Invalid Email Address")
+        
         self.email = email
-        
-        self.update(level=level, last_login=last_login, login_count=login_count)
-    
-    def update(self, level: int|None = None, last_login: datetime|None = None, login_count: int|None = None):
-        if level is not None:
-            self.level = level
-        
+        self.level = level
+        self.login_count = login_count
         if last_login is not None:
             self.last_login = last_login
-        
-        if login_count is not None:
-            self.login_count = login_count
+
+    def login(self, timestamp: datetime):
+        self.login_count = self.login_count + 1
+        self.last_login = timestamp
     
     def to_dict(self) -> dict:
         return {
@@ -372,7 +369,7 @@ class User(db.Model):
             "level": self.level,
             "logincount": self.login_count,
             "lastlogin": self.last_login.timestamp() if self.last_login is not None else None,
-            "sessions": [session.to_dict() for session in self.sessions]
+            "sessions": len(self.sessions)
         }
     
     def __repr__(self) -> str:

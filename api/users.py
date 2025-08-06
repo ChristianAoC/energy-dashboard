@@ -244,6 +244,8 @@ def check_code(email: str, code: str) -> tuple:
     timestamp = dt.datetime.now()
     update_session(email, sessionid, timestamp)
     
+    code_record.user.login(timestamp)
+    
     # Invalidate other codes
     db.session.execute(db.delete(models.LoginCode).where(models.LoginCode.email == email))
     db.session.commit()
@@ -258,7 +260,10 @@ def delete_user(email: str) -> bool:
         return True
     
     user = get_user(email)
-    if user is not None:
+    if user is None:
+        return True
+    
+    if is_admin(user):
         return False
     
     db.session.delete(user)

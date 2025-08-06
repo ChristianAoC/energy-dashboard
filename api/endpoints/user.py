@@ -85,7 +85,7 @@ def set_level():
     if level == None:
         return make_response("No level specified", 400)
     
-    success = user.update_user(userChange)
+    success = users.set_level(email, level)
     if not success:
         return make_response("Failed to update user", 500)
     
