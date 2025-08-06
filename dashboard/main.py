@@ -36,17 +36,28 @@ def required_user_level(level_config_key):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
-            cookies = request.cookies
+            required_level = current_app.config[level_config_key]
+            
+            # Skip validating if required level is 0 (allow unauthenticated users)
+            if required_level == 0:
+                return function(*args, **kwargs)
+            
             try:
-                level = int(current_app.config[level_config_key])
+                cookies = request.cookies
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)
 
-                if user.get_user_level(email, sessionID) >= level:
-                    return function(*args, **kwargs)
+                if users.get_user_level(email, sessionID) < required_level:
+                    if request.method == "POST":
+                        return make_response("Access Denied", 401)
+                    return noaccess()
             except:
                 print("No or wrong cookie")
-            return noaccess()
+                if request.method == "POST":
+                    return make_response("Access Denied", 401)
+                return noaccess()
+            
+            return function(*args, **kwargs)
         return wrapper
     return decorator
 
