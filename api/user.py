@@ -43,7 +43,7 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
     if user is None:
         return 0
     
-    update_session(email, session_id, dt.datetime.now(tz=dt.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0))
+    update_session(email, session_id, dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0))
     
     return user.level
 
@@ -106,7 +106,7 @@ def login_request(email: str) -> tuple:
         
         if len(demo_domains) != 0 and email_domain in demo_domains:
             sessionID = str(uuid.uuid4())
-            timestamp = dt.datetime.now(tz=dt.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+            timestamp = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
             u = {
                 "email": email,
                 "level": current_app.config["DEFAULT_USER_LEVEL"],
@@ -145,14 +145,14 @@ def login_request(email: str) -> tuple:
         return ("Could not generate a login token for this user.", 500)
     
     code = str(random.randrange(100000,999999))
-    code_time = dt.datetime.now(tz=dt.timezone.utc)
+    code_time = dt.datetime.now()
 
     login_code = models.LoginCode(email, code, code_time)
     db.session.add(login_code)
     db.session.commit()
     
     codeurl  = str(request.url_root)
-    codeurl += "verify_login?email=" + email
+    codeurl += "api/user/verify?email=" + email
     codeurl += "&code=" + code
 
     if current_app.config["SMTP_ENABLED"]:
@@ -187,13 +187,13 @@ def check_code(email: str, code: str) -> tuple:
     if code_record is None:
         return (False, "No code found. Generate a new login token.")
     
-    if (dt.datetime.now(tz=dt.timezone.utc) - code_record.timestamp).seconds >= 3600:
+    if (dt.datetime.now() - code_record.timestamp).seconds >= 3600:
         db.session.delete(code_record)
         db.session.commit()
         return (False, "Code outdated. Generate a new login token!")
 
     sessionid = str(uuid.uuid4())
-    timestamp = dt.datetime.now(tz=dt.timezone.utc).replace(hour=0, minute=0, second=0, microsecond=0)
+    timestamp = dt.datetime.now().replace(hour=0, minute=0, second=0, microsecond=0)
     update_session(email, sessionid, timestamp)
     
     db.session.delete(code_record)
