@@ -28,9 +28,22 @@ def get_user_dict(email: str|None = None) -> dict|None:
     
     return user.to_dict()
 
+def user_exists(email: str) -> bool:
+    if email is None:
+        return False
+
+    existing_user = db.session.execute(db.select(models.User).where(models.User.email == email)).scalar_one_or_none()
+    if existing_user is None:
+        return False
+    
+    return True
+
 # get user level - used to check access level
 def get_user_level(email: str|None, session_id: str|None) -> int:
     if email is None or session_id is None:
+        return 0
+    
+    if not user_exists(email):
         return 0
 
     user = db.session.execute(
@@ -95,8 +108,10 @@ def update_user(u: dict, login: bool = False) -> bool:
     if "email" not in u:
         return False
 
-    user = get_user(u["email"])
+    if not user_exists(email):
+        return False
     
+    user = get_user(email)
     if user is None:
         login_count = 0
         if login:
@@ -200,8 +215,7 @@ def login_request(email: str) -> tuple:
     return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 503)
 
 def check_code(email: str, code: str) -> tuple:
-    u = get_user(email)
-    if u is None:
+    if not user_exists(email):
         return (False, "User doesn't exist. Generate a new login token")
     
     code_record = db.session.execute(
@@ -231,6 +245,9 @@ def delete_user(email: str) -> bool:
     if not email:
         return False
 
+    if not user_exists(email):
+        return True
+    
     user = get_user(email)
     if user is not None:
         return False
