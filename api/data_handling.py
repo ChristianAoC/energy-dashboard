@@ -155,7 +155,6 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
 
     # time series for this meter
     m_obs = query_influx(m, from_time, to_time)
-    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
 
     # count values. if no values, stop
     out["HC_count"] = len(m_obs)
@@ -166,7 +165,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
         all_outputs.append(out)
         return out
-
+    
+    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+    
     out["HC_count_perc"] = round(100 * out["HC_count"] / xcount, 2)
     if out["HC_count_perc"] > 100:
         out["HC_count_perc"] = 100
