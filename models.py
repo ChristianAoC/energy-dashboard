@@ -30,9 +30,9 @@ class Meter(db.Model):
     
     hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter')
 
-    def __init__(self, meter_id_clean: str, raw_uuid: str, meter_name: str, building_level_meter: bool,
-                 utility_type: str, reading_type: str, units: str, resolution: float, unit_conversion_factor: float,
-                 tenant: bool, building: str):
+    def __init__(self, meter_id_clean: str, raw_uuid: str|None, meter_name: str, building_level_meter: bool,
+                 utility_type: str, reading_type: str, units: str, resolution: float|None,
+                 unit_conversion_factor: float, tenant: bool, building: str):
         self.id = meter_id_clean
         self.SEED_uuid = raw_uuid
         self.name = meter_name
@@ -69,7 +69,9 @@ class Meter(db.Model):
     def __repr__(self) -> str:
         return f"<Meter {self.id}>"
 
-allowed_occupancy_types = ['sport', 'lecture theatre', 'library', 'catering', 'administration', 'academic bio', 'academic arts', 'academic physics', 'academic engineering', 'academic other', 'Residential', 'Non Res', 'Split Use']
+allowed_occupancy_types = ['sport', 'lecture theatre', 'library', 'catering', 'administration', 'academic bio',
+                           'academic arts', 'academic physics', 'academic engineering', 'academic other', 'Residential',
+                           'Non Res', 'Split Use']
 occupancy_type_check_constraint = "occupancy_type IN ('" + "', '".join(allowed_occupancy_types) + "')"
 class Building(db.Model):
     id = db.Column(db.String(20), primary_key=True)
@@ -86,7 +88,8 @@ class Building(db.Model):
     
     ud_record = db.relationship("UtilityData", uselist=False, back_populates='building')
 
-    def __init__(self, building_code: str, building_name: str, floor_area: int, year_built: int, occupancy_type: str, maze_map_label: list):
+    def __init__(self, building_code: str, building_name: str, floor_area: int|None, year_built: int|None,
+                 occupancy_type: str, maze_map_label: list):
         self.id = building_code
         self.name = building_name
         self.floor_area = floor_area
@@ -199,7 +202,8 @@ class HealthCheck(db.Model):
 
     def to_dict(self) -> dict:
         # Filter out SEED_UUID and invoiced
-        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution",
+                "scaling_factor", "building_id"]
         meter_dict: dict = data_cleaner(self.meter.to_dict(), keys) # type: ignore
         
         return {

@@ -35,9 +35,24 @@ def initial_database_population() -> bool:
     }
     for _, row in buildings.iterrows():
         try:
-            building_code = row[building_mappings["building_code"]]
-            if pd.isna(building_code) or building_code is None:
+            meter_id_clean = row[building_mappings["building_code"]]
+            if pd.isna(meter_id_clean) or meter_id_clean is None:
                 continue
+            
+            floor_area_raw = row[building_mappings["floor_area"]]
+            floor_area = None
+            if not pd.isna(floor_area_raw) and floor_area_raw is not None:
+                floor_area = int(floor_area_raw)
+            
+            year_built_raw = row[building_mappings["year_built"]]
+            year_built = None
+            if not pd.isna(year_built_raw) and year_built_raw is not None:
+                year_built = int(year_built_raw)
+            
+            usage_raw = row[building_mappings["usage"]]
+            if pd.isna(meter_id_clean) or meter_id_clean is None:
+                continue
+            usage = str(usage_raw).strip()
             
             maze_map_label_raw = row[building_mappings["maze_map_label"]]
             maze_map_label = []
@@ -45,17 +60,16 @@ def initial_database_population() -> bool:
                 values = str(maze_map_label_raw).split(';')
                 for v in values:
                     try:
-                        num = int(v.strip())
-                        maze_map_label.append(num)
+                        maze_map_label.append(int(v))
                     except ValueError:
                         continue
             
             new_building = models.Building(
-                building_code.strip(),
+                meter_id_clean.strip(),
                 row[building_mappings["building_name"]].strip(),
-                row[building_mappings["floor_area"]].strip(),
-                row[building_mappings["year_built"]].strip(),
-                row[building_mappings["usage"]].strip(),
+                floor_area,
+                year_built,
+                usage,
                 maze_map_label
             )
             db.session.add(new_building)
@@ -80,27 +94,37 @@ def initial_database_population() -> bool:
         "building": "Building code"
     }
     for _, row in meters.iterrows():
-        try:
+        # try:
             # We don't currently handle Oil meters
-            if row[meter_mappings["meter_type"]] == "Oil":
+            if row[meter_mappings["meter_type"]] in ["Oil", "Spare"]:
                 continue
+            
+            meter_id_clean_raw = row[meter_mappings["meter_id_clean"]]
+            if pd.isna(meter_id_clean_raw) or meter_id_clean_raw is None:
+                continue
+            meter_id_clean = str(meter_id_clean_raw).strip()
+            
+            raw_uuid_raw = row[meter_mappings["raw_uuid"]]
+            raw_uuid = None
+            if not pd.isna(raw_uuid_raw) and raw_uuid_raw is not None:
+                raw_uuid = str(raw_uuid_raw).strip()
             
             building_level_meter_raw = row[meter_mappings["building_level_meter"]]
             building_level_meter = False
             if not pd.isna(building_level_meter_raw) and building_level_meter_raw is not None:
-                if str(building_level_meter_raw).lower() in ["yes", "1", "y", "true"]:
+                if str(building_level_meter_raw).strip().lower() in ["yes", "1", "y", "true"]:
                     building_level_meter = True
             
             tenant_raw = row[meter_mappings["tenant"]]
             tenant = False
             if not pd.isna(tenant_raw) and tenant_raw is not None:
-                if str(tenant_raw).lower() in ["yes", "1", "y", "true"]:
+                if str(tenant_raw).strip().lower() in ["yes", "1", "y", "true"]:
                     tenant = True
             
             reading_type_raw = row[meter_mappings["reading_type"]]
             if pd.isna(reading_type_raw) or reading_type_raw is None:
                 continue
-            reading_type = str(reading_type_raw).lower().strip()
+            reading_type = str(reading_type_raw).strip().lower()
             if reading_type not in ["cumulative", "rate"]:
                 continue
             
@@ -113,10 +137,10 @@ def initial_database_population() -> bool:
             if pd.isna(unit_conversion_factor_raw) or unit_conversion_factor_raw is None:
                 continue
             unit_conversion_factor = float(unit_conversion_factor_raw)
-            
+
             new_meter = models.Meter(
-                row[meter_mappings["meter_id_clean"]].strip(),
-                row[meter_mappings["raw_uuid"]].strip(),
+                meter_id_clean,
+                raw_uuid,
                 row[meter_mappings["serving_revised"]].strip(),
                 building_level_meter,
                 row[meter_mappings["meter_type"]].strip(),
@@ -129,8 +153,8 @@ def initial_database_population() -> bool:
             )
             db.session.add(new_meter)
             db.session.commit()
-        except Exception as e:
-            db.session.rollback()
-            print(e)
-            continue
+        # except Exception as e:
+        #     db.session.rollback()
+        #     print(e)
+        #     continue
     return True
