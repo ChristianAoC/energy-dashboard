@@ -1,25 +1,25 @@
 const browserData = {};
 const utilityTypes = ["gas", "electricity", "heat", "water"];
 const utilityUnits = {"gas": "m³", "electricity": "kWh", "heat": "MWh", "water": "m³"};
+const defaultDateRanges = {"benchmark": 365, "browser": 365, "health-check": 30};
 
 let metaLabel = {
 
     // metadata from meters list
     "meter_id": "meter_id",
-    "building_id": "building_id", // also used in hierarchy/building list
+    "building_id": "building_id",
     "utility_type": "utility_type",
     "description": "description",
     "reading_type": "reading_type",
-    //"tenant": "tenant", currently NYI
-    "invoiced": "invoiced", // use this or tenant to filter?
-    //"location": "meter_location", currently NYI
+    "tenant": "tenant",
+    "location": "meter_location",
     "main_meter": "main",
     "resolution": "resolution",
     "units": "units",
-    "scaling_factor": "scaling_factor", // do we need this? should only be needed in API?
+    "scaling_factor": "scaling_factor",
 
     // metadata from buildings list/hierarchy
-    "maze_map_label": "maze_map_label",
+    "mazemap_label": "maze_map_label",
     "floor_area": "floor_area",
     "building_name": "building_name",
     "occupancy_type": "occupancy_type",

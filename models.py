@@ -1,3 +1,5 @@
+from datetime import datetime
+
 from database import db
 from sqlalchemy import CheckConstraint
 from api.helpers import data_cleaner
@@ -26,7 +28,7 @@ class Meter(db.Model):
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
     building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
     
-    hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter')
+    hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter', cascade="all, delete-orphan")
 
     def __init__(self, meter_id_clean: str, raw_uuid: str|None, description: str, building_level_meter: bool,
                  utility_type: str, reading_type: str, units: str, resolution: float|None,
@@ -84,7 +86,7 @@ class Building(db.Model):
     occupancy_type = db.Column(db.String(11), CheckConstraint(occupancy_type_check_constraint), nullable=False)
     maze_map_label = db.Column(db.JSON)
     
-    ud_record = db.relationship("UtilityData", uselist=False, back_populates='building')
+    ud_record = db.relationship("UtilityData", uselist=False, back_populates='building', cascade="all, delete-orphan")
 
     def __init__(self, building_code: str, building_name: str, floor_area: int|None, year_built: int|None,
                  occupancy_type: str, maze_map_label: list):
@@ -338,3 +340,75 @@ class UtilityData(db.Model):
     
     def __repr__(self) -> str:
         return f"<UtilityData {self.building_id}>"
+
+class User(db.Model):
+    # 254 characters is the maximum characters an email can contain (RFC 5321, Section 4.5.3.1)
+    email = db.Column(db.String(254), primary_key=True)
+    level = db.Column(db.Integer, nullable=False)
+    login_count = db.Column(db.Integer, nullable=False)
+    last_login = db.Column(db.DateTime)
+    
+    sessions = db.relationship("Sessions", back_populates="user", cascade="all, delete-orphan")
+    login_codes = db.relationship("LoginCode", back_populates="user", cascade="all, delete-orphan")
+    
+    def __init__(self, email: str, level: int, login_count: int = 0, last_login: datetime|None = None):
+        if len(email.split('@')) < 2:
+            raise ValueError("Invalid Email Address")
+        
+        self.email = email
+        self.level = level
+        self.login_count = login_count
+        if last_login is not None:
+            self.last_login = last_login
+
+    def login(self, timestamp: datetime):
+        self.login_count = self.login_count + 1
+        self.last_login = timestamp
+    
+    def to_dict(self) -> dict:
+        return {
+            "email": self.email,
+            "level": self.level,
+            "logincount": self.login_count,
+            "lastlogin": self.last_login.isoformat(sep=" ") if self.last_login is not None else None,
+            "sessions": len(self.sessions)
+        }
+    
+    def __repr__(self) -> str:
+        return f"<User {self.email}>"
+
+class Sessions(db.Model):
+    id = db.Column(db.String, primary_key=True)
+    email = db.Column(db.String(254), db.ForeignKey("user.email"), primary_key=True)
+    last_seen = db.Column(db.DateTime, nullable=False)
+    
+    user = db.relationship(User, back_populates="sessions")
+
+    def __init__(self, session_id: str, email: str, last_seen: datetime):
+        self.id = session_id
+        self.email = email
+        self.last_seen = last_seen
+
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "lastseen": self.last_seen,
+        }
+    
+    def __repr__(self) -> str:
+        return f"<Session {self.id} for {self.email}>"
+
+class LoginCode(db.Model):
+    email = db.Column(db.String(254), db.ForeignKey("user.email"), primary_key=True)
+    code = db.Column(db.String(6), primary_key=True)
+    timestamp = db.Column(db.DateTime, primary_key=True)
+    
+    user = db.relationship(User, back_populates="login_codes")
+    
+    def __init__(self, email: str, code: str, timestamp: datetime):
+        self.email = email
+        self.code = code
+        self.timestamp = timestamp
+    
+    def __repr__(self) -> str:
+        return f"<LoginCode {self.code} for {self.email}>"

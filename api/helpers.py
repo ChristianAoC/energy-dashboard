@@ -4,7 +4,6 @@ import datetime as dt
 import json
 
 from constants import *
-import dashboard.user as user
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
@@ -34,47 +33,35 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
         offline_to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
         offline_from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
         
+        changed_time = False
         if to_time is not None:
             # Need to make sure that the provided data is within the offline data
             if to_time > offline_to_time or to_time < offline_from_time:
                 to_time = offline_to_time
+                changed_time = True
         else:
             to_time = offline_to_time
+            changed_time = True
         
         if from_time is not None:
             # Need to make sure that the provided data is within the offline data
             if from_time > offline_to_time or from_time < offline_from_time:
                 from_time = offline_from_time
+                changed_time = True
             
             if from_time > to_time:
                 from_time = offline_from_time
+                changed_time = True
         else:
             from_time = offline_from_time
+            changed_time = True
 
-        if (from_time - to_time) > dt.timedelta(days=desired_time_range, seconds=1):
+        if changed_time and (from_time - to_time) > dt.timedelta(days=desired_time_range, seconds=1):
             from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
     
     days = (to_time.date() - from_time.date()).days
     
     return (from_time, to_time, days)
-
-def is_admin() -> bool:
-    try:
-        # Run all internal calls at admin level
-        if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
-            print("Bypassed admin level check for internal call")
-            return True
-        
-        cookies = request.cookies
-        required_level = int(current_app.config["USER_LEVEL_ADMIN"])
-        email = cookies.get("Email", None)
-        sessionID = cookies.get("SessionID", None)
-        
-        if user.get_user_level(email, sessionID) < required_level:
-            return False
-    except:
-        return False
-    return True
 
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
