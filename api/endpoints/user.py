@@ -35,7 +35,7 @@ def login():
     if result[1] != 200:
         return make_response(result[0], result[1])
 
-    if result[0] is str:
+    if isinstance(result[0], str):
         return make_response(result[0], result[1])
     
     return users.set_cookies(result[0][0], result[0][1])
