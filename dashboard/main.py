@@ -73,7 +73,7 @@ def addContext():
         cookies = request.cookies
         email = cookies.get("Email", None)
         sessionID = cookies.get("SessionID", None)
-        if user.get_user_level(email, sessionID) < 4:
+        if users.get_user_level(email, sessionID) < 4:
             return make_response("Unauthorised", 401)
     return context.add_context(contextElem)
 
@@ -86,7 +86,7 @@ def editContext():
         cookies = request.cookies
         email = cookies.get("Email", None)
         sessionID = cookies.get("SessionID", None)
-        if user.get_user_level(email, sessionID) < 4:
+        if users.get_user_level(email, sessionID) < 4:
             return make_response("Unauthorised", 401)
     return context.edit_context(contextElem)
 
@@ -100,7 +100,7 @@ def deleteContext():
     sessionID = cookies.get("SessionID", None)
     if email is None or sessionID is None:
         return make_response("Unauthorised", 401)
-    user_level = user.get_user_level(email, sessionID)
+    user_level = users.get_user_level(email, sessionID)
     if user_level < 4:
         return make_response("Unauthorised", 401)
     return context.delete_context(contextID)
