@@ -22,11 +22,9 @@ from api.helpers import calculate_time_args, is_admin, data_cleaner, clean_file_
 def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
     if offlineMode:
         try:
-            with open(os.path.join(offline_data_files, f"{m.id}.json"), "r") as f:
-                obs = json.load(f)
-
-            obs = pd.DataFrame.from_dict(obs)
-            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            with open(os.path.join(offline_data_files, f"{m.id}.csv"), "r") as f:
+                obs = pd.read_csv(f)
+            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%d %H:%M:%S%z", utc=True)
             obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
             obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
             obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
