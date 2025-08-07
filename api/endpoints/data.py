@@ -176,27 +176,26 @@ def summary():
         .where(models.CacheMeta.meta_type == "usage_summary")
     ).scalar_one_or_none()
     
-    try:
-        if cache_meta is None:
-            raise Exception
-        
-        if offlineMode:
-            with open(offline_meta_file, "r") as f:
-                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
-        else:
-            latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-        cache_age = latest_data_date - cache_meta.to_time
-        if cache_age >= 3600 * hc_update_time:
-            valid_cache = False
-    except:
-        valid_cache = False
+    valid_cache = False
+    if cache_meta is not None and cache_meta.to_time == to_time.timestamp() and cache_meta.from_time == from_time.timestamp():
+        valid_cache = True
     
     data = {}
     if valid_cache:
         for x in db.session.execute(db.select(models.UtilityData)).scalars().all():
             data[x.building.id] = x.to_dict()
     else:
-        cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
+        cache_result = True
+        if offlineMode:
+            with open(offline_meta_file, "r") as f:
+                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        else:
+            latest_data_date = dt.datetime.now(dt.timezone.utc)
+        latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        if to_time < latest_data_date:
+            cache_result = False
+        
         data = generate_summary(from_time, to_time, days, cache_result)
     return make_response(jsonify(data), 200)
 

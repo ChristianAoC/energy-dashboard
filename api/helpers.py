@@ -33,24 +33,30 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
         offline_to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
         offline_from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
         
+        changed_time = False
         if to_time is not None:
             # Need to make sure that the provided data is within the offline data
             if to_time > offline_to_time or to_time < offline_from_time:
                 to_time = offline_to_time
+                changed_time = True
         else:
             to_time = offline_to_time
+            changed_time = True
         
         if from_time is not None:
             # Need to make sure that the provided data is within the offline data
             if from_time > offline_to_time or from_time < offline_from_time:
                 from_time = offline_from_time
+                changed_time = True
             
             if from_time > to_time:
                 from_time = offline_from_time
+                changed_time = True
         else:
             from_time = offline_from_time
+            changed_time = True
 
-        if (from_time - to_time) > dt.timedelta(days=desired_time_range, seconds=1):
+        if changed_time and (from_time - to_time) > dt.timedelta(days=desired_time_range, seconds=1):
             from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
     
     days = (to_time.date() - from_time.date()).days
