@@ -51,11 +51,11 @@ def initial_database_population() -> bool:
                         continue
             
             new_building = models.Building(
-                building_code,
-                row[building_mappings["building_name"]],
-                row[building_mappings["floor_area"]],
-                row[building_mappings["year_built"]],
-                row[building_mappings["usage"]],
+                building_code.strip(),
+                row[building_mappings["building_name"]].strip(),
+                row[building_mappings["floor_area"]].strip(),
+                row[building_mappings["year_built"]].strip(),
+                row[building_mappings["usage"]].strip(),
                 maze_map_label
             )
             db.session.add(new_building)
@@ -91,12 +91,23 @@ def initial_database_population() -> bool:
                 if str(building_level_meter_raw).lower() in ["yes", "1", "y", "true"]:
                     building_level_meter = True
             
+            tenant_raw = row[meter_mappings["tenant"]]
+            tenant = False
+            if not pd.isna(tenant_raw) and tenant_raw is not None:
+                if str(tenant_raw).lower() in ["yes", "1", "y", "true"]:
+                    tenant = True
+            
             reading_type_raw = row[meter_mappings["reading_type"]]
             if pd.isna(reading_type_raw) or reading_type_raw is None:
                 continue
-            reading_type = str(reading_type_raw).lower()
+            reading_type = str(reading_type_raw).lower().strip()
             if reading_type not in ["cumulative", "rate"]:
                 continue
+            
+            resolution_raw = row[meter_mappings["resolution"]]
+            if pd.isna(resolution_raw) or resolution_raw is None:
+                continue
+            resolution = float(resolution_raw)
             
             unit_conversion_factor_raw = row[meter_mappings["unit_conversion_factor"]]
             if pd.isna(unit_conversion_factor_raw) or unit_conversion_factor_raw is None:
@@ -104,17 +115,16 @@ def initial_database_population() -> bool:
             unit_conversion_factor = float(unit_conversion_factor_raw)
             
             new_meter = models.Meter(
-                row[meter_mappings["meter_id_clean"]],
-                row[meter_mappings["raw_uuid"]],
-                row[meter_mappings["serving_revised"]],
+                row[meter_mappings["meter_id_clean"]].strip(),
+                row[meter_mappings["raw_uuid"]].strip(),
+                row[meter_mappings["serving_revised"]].strip(),
                 building_level_meter,
-                row[meter_mappings["meter_type"]],
+                row[meter_mappings["meter_type"]].strip(),
                 reading_type,
-                row[meter_mappings["units_after_conversion"]],
-                row[meter_mappings["resolution"]],
+                row[meter_mappings["units_after_conversion"]].strip(),
+                resolution,
                 unit_conversion_factor,
-                # Offline data doesn't specify tenant as those meters have been removed
-                row[meter_mappings["tenant"]] if pd.notnull(row[meter_mappings["tenant"]]) else False,
+                tenant,
                 row[meter_mappings["building"]]
             )
             db.session.add(new_meter)
