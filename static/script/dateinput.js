@@ -18,9 +18,7 @@ function getCurPageStartDate() {
     if (document.getElementById("sb-start-date")) {
         return document.getElementById("sb-start-date").value+" 23:50";
     } else {
-        let setDate = new Date(Date.now());
-        setDate.setDate(setDate.getDate()-7);
-        return setDate.toISOString().slice(0, 10)+" 00:00";
+        return null;
     }
 };
 
@@ -28,8 +26,7 @@ function getCurPageEndDate() {
     if (document.getElementById("sb-end-date")) {
         return document.getElementById("sb-end-date").value+" 23:50";
     } else {
-        let setDate = new Date(Date.now());
-        return setDate.toISOString().slice(0, 10)+" 23:50";
+        return null;
     }
 };
 
@@ -78,6 +75,9 @@ $(async function () {
         return;
     }
 
+	const url = window.location.href;
+	const filename = url.substring(url.lastIndexOf('/')+1).split("?")[0];
+
     try {
         if (OFFLINE_MODE) {
             const { offlineMeta } = await getData({ offlineMeta: {} });
@@ -86,7 +86,7 @@ $(async function () {
             if (offlineMeta?.end_time) {
                 const endDate = new Date(offlineMeta.end_time);
                 const startDate = new Date(endDate);
-                startDate.setDate(endDate.getDate() - 30);
+                startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
                 setDateRange(startDate, endDate);
                 return;
             }
@@ -95,14 +95,14 @@ $(async function () {
         } else {
             const endDate = new Date();
             const startDate = new Date(endDate);
-            startDate.setDate(endDate.getDate() - 30);
+            startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
             setDateRange(startDate, endDate);
         }
     } catch (err) {
         console.error("Failed to load or parse data", err);
         const endDate = new Date();
         const startDate = new Date(endDate);
-        startDate.setDate(endDate.getDate() - 30);
+        startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
         setDateRange(startDate, endDate);
     }
 });

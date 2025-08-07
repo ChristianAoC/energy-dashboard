@@ -305,16 +305,16 @@ function randomMeter(buildingFilter = null) {
 
     // Pick random meter
     const randomMeterID = meterIds[Math.floor(Math.random() * meterIds.length)];
-    const randomMeter = browserData.meters.find(meter => meter.meter_id === randomMeterID);
+    const randomMeter = browserData.meters.find(meter => meter[metaLabel["meter_id"]] === randomMeterID);
 
     if (!randomMeter) {
         console.warn(`Random meter ID ${randomMeterID} not found in browserData.meters`);
         return;
     }
 
-    const buildingId = randomMeter.building_id;
-    const utilityType = randomMeter.utility_type;
-    const meterId = randomMeter.meter_id;
+    const buildingId = randomMeter[metaLabel["building_id"]];
+    const utilityType = randomMeter[metaLabel["utility_type"]];
+    const meterId = randomMeter[metaLabel["meter_id"]];
 
     // Update dropdowns
     document.getElementById("select-building").value = buildingId;
@@ -433,6 +433,9 @@ $(document).ready(async function () {
 	document.getElementById("comment-bubble").classList.remove("hidden");
 
     document.getElementById("cumultorate").addEventListener("click", redrawPlot);
+    document.getElementsByName("agg").forEach( function(radio) {
+        radio.addEventListener('click', redrawPlot);
+    });
 
     document.getElementById("select-building").addEventListener("change", () => {
         buildingSelected();
