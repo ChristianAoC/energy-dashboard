@@ -2,9 +2,6 @@
 
 {% block head %}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
-<!--
-<link rel="stylesheet" type="text/css" href="https://cdn.datatables.net/r/bs-3.3.5/dt-1.10.9/datatables.min.css">
--->
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/health-check.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/buttons.dataTables.min.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/dataTables.dataTables.min.css') }}" />
@@ -26,7 +23,18 @@
 <div id="main-content">
 <h3>Data Health Check</h3>
 
-<span id="datespan"></span>
+<div class="hc-inputs-container">
+<div class="hc-date">
+    <label for="sb-start-date">Start date:</label>
+    <input type="date" id="sb-start-date" value="2025-05-01" min="2020-01-01" max="2025-12-31" onchange="onDateInputChange()" />
+</div>
+<div class="hc-date">
+    <label for="sb-end-date">End date:</label>
+    <input type="date" id="sb-end-date" value="2025-06-10" min="2020-01-01" max="2025-12-31" onchange="onDateInputChange()" />
+</div>
+
+<button onclick="getNewHealthCheck()" class="button-generic">Reload health check</button>
+</div>
 
 <div id="healthcheckStatus"></div><br>
 

@@ -585,6 +585,14 @@ div.centered {
     box-sizing: border-box;
 }
 
+div.hc-date {
+	padding: 0px;
+    float: left;
+    text-indent: 6px;
+    margin: 0px 20px 0px 0px;
+    box-sizing: border-box;
+}
+
 .clear-float {
     clear: left;
 }
