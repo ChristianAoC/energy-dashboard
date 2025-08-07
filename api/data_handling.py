@@ -70,7 +70,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     # set the basic output
     out = {
         "id": m.id,
-        "label": m.name,
+        "label": m.description,
         "obs": [],
         "unit": m.units
     }
@@ -150,7 +150,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
 
     # Bring SQL update output back in line with the original output (instead of just returning calculated values)
     # Filter out SEED_UUID and invoiced
-    keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
     out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter

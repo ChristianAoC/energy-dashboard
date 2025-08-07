@@ -83,7 +83,7 @@ def initial_database_population() -> bool:
     meter_mappings = {
         "meter_id_clean": "meter_id_clean2",
         "raw_uuid": "SEED_uuid",
-        "serving_revised": "serving_revised",
+        "description": "description",
         "building_level_meter": "Building Level Meter",
         "meter_type": "Meter Type",
         "reading_type": "class",
@@ -94,7 +94,7 @@ def initial_database_population() -> bool:
         "building": "Building code"
     }
     for _, row in meters.iterrows():
-        # try:
+        try:
             # We don't currently handle Oil meters
             if row[meter_mappings["meter_type"]] in ["Oil", "Spare"]:
                 continue
@@ -141,7 +141,7 @@ def initial_database_population() -> bool:
             new_meter = models.Meter(
                 meter_id_clean,
                 raw_uuid,
-                row[meter_mappings["serving_revised"]].strip(),
+                row[meter_mappings["description"]].strip(),
                 building_level_meter,
                 row[meter_mappings["meter_type"]].strip(),
                 reading_type,
@@ -153,8 +153,8 @@ def initial_database_population() -> bool:
             )
             db.session.add(new_meter)
             db.session.commit()
-        # except Exception as e:
-        #     db.session.rollback()
-        #     print(e)
-        #     continue
+        except Exception as e:
+            db.session.rollback()
+            print(e)
+            continue
     return True

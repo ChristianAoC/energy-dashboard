@@ -10,9 +10,7 @@ class Meter(db.Model):
     # Allowed to be null for offline data
     SEED_uuid = db.Column(db.String(36), unique=True)
 
-    # Is name a required field? (not included in offline data)
-    # Not unique as found some meter names in our dataset are duplicated
-    name = db.Column(db.String(75), nullable=False)
+    description = db.Column(db.String, nullable=False)
 
     main = db.Column(db.Boolean, nullable=False, default=False)
     utility_type = db.Column(db.String(11),
@@ -30,12 +28,12 @@ class Meter(db.Model):
     
     hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter')
 
-    def __init__(self, meter_id_clean: str, raw_uuid: str|None, meter_name: str, building_level_meter: bool,
+    def __init__(self, meter_id_clean: str, raw_uuid: str|None, description: str, building_level_meter: bool,
                  utility_type: str, reading_type: str, units: str, resolution: float|None,
                  unit_conversion_factor: float, tenant: bool, building: str):
         self.id = meter_id_clean
         self.SEED_uuid = raw_uuid
-        self.name = meter_name
+        self.description = description
         self.main = building_level_meter
         self.utility_type = utility_type.lower()
 
@@ -55,7 +53,7 @@ class Meter(db.Model):
         return {
             'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
-            'meter_name': self.name,
+            'description': self.description,
             'main': self.main,
             'utility_type': self.utility_type,
             'reading_type': self.reading_type,
@@ -202,7 +200,7 @@ class HealthCheck(db.Model):
 
     def to_dict(self) -> dict:
         # Filter out SEED_UUID and invoiced
-        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution",
+        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution",
                 "scaling_factor", "building_id"]
         meter_dict: dict = data_cleaner(self.meter.to_dict(), keys) # type: ignore
         

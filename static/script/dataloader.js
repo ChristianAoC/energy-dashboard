@@ -8,7 +8,7 @@ let metaLabel = {
     "meter_id": "meter_id",
     "building_id": "building_id", // also used in hierarchy/building list
     "utility_type": "utility_type",
-    "description": "meter_name", // replace with long description? our own?
+    "description": "description",
     "reading_type": "reading_type",
     //"tenant": "tenant", currently NYI
     "invoiced": "invoiced", // use this or tenant to filter?
