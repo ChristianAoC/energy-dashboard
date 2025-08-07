@@ -1,6 +1,60 @@
+import datetime as dt
 from dotenv import load_dotenv
+import json
+import pandas as pd
 import os
 import sys
+
+
+def generate_offine_meta() -> bool:
+    start_time = None
+    end_time = None
+    interval = None
+    
+    for file in os.listdir(offline_data_files):
+        if not file.endswith(".csv"):
+            continue
+        
+        file_path = os.path.join(offline_data_files, file)
+        df = pd.read_csv(file_path)
+        df['time'] = pd.to_datetime(df['time'], format="%Y-%m-%d %H:%M:%S%z", utc=True)
+        lower_index = df.first_valid_index()
+        upper_index = df.last_valid_index()
+        if lower_index is None or upper_index is None:
+            print(df)
+            return False
+        
+        temp_start_time = df['time'][lower_index]
+        temp_end_time = df['time'][upper_index]
+        
+        temp_interval = df['time'].diff().dropna().min().total_seconds()/60
+        if start_time is None:
+            start_time = temp_start_time
+        if end_time is None:
+            end_time = temp_end_time
+        if interval is None:
+            interval = temp_interval
+        
+        if temp_start_time < start_time:
+            start_time = temp_start_time
+        if temp_end_time > end_time:
+            end_time = temp_end_time
+        if temp_interval != interval:
+            return False
+
+    if start_time is None or end_time is None:
+        return False
+    
+    out = {
+        "start_time": start_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "end_time": end_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "interval": interval
+    }
+    
+    with open(offline_meta_file, "w") as f:
+        json.dump(out, f, indent=4)
+    
+    return True
 
 
 load_dotenv()
@@ -67,11 +121,13 @@ if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
     cannot_initialise = True
 
 if offlineMode and not os.path.exists(offline_meta_file):
-    print("\n" + "="*20)
-    print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
-    print("\tPlease place your metadata in ./data/meta/offline_data.json")
-    print("="*20 + "\n")
-    cannot_initialise = True
+    result = generate_offine_meta()
+    if not result:
+        print("\n" + "="*20)
+        print("\tERROR: You are runnning in offline mode with offline data but no offline metadata!")
+        print("\tPlease place your metadata in ./data/meta/offline_data.json")
+        print("="*20 + "\n")
+        cannot_initialise = True
 
 if not os.path.exists(benchmark_data_file):
     print("\n" + "="*20)
