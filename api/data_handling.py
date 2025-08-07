@@ -12,7 +12,8 @@ import time
 from constants import *
 from database import db
 import models
-from api.helpers import calculate_time_args, is_admin, data_cleaner, clean_file_name
+from api.helpers import calculate_time_args, data_cleaner, clean_file_name
+from api.users import is_admin
 
 
 ## Minimal/efficient call - get time series as Pandas
@@ -525,7 +526,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
         new_meta = {
             "to_time": to_time.timestamp(),
             "from_time": from_time.timestamp(),
-            "timestamp": dt.datetime.now().timestamp(),
+            "timestamp": dt.datetime.now(tz=dt.timezone.utc).timestamp(),
             "processing_time": end_time - start_time
         }
         
