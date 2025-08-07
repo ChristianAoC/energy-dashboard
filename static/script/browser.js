@@ -373,7 +373,7 @@ $(document).ready(async function () {
             let buildingFromUrl = params.get("building");
             let typeFromUrl     = params.get("utility_type");
             let meterFromUrl    = params.get("meter_id");
-            let randomRequest   = params.get("ref") === "view-map" || params.get("ref") === "benchmark";
+            let randomRequest   = params.get("ref") === "map" || params.get("ref") === "benchmark";
 
             // Derive missing building/type from meter_id if needed
             if (meterFromUrl && (!buildingFromUrl || !typeFromUrl)) {

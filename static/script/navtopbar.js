@@ -1,6 +1,6 @@
 function createNavbar() {
-	const url = window.location.href;
-	const filename = url.substring(url.lastIndexOf('/')+1).split("?")[0];
+	const path = window.location.pathname.replace(BASE_PATH, '');
+	const filename = path.split('/')[1];
 
 	var html = `<img id="logo" src="${STATIC_URLS.logo}" alt="Logo" />`;
 
@@ -15,13 +15,13 @@ function createNavbar() {
 
 	for (i = 0; i<navItems.length; i++){
 		if (filename == navItems[i][1].split("?")[0]) {
-			html += '<div class="navlink active"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
+			html += '<div class="navlink active"><a href="' + BASE_PATH + '/' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
 		} else {
-			html += '<div class="navlink"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
+			html += '<div class="navlink"><a href="' + BASE_PATH + '/' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
 		}
 	}
 
-	html += `<a href="settings"><img id="settings-button" src="${STATIC_URLS.settings}" alt="Settings" /></a>`;
+	html += `<a href="${BASE_PATH}/settings"><img id="settings-button" src="${STATIC_URLS.settings}" alt="Settings" /></a>`;
 	return html;
 };
 

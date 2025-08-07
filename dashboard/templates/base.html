@@ -30,6 +30,7 @@
     <nav id="nav-top-bar">
     <script>
     const OFFLINE_MODE = {{ config.OFFLINE_MODE | tojson }};
+    const BASE_PATH = "{{ request.script_root }}";
     const STATIC_URLS = {
         {% if config.OFFLINE_MODE %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-offline-32.png') }}",

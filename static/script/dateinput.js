@@ -75,8 +75,8 @@ $(async function () {
         return;
     }
 
-	const url = window.location.href;
-	const filename = url.substring(url.lastIndexOf('/')+1).split("?")[0];
+    const path = window.location.pathname.replace(BASE_PATH, '');
+	const filename = path.split('/')[1];
 
     try {
         if (OFFLINE_MODE) {

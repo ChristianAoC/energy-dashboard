@@ -28,7 +28,8 @@ function showContextEdit(id) {
 };
 
 function deleteContext(id) {
-    fetch("deletecontext?contextID="+id, {method: 'POST'})
+    // TODO-CONTEXTSQL change this once context gets moved to SQL
+    fetch(BASE_PATH + "/deletecontext?contextID="+id, {method: 'POST'})
     .then(response => response.text())
     .then(data => {
         // does't really return anything

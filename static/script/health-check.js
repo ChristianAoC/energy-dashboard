@@ -142,23 +142,28 @@ function initHCTable() {
             }
 
             button.classList.toggle("hidden");
+
             let urlParams = new URLSearchParams(window.location.search);
+            let newUrl;
+
             if (urlParams.has('hidden')) {
                 if (urlParams.get('hidden') == columnIdx) {
-                    window.history.pushState({},"", "health-check");
+                    newUrl = `${BASE_PATH}/health-check`;
                 } else {
                     hiddenCols = ";" + urlParams.get('hidden') + ";";
-                    if (hiddenCols.includes(";"+columnIdx+";")) {
-                        hiddenCols = hiddenCols.replace(";"+columnIdx+";", ";");
+                    if (hiddenCols.includes(";" + columnIdx + ";")) {
+                        hiddenCols = hiddenCols.replace(";" + columnIdx + ";", ";");
                     } else {
                         hiddenCols += columnIdx;
                     }
                     hiddenCols = hiddenCols.replace(";;", ";");
-                    window.history.pushState({},"", "health-check?hidden="+hiddenCols);
+                    newUrl = `${BASE_PATH}/health-check?hidden=${hiddenCols}`;
                 }
             } else {
-                window.history.pushState({},"", "health-check?hidden="+columnIdx);
+                newUrl = `${BASE_PATH}/health-check?hidden=${columnIdx}`;
             }
+
+            window.history.pushState({}, "", newUrl);
         });
     });
 
@@ -333,7 +338,6 @@ $(async function () {
 
     buildColumnToggles();
 
-    // note: this uses fetch/callApiJSON directly because of the stale headers etc
     try {
         // Load meterHealth and headers directly (need X-Cache-State)
         let meterHealthResponse = await fetch(apiEndpoints.meterHealth);

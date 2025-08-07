@@ -1,7 +1,7 @@
 const browserData = {};
 const utilityTypes = ["gas", "electricity", "heat", "water"];
 const utilityUnits = {"gas": "m³", "electricity": "kWh", "heat": "MWh", "water": "m³"};
-const defaultDateRanges = {"benchmark": 365, "browser": 365, "health-check": 30};
+const defaultDateRanges = {"benchmark": 365, "browser": 30, "health-check": 30};
 
 let metaLabel = {
 
@@ -97,11 +97,12 @@ const apiEndpoints = {
 
     // Gets all context entries
     // noparams
+    // TODO-CONTEXTSQL this will have to be changed once context gets moved to SQL
     getcontext: '/getcontext',
 
     // get user level
     // params: email, SessionID
-    userLevel: '/get_user_level'
+    userLevel: '/api/user/get-level'
 };
 
 // need this frequently, strangely JS has no native function for this
