@@ -12,11 +12,11 @@ from database import db, initial_database_population
 import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
-from api.helpers import calculate_time_args, is_admin, data_cleaner
-import dashboard.user as user
+from api.helpers import calculate_time_args, data_cleaner
+from api.users import get_user_level, is_admin
 
 
-api_bp = Blueprint('api_bp', __name__, static_url_path='')
+data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')
 
 # decorator to limit certain pages to a specific user level
 def required_user_level(level_config_key):
@@ -38,7 +38,7 @@ def required_user_level(level_config_key):
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)
                 
-                if user.get_user_level(email, sessionID) < level:
+                if get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
             except:
                 print("No or wrong cookie")
@@ -60,12 +60,12 @@ def required_user_level(level_config_key):
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/
-@api_bp.route('/', methods=["GET"])
+@data_api_bp.route('/', methods=["GET"])
 def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
-@api_bp.route('/meters')
+@data_api_bp.route('/meters')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meters():
     statement = db.select(models.Meter)
@@ -87,7 +87,7 @@ def meters():
     return make_response(jsonify(out), 200)
 
 ## Health check cache meta
-@api_bp.route('/hc_meta')
+@data_api_bp.route('/hc_meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
     hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
@@ -162,7 +162,7 @@ def hc_meta():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/summary
-@api_bp.route('/summary')
+@data_api_bp.route('/summary')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def summary():
     to_time = request.args.get("to_time")
@@ -176,27 +176,26 @@ def summary():
         .where(models.CacheMeta.meta_type == "usage_summary")
     ).scalar_one_or_none()
     
-    try:
-        if cache_meta is None:
-            raise Exception
-        
-        if offlineMode:
-            with open(offline_meta_file, "r") as f:
-                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
-        else:
-            latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
-        cache_age = latest_data_date - cache_meta.to_time
-        if cache_age >= 3600 * hc_update_time:
-            valid_cache = False
-    except:
-        valid_cache = False
+    valid_cache = False
+    if cache_meta is not None and cache_meta.to_time == to_time.timestamp() and cache_meta.from_time == from_time.timestamp():
+        valid_cache = True
     
     data = {}
     if valid_cache:
         for x in db.session.execute(db.select(models.UtilityData)).scalars().all():
             data[x.building.id] = x.to_dict()
     else:
-        cache_result = set(request.args).isdisjoint({"from_time", "to_time"})
+        cache_result = True
+        if offlineMode:
+            with open(offline_meta_file, "r") as f:
+                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        else:
+            latest_data_date = dt.datetime.now(dt.timezone.utc)
+        latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        
+        if to_time < latest_data_date:
+            cache_result = False
+        
         data = generate_summary(from_time, to_time, days, cache_result)
     return make_response(jsonify(data), 200)
 
@@ -217,7 +216,7 @@ def summary():
 ## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2
 ## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2;AP080_L01_M5
 ## http://127.0.0.1:5000/api/meter_obs?id=WTHR_0
-@api_bp.route('/meter_obs')
+@data_api_bp.route('/meter_obs')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_obs():
     try:
@@ -292,7 +291,7 @@ def meter_obs():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=30
-@api_bp.route('/meter_health')
+@data_api_bp.route('/meter_health')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
     # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
@@ -382,7 +381,7 @@ def meter_health():
 ##     },
 ##     ...
 ## }
-@api_bp.route('/meter_hierarchy')
+@data_api_bp.route('/meter_hierarchy')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_hierarchy():
     buildings = db.session.execute(db.select(models.Building)).scalars().all()
@@ -436,7 +435,7 @@ def meter_hierarchy():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/health_score
-@api_bp.route('/health_score')
+@data_api_bp.route('/health_score')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
     to_time = request.args.get("to_time")
@@ -448,7 +447,7 @@ def health_score():
     return make_response(jsonify(data), 200)
 
 ## Returns the contents of data/meta/offline_data.json
-@api_bp.route('/offline_meta')
+@data_api_bp.route('/offline_meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     if not os.path.exists(offline_meta_file) or not offlineMode:
@@ -458,7 +457,7 @@ def offline_meta():
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
-@api_bp.route("/mazemap_polygons")
+@data_api_bp.route("/mazemap_polygons")
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def mazemap_polygons():
     if not os.path.exists(mazemap_polygons_file):
@@ -468,7 +467,7 @@ def mazemap_polygons():
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
-@api_bp.route('/regeneratecache', methods=["GET"])
+@data_api_bp.route('/regeneratecache', methods=["GET"])
 @required_user_level("USER_LEVEL_ADMIN")
 def regenerate_cache():
     start_time = time.time()
@@ -478,7 +477,7 @@ def regenerate_cache():
     print(f"Cache regeneratation took {total_time} seconds")
     return make_response(str(total_time), 200)
 
-@api_bp.route('/populate_database')
+@data_api_bp.route('/populate_database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
     result = initial_database_population()

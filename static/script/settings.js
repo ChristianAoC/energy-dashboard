@@ -1,7 +1,7 @@
 function requestLogin() {
     //let email = document.getElementById("email").value;
     let email = document.getElementById("login-request-email").value;
-    fetch("loginrequest?email="+email, {method: 'POST'})
+    fetch("/api/user/login?email="+email, {method: 'POST'})
         .then(response => response.text())
         .then(data => {
             document.getElementById("login-request-div").innerHTML = data;
@@ -9,7 +9,7 @@ function requestLogin() {
 }
 
 function logout() {
-    fetch("logout?email="+getCookie("Email"), {method: 'POST'})
+    fetch("/api/user/logout?email="+getCookie("Email"), {method: 'POST'})
         .then(response => response.text())
         .then(data => {
             location.reload();
@@ -26,7 +26,7 @@ document.addEventListener("click", function (e) {
     if (e.target.matches(".btn-delete")) {
         const email = e.target.dataset.email;
         if (confirm(`Delete user ${email}?`)) {
-            fetch(`/admin/delete_user`, {
+            fetch(`/api/user/delete`, {
                 method: "POST",
                 headers: {
                     "Content-Type": "application/json"
@@ -46,7 +46,7 @@ document.addEventListener("change", function (e) {
         const newLevel = parseInt(e.target.value);
         const email = e.target.dataset.email;
 
-        fetch('/admin/set_user_level', {
+        fetch('/api/user/set-level', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ email, level: newLevel })
@@ -66,7 +66,7 @@ document.addEventListener("change", function (e) {
 });
 
 $(document).ready( function () {
-    fetch('/admin/list_users')
+    fetch('/api/user/list')
         .then(response => {
             if (!response.ok) throw new Error("Not authorized");
             return response.json();
@@ -92,17 +92,7 @@ $(document).ready( function () {
                         }
                     },
                     { data: "logincount", title: "Total logins"},
-                    {
-                        data: 'sessions', title: "Total sessions",
-                        render: function (sessions) {
-                            return sessions.length;
-                            /*
-                            return sessions.map(s => {
-                                return `<div><code>${s.id}</code> <small>(${s.lastseen})</small></div>`;
-                            }).join('');
-                            */
-                        }
-                    },
+                    { data: 'sessions', title: "Total sessions"},
                     {
                         data: null, title: "Actions",
                         render: function (u, type, row) {

@@ -8,7 +8,8 @@ from constants import *
 from database import db
 import models
 from api.data_handling import process_meter_health, query_time_series
-from api.helpers import calculate_time_args, is_admin, clean_file_name
+from api.helpers import calculate_time_args, clean_file_name
+from api.users import is_admin
 
 
 cache_generation_lock = threading.Lock()
