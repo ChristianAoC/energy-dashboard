@@ -196,6 +196,9 @@ def summary():
         if to_time < latest_data_date:
             cache_result = False
         
+        if days != 365:
+            cache_result = False
+        
         data = generate_summary(from_time, to_time, days, cache_result)
     return make_response(jsonify(data), 200)
 
