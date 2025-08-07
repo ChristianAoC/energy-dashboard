@@ -226,7 +226,7 @@ def login_request(email: str) -> tuple:
 
     print("Mail sending off until everything else works. Post this URL into the browser:")
     print(codeurl)
-    return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 503)
+    return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 200)
 
 def check_code(email: str, code: str) -> tuple:
     if not user_exists(email):
