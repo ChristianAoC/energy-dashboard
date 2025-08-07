@@ -145,4 +145,7 @@ def about():
 
 @dashboard_bp.route("/settings")
 def settings():
-    return render_template('settings.html', user = users.get_user_info())
+    user = users.get_logged_in_user()
+    message = request.args.get('message')
+    status = request.args.get('status', 'info')  # default to "info" if not provided
+    return render_template('settings.html', user=user, message=message, status=status)

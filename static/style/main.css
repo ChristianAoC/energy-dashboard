@@ -615,3 +615,28 @@ span.hidden {
 div#muted-div {
     display: none;
 }
+
+/* message box layout for settings.html */
+
+.message-box {
+  margin: 1em 0;
+  padding: 1em;
+  border-radius: 5px;
+  font-weight: bold;
+  max-width: 600px;
+}
+.message-box.error {
+  background-color: #fdd;
+  color: #a00;
+  border: 1px solid #a00;
+}
+.message-box.success {
+  background-color: #dfd;
+  color: #070;
+  border: 1px solid #070;
+}
+.message-box.info {
+  background-color: #eef;
+  color: #005;
+  border: 1px solid #005;
+}
