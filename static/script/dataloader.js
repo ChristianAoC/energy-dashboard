@@ -61,48 +61,48 @@ let metaLabel = {
 const apiEndpoints = {
     // List of all meters (formerly "devices")
     // no params
-    meters: '/api/meters',
+    meters: BASE_PATH + '/api/meters',
 
     // Simple static list of buildings as JSON hierarchy (formerly "masterlist" without usage)
     // no params
-    hierarchy: '/api/meter_hierarchy',
+    hierarchy: BASE_PATH + '/api/meter_hierarchy',
     
     // Summary of usage as pet buildings and their main meters (formerly "masterlist" with usage)
     // params: to_time, from_time
-    summary: '/api/summary',
+    summary: BASE_PATH + '/api/summary',
 
     // Mazemap polygons
     // noaparms
-    mazemap_polygons: '/api/mazemap_polygons',
+    mazemap_polygons: BASE_PATH + '/api/mazemap_polygons',
 
     // Provides a list of meters for each health_score per building
     // params: to_time, from_time
-    healthScore: '/api/health_score',
+    healthScore: BASE_PATH + '/api/health_score',
 
     // Health check - detailed stats analysis for each meter (or one if ID given)
     // params: id, to_time, from_time, date_range
-    meterHealth: '/api/meter_health',
+    meterHealth: BASE_PATH + '/api/meter_health',
 
     // Health check meta info
     // no params
-    hcMeta: '/api/hc_meta',
+    hcMeta: BASE_PATH + '/api/hc_meta',
 
     // Returns first and last date for offline data and interval
     // no params
-    offlineMeta: '/api/offline_meta',
+    offlineMeta: BASE_PATH + '/api/offline_meta',
     
     // Return time series data for given meter/time
     // params: id, to_time, from_time, format, aggregate, to_rate
-    obs: '/api/meter_obs',
+    obs: BASE_PATH + '/api/meter_obs',
 
     // Gets all context entries
     // noparams
     // TODO-CONTEXTSQL this will have to be changed once context gets moved to SQL
-    getcontext: '/getcontext',
+    getcontext: BASE_PATH + '/getcontext',
 
     // get user level
     // params: email, SessionID
-    userLevel: '/api/user/get-level'
+    userLevel: BASE_PATH + '/api/user/get-level'
 };
 
 // need this frequently, strangely JS has no native function for this

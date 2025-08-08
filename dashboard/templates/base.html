@@ -17,6 +17,8 @@
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery.datetimepicker.full.min.js') }}"></script>
 <script type='text/javascript' src="{{ url_for('static', filename='script/ext/plotly-2.32.0.min.js') }}"></script>
 
+<script>const BASE_PATH = "{{ request.script_root }}";</script>
+
 <!-- own JS files -->
 <script type="text/javascript" src="{{ url_for('static', filename='script/dataloader.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='script/dateinput.js') }}"></script>
@@ -30,7 +32,6 @@
     <nav id="nav-top-bar">
     <script>
     const OFFLINE_MODE = {{ config.OFFLINE_MODE | tojson }};
-    const BASE_PATH = "{{ request.script_root }}";
     const STATIC_URLS = {
         {% if config.OFFLINE_MODE %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-offline-32.png') }}",
