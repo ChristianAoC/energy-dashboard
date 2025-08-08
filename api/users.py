@@ -16,7 +16,7 @@ def get_user(email: str|None = None) -> models.User|None:
     
     return db.session.execute(db.select(models.User).where(models.User.email == email)).scalar_one_or_none()
 
-# Get user info for settings.json
+# Get user info for settings.json (get any user info just by email)
 def get_user_info(email: str|None = None) -> dict|None:
     if email is None:
         try:
@@ -31,6 +31,29 @@ def get_user_info(email: str|None = None) -> dict|None:
             "email": user.email,
             "level": user.level
         }
+
+def get_logged_in_user() -> dict | None:
+    """Get currently logged-in user from session cookies if valid, else None."""
+    cookies = request.cookies
+    email = cookies.get("Email")
+    sessionID = cookies.get("SessionID")
+
+    if not email or not sessionID:
+        return None
+
+    # Assuming users.get_user_level(email, sessionID) returns 0 or None if invalid
+    user_level = get_user_level(email, sessionID)
+    if not user_level or user_level == 0:
+        return None
+
+    # Get user info (email and level)
+    user_info = get_user_info(email)
+    if user_info is None:
+        return None
+
+    # Confirm level matches session-validated level
+    user_info['level'] = user_level
+    return user_info
 
 def user_exists(email: str) -> bool:
     if email is None:
@@ -89,8 +112,9 @@ def is_admin(user: models.User|None = None) -> bool:
         return False
     return True
 
-def set_cookies(email: str, sessionID: str) -> Response:
-    resp = make_response(render_template('settings.html', user = get_user_info(email)))
+def set_cookies(email: str, sessionID: str, message: str = None, status: str = "info") -> Response:
+    user = get_logged_in_user()
+    resp = make_response(render_template('settings.html', user=user, message=message, status=status))
     resp.set_cookie("SessionID", sessionID, 60*60*24*365)
     resp.set_cookie("Email", email, 60*60*24*365)
     resp.status_code = 200
@@ -226,7 +250,7 @@ def login_request(email: str) -> tuple:
 
     print("Mail sending off until everything else works. Post this URL into the browser:")
     print(codeurl)
-    return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 503)
+    return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 200)
 
 def check_code(email: str, code: str) -> tuple:
     if not user_exists(email):

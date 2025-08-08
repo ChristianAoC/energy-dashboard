@@ -1,6 +1,6 @@
 function createNavbar() {
-	const url = window.location.href;
-	const filename = url.substring(url.lastIndexOf('/')+1).split("?")[0];
+	const path = window.location.pathname.replace(BASE_PATH, '');
+	const filename = path.split('/')[1];
 
 	var html = `<img id="logo" src="${STATIC_URLS.logo}" alt="Logo" />`;
 
@@ -9,19 +9,19 @@ function createNavbar() {
 	navItems.push(['Map', 'map']);
 	navItems.push(['Benchmark', 'benchmark']);
 	navItems.push(['Browser', 'browser']);
-	navItems.push(['Health Check', 'health-check?hidden=;3;4;5;6;8;9;10;11;14;15;16;17;18;19;20;21;22;23;24;25;26;29;30;31;32;33;']);
+	navItems.push(['Health Check', 'health-check?hidden=,3,4,5,6,8,9,10,11,14,15,16,17,18,19,20,21,22,23,24,25,26,29,30,31,32,33,']);
 	navItems.push(['Context', 'context']);
 	navItems.push(['About', 'about']);
 
 	for (i = 0; i<navItems.length; i++){
 		if (filename == navItems[i][1].split("?")[0]) {
-			html += '<div class="navlink active"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
+			html += '<div class="navlink active"><a href="' + BASE_PATH + '/' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
 		} else {
-			html += '<div class="navlink"><a href="' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
+			html += '<div class="navlink"><a href="' + BASE_PATH + '/' + navItems[i][1] + '">' + navItems[i][0] + '</a></div>'
 		}
 	}
 
-	html += `<a href="settings"><img id="settings-button" src="${STATIC_URLS.settings}" alt="Settings" /></a>`;
+	html += `<a href="${BASE_PATH}/settings"><img id="settings-button" src="${STATIC_URLS.settings}" alt="Settings" /></a>`;
 	return html;
 };
 

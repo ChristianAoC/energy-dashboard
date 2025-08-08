@@ -149,7 +149,7 @@ function redrawGraph() {
         if (data.points[0].customdata != null && data.points[0].customdata != "") {
             contextMeterClicked = data.points[0].customdata.split(";")[0];
             if (!commentMode) {
-                window.location.href = "browser?ref=benchmark&meter_id="+contextMeterClicked;
+                window.location.href = BASE_PATH + "/browser?ref=benchmark&meter_id="+contextMeterClicked;
             }
         }
     });

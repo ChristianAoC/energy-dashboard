@@ -373,10 +373,11 @@ $(document).ready(async function () {
             let buildingFromUrl = params.get("building");
             let typeFromUrl     = params.get("utility_type");
             let meterFromUrl    = params.get("meter_id");
-            let randomRequest   = params.get("ref") === "view-map" || params.get("ref") === "benchmark";
+            let randomRequest   = params.get("ref") === "map" || params.get("ref") === "benchmark";
 
             // Derive missing building/type from meter_id if needed
             if (meterFromUrl && (!buildingFromUrl || !typeFromUrl)) {
+                console.log(meterFromUrl)
                 for (let i = 0; i < browserData.meters.length; i++) {
                     if (browserData.meters[i][metaLabel["meter_id"]] === meterFromUrl) {
                         buildingFromUrl = browserData.meters[i][metaLabel["building_id"]];
@@ -384,6 +385,7 @@ $(document).ready(async function () {
                         break;
                     }
                 }
+                console.log("meter not found")
             }
 
             // Auto-load behaviour

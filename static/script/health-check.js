@@ -45,17 +45,6 @@ const hctColumns = [
 ]
 
 function initHCTable() {
-    // read meta to fill info span before populating table
-    let sp_str = "";
-    if (jQuery.isEmptyObject(browserData.hcMeta)) {
-        sp_str += "No cached health check found, showing simple meter list. A check is being performed, check again in a few minutes.<br>";
-    } else {
-        sp_str += "This is the latest health check for the period between ";
-        sp_str += new Date(browserData.hcMeta["from_time"] * 1000).toDateString()+" and "+new Date(browserData.hcMeta["to_time"] * 1000).toDateString();
-        sp_str += ".<br>";
-    }
-    document.getElementById("datespan").innerHTML = sp_str + "<br>";
-
     const headerRow = $('#healthcheckTable thead tr').first();
     hctColumns.forEach(col => {
         $('<th>').text(col.title).appendTo(headerRow);
@@ -79,7 +68,16 @@ function initHCTable() {
 
             // TODO: check date range applies
             for (const c of browserData.context || []) {
-                if (data[metaLabel["meter_id"]] === c.meter) {
+                const startInputStr = document.getElementById("sb-start-date").value;
+                const endInputStr = document.getElementById("sb-end-date").value;
+
+                const startDate = c.start?.split(" ")[0] || "";
+                const endDate = c.end?.split(" ")[0] || "";
+
+                if (c.startnone == false && startDate > endInputStr) continue;
+                if (c.endnone == false && endDate < startInputStr) continue;
+
+                if (c.target_type === "Meter" && data[metaLabel["meter_id"]] === c.target_id) {
                     const cell = $('td.lastCol', row);
                     const commentHTML = `<b>${c.author.split('@')[0]}</b>: ${c.comment}`;
 
@@ -142,29 +140,38 @@ function initHCTable() {
             }
 
             button.classList.toggle("hidden");
-            let urlParams = new URLSearchParams(window.location.search);
-            if (urlParams.has('hidden')) {
-                if (urlParams.get('hidden') == columnIdx) {
-                    window.history.pushState({},"", "health-check");
-                } else {
-                    hiddenCols = ";" + urlParams.get('hidden') + ";";
-                    if (hiddenCols.includes(";"+columnIdx+";")) {
-                        hiddenCols = hiddenCols.replace(";"+columnIdx+";", ";");
-                    } else {
-                        hiddenCols += columnIdx;
-                    }
-                    hiddenCols = hiddenCols.replace(";;", ";");
-                    window.history.pushState({},"", "health-check?hidden="+hiddenCols);
-                }
-            } else {
-                window.history.pushState({},"", "health-check?hidden="+columnIdx);
-            }
+
+        const params = new URLSearchParams(window.location.search);
+        const colStr = String(columnIdx);
+
+        // Safely parse existing hidden list
+        const rawHidden = params.get("hidden") || "";
+        const hiddenSet = new Set(
+            rawHidden.split(',').map(x => x.trim()).filter(x => x !== "")
+        );
+
+        if (hiddenSet.has(colStr)) {
+            hiddenSet.delete(colStr);
+        } else {
+            hiddenSet.add(colStr);
+        }
+
+        if (hiddenSet.size > 0) {
+            // Only valid numeric values, no leading/trailing commas
+            const hiddenStr = Array.from(hiddenSet).sort((a, b) => a - b).join(',');
+            params.set("hidden", hiddenStr);
+        } else {
+            params.delete("hidden");
+        }
+
+        const newUrl = `${BASE_PATH}/health-check?${params.toString()}`;
+        window.history.pushState({}, "", newUrl);
         });
     });
 
     let urlParams = new URLSearchParams(window.location.search);
     if (urlParams.has('hidden')) {
-        let hiddenCols = urlParams.get('hidden').split(";");
+        let hiddenCols = urlParams.get('hidden').split(",");
         for (let h of hiddenCols) {
             if (h !== "") {
                 const colIdx = parseInt(h, 10);
@@ -186,7 +193,7 @@ function initHCTable() {
         cell = healthcheckTable.cell(this);
         if (commentMode) return;
         if (cell.index()["column"] == 0) {
-            viewDevice(this.closest("tr").getAttribute("data-meter"));
+            window.location.href = BASE_PATH + "/browser?ref=health-check&meter_id=" + this.closest("tr").getAttribute("data-meter");
         } else if (this.classList.contains("lastCol")) {
             createContextDialog(
                 this.closest("tr").getAttribute("data-meter")
@@ -195,10 +202,54 @@ function initHCTable() {
     });    
 };
 
-function updateHCTable(newData, newMeta) {
-    browserData.meterHealth = newData;
-    browserData.hcMeta = newMeta;
+async function getNewHealthCheck() {
+    const startDateInput = document.getElementById("sb-start-date");
+    const endDateInput = document.getElementById("sb-end-date");
+    const healthcheckStatus = document.getElementById("healthcheckStatus");
 
+    startDateInput.disabled = true;
+    endDateInput.disabled = true;
+    healthcheckStatus.textContent = 'Reloading health check...';
+
+    const startDateStr = startDateInput.value;
+    const endDateStr = endDateInput.value;
+
+    try {
+        // Convert date strings to Unix timestamps (seconds)
+        const fromTime = Math.floor(new Date(startDateStr).getTime() / 1000);
+        const toTime = Math.floor(new Date(endDateStr).getTime() / 1000);
+        const timestamp = Date.now() / 1000;
+
+        // Construct URL with query parameters
+        const url = new URL(apiEndpoints.meterHealth, window.location.origin);
+        url.searchParams.append('start', startDateStr);
+        url.searchParams.append('end', endDateStr);
+
+        // Fetch new health check
+        const response = await fetch(url.toString());
+        const newHealthData = await response.json();
+
+        browserData.meterHealth = newHealthData;
+        browserData.hcMeta = {
+            from_time: fromTime,
+            to_time: toTime,
+            timestamp: timestamp,
+            processing_time: null // Optional: could compute or leave null
+        };
+
+        updateHCTable();
+
+        healthcheckStatus.textContent = 'Health check updated.';
+    } catch (err) {
+        console.error("Failed to reload health check", err);
+        healthcheckStatus.textContent = 'Error updating health check.';
+    } finally {
+        startDateInput.disabled = false;
+        endDateInput.disabled = false;
+    }
+}
+
+function updateHCTable() {
     // Update the info span
     let sp_str = "";
     if (jQuery.isEmptyObject(browserData.hcMeta)) {
@@ -210,7 +261,6 @@ function updateHCTable(newData, newMeta) {
                   new Date(browserData.hcMeta["to_time"] * 1000).toDateString() +
                   ".<br>";
     }
-    document.getElementById("datespan").innerHTML = sp_str + "<br>";
 
     // Update DataTable contents
     const table = $('#healthcheckTable').DataTable();
@@ -333,7 +383,6 @@ $(async function () {
 
     buildColumnToggles();
 
-    // note: this uses fetch/callApiJSON directly because of the stale headers etc
     try {
         // Load meterHealth and headers directly (need X-Cache-State)
         let meterHealthResponse = await fetch(apiEndpoints.meterHealth);
@@ -349,6 +398,9 @@ $(async function () {
         browserData.meterHealth = meterHealth;
         browserData.hcMeta = hcMeta;
         browserData.context = getcontext || [];
+
+        document.getElementById("sb-start-date").value = new Date(browserData.hcMeta.from_time * 1000).toISOString().split("T")[0];
+        document.getElementById("sb-end-date").value = new Date(browserData.hcMeta.to_time * 1000).toISOString().split("T")[0];
 
         if (browserData.hcMeta && browserData.meterHealth) {
             initHCTable();
@@ -375,6 +427,9 @@ $(async function () {
                         browserData.meterHealth = retryData;
                         browserData.hcMeta = updatedMeta;
                         browserData.context = updatedContext || [];
+
+                        document.getElementById("sb-start-date").value = new Date(browserData.hcMeta.from_time * 1000).toISOString().split("T")[0];
+                        document.getElementById("sb-end-date").value = new Date(browserData.hcMeta.to_time * 1000).toISOString().split("T")[0];
 
                         updateHCTable();
 

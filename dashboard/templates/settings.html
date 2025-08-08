@@ -13,6 +13,12 @@
 
 <h2>Settings</h2>
 
+{% if message %}
+  <div class="message-box {{ status | default('info') }}">
+    {{ message }}
+  </div>
+{% endif %}
+
 {% if user %}
 
 Logged in as {{ user.email | tojson | safe }}.<br><br>
@@ -26,6 +32,7 @@ Logged in as {{ user.email | tojson | safe }}.<br><br>
 <script>
     const currentUserEmail = "{{ user.email | safe }}";
 </script>
+<script type="text/javascript" src="{{ url_for('static', filename='script/settings-admin.js') }}"></script>
 <div id="usersTableContainer">
     <table id="usersTable">
     </table>
@@ -41,7 +48,7 @@ Not logged in.<br>
 This site does not use passwords, instead you receive a login token via email. Your email will be your username.<br><br>
 Enter email address to request a login token:<br>
 <input type="text" id="login-request-email" class="auth" autofocus="" placeholder="Email" onkeypress="checkKeyPressAuth(event)" /><br>
-<button type="button" onclick="requestLogin()" class="auth" id="login-request-button">Request login token</button><br>
+<button type="button" onclick="requestLogin()" class="auth button-generic" id="login-request-button">Request login token</button><br>
 <div id="login-request-div"></div>
 
 {% endif %}

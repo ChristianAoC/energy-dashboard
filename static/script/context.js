@@ -28,7 +28,8 @@ function showContextEdit(id) {
 };
 
 function deleteContext(id) {
-    fetch("deletecontext?contextID="+id, {method: 'POST'})
+    // TODO-CONTEXTSQL change this once context gets moved to SQL
+    fetch(BASE_PATH + "/deletecontext?contextID="+id, {method: 'POST'})
     .then(response => response.text())
     .then(data => {
         // does't really return anything
@@ -78,8 +79,9 @@ function initContextTable(userEmail, userLevel) {
             {data: "id", title: "",
                 render: function (data, type, row) {
                     if (userLevel >= 4 || row.author === userEmail) {
+                        // TODO-CONTEXTSQL change this once context is moved to SQL
                         return "<button type='button' onclick='showContextEdit("+data+")'>Edit</button> "+
-                            "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) deleteContext("+data+");'>Delete</button>";
+                            "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) " + BASE_PATH + "/deleteContext("+data+");'>Delete</button>";
                     }
                     return "";
                 }

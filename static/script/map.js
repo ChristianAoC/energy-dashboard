@@ -323,7 +323,7 @@ function viewEnergyData(buildingID) {
     if (commentMode) {
         return;
     }
-    window.location.href = "browser?ref=map&building="+buildingID;
+    window.location.href = BASE_PATH + "/browser?ref=map&building="+buildingID;
 };
 
 function getMapSliderRanges() {

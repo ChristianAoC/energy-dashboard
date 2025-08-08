@@ -1,4 +1,4 @@
-from flask import Blueprint, make_response, request, render_template
+from flask import Blueprint, make_response, request, render_template, redirect, url_for
 
 import api.users as users
 import dashboard.main as dashboard_bp
@@ -35,7 +35,7 @@ def login():
     if result[1] != 200:
         return make_response(result[0], result[1])
 
-    if result[0] is str:
+    if isinstance(result[0], str):
         return make_response(result[0], result[1])
     
     return users.set_cookies(result[0][0], result[0][1])
@@ -43,17 +43,25 @@ def login():
 @users_api_bp.route("/verify")
 def verify():
     email = request.args.get('email')
-    if email is None or email == "":
-        return make_response("No email provided.", 400)
     code = request.args.get('code')
-    if code is None or code == "":
-        return make_response("No code provided.", 400)
 
-    result = users.check_code(email, code)
-    if result[0] == False:
-        return make_response(result[1], 500)
-    
-    return users.set_cookies(email, result[1])
+    if not email or not code:
+        return make_response("Email or code not provided.", 400)
+
+    logged_in_user = users.get_logged_in_user()
+    if logged_in_user and logged_in_user['email'].lower() == email.lower():
+        # redirect with message
+        return redirect(url_for('dashboard_bp.settings', message=f"Already logged in as {email}.", status="info"))
+
+    success, result = users.check_code(email, code)
+    if not success:
+        return redirect(url_for('dashboard_bp.settings', message=result, status="error"))
+
+    # success — set cookies and redirect with success message
+    resp = make_response(redirect(url_for('dashboard_bp.settings', message="Login successful!", status="success")))
+    resp.set_cookie("SessionID", result, max_age=60*60*24*365)
+    resp.set_cookie("Email", email, max_age=60*60*24*365)
+    return resp
 
 @users_api_bp.route("/get-level", methods=['GET', 'POST'])
 def get_level():
