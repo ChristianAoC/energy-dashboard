@@ -13,6 +13,7 @@ from datetime import timezone
 from dotenv import load_dotenv
 import requests
 
+from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.user import users_api_bp
 from api.endpoints.settings import settings_api_bp
@@ -86,6 +87,7 @@ if cannot_initialise:
 del cannot_initialise
 
 app.register_blueprint(data_api_bp, url_prefix='/api')
+app.register_blueprint(context_api_bp, url_prefix='/api/context')
 app.register_blueprint(users_api_bp, url_prefix='/api/user')
 app.register_blueprint(settings_api_bp, url_prefix='/api/settings')
 app.register_blueprint(dashboard_bp)

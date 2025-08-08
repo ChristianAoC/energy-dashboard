@@ -271,8 +271,7 @@ function saveContext() {
     toSubmit["id"] = document.getElementById("context-button").getAttribute("context-id");
 
     // this dialog is used to call either savecontext or editcontext endpoint
-    // TODO-CONTEXTSQL needs to be changed once context gets moved to SQL
-    fetch(BASE_PATH + "/" + action+"context", {
+    fetch(BASE_PATH + "/api/context/" + action, {
         "method": "POST",
         "headers": {"Content-Type": "application/json"},
         "body": JSON.stringify(toSubmit),
