@@ -87,6 +87,7 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 ## data_end_time - The latest date that there is data for (Current time if online)
 def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
     print(f"Started: {m.id}")
+    log.create_log(msg=f"Started data cache generation for {m.id}", level=log.info)
     try:
         file_name = clean_file_name(f"{m.id}.json")
 
@@ -103,6 +104,7 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             if score is None:
                 # Something happended to the offline data since running cache_validity_checker, quit thread
                 print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                log.create_log(msg=f"Error accessing the offline data for {m.id}", level=log.error)
                 return
             meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
 
@@ -129,8 +131,10 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             json.dump(meter_snapshots, f)
     except Exception as e:
         print(f"An error occurred generating cache for meter {m.id}")
+        log.create_log(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
         raise e
     print(f"Ended: {m.id}")
+    log.create_log(msg=f"Finished data cache generation for {m.id}", level=log.info)
 
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
@@ -189,6 +193,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             if (cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and
                     cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time)):
                 print(f"Skipping: {m.id}")
+                log.create_log(msg=f"Skipping data cache generation for {m.id}", level=log.info)
                 continue
 
             threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))

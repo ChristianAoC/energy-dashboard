@@ -17,6 +17,7 @@ def init(app):
 def initial_database_population() -> bool:
     # Import here to stop circular import issue
     import models
+    import log
     
     if len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0:
         return False
@@ -77,6 +78,7 @@ def initial_database_population() -> bool:
         except Exception as e:
             db.session.rollback()
             print(e)
+            log.create_log(msg="Error loading building from metadata file", extra_info=str(e), level=log.warning)
             continue
     
     meters = pd.read_excel(metadata_file, sheet_name=meter_sheet)
@@ -156,5 +158,6 @@ def initial_database_population() -> bool:
         except Exception as e:
             db.session.rollback()
             print(e)
+            log.create_log(msg="Error loading meter from metadata file", extra_info=str(e), level=log.warning)
             continue
     return True

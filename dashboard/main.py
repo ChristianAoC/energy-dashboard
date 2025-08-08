@@ -4,6 +4,7 @@ from functools import wraps
 
 import api.users as users
 import dashboard.context as context
+import log
 
 dashboard_bp = Blueprint('dashboard_bp'
     , __name__,
@@ -51,8 +52,9 @@ def required_user_level(level_config_key):
                     if request.method == "POST":
                         return make_response("Access Denied", 401)
                     return noaccess()
-            except:
+            except Exception as e:
                 print("No or wrong cookie")
+                log.create_log(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 if request.method == "POST":
                     return make_response("Access Denied", 401)
                 return noaccess()

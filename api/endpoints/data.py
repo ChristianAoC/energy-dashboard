@@ -9,6 +9,7 @@ import time
 
 from constants import *
 from database import db, initial_database_population
+import log
 import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
@@ -26,6 +27,7 @@ def required_user_level(level_config_key):
             # Bypass authentication for internal calls
             if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
                 print("Bypassed user level authorization for internal call")
+                log.create_log(msg="Bypassed user level authorization for internal call", level=log.info)
                 return function(*args, **kwargs)
             
             # Skip validating if required level is 0 (allow unauthenticated users)
@@ -40,8 +42,9 @@ def required_user_level(level_config_key):
                 
                 if get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
-            except:
+            except Exception as e:
                 print("No or wrong cookie")
+                log.create_log(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 return make_response("Access Denied", 401)
 
             return function(*args, **kwargs)
@@ -328,6 +331,7 @@ def meter_health():
                     return response
             except:
                 print("Error reading cache metadata, skipping HC cache")
+                log.create_log(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
         # TODO: Implement a lock here instead of this
         updateOngoing = False
@@ -478,6 +482,7 @@ def regenerate_cache():
     end_time = time.time()
     total_time = end_time - start_time
     print(f"Cache regeneratation took {total_time} seconds")
+    log.create_log(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
 @data_api_bp.route('/populate_database')

@@ -1,7 +1,9 @@
 import json
 import os
 import uuid
-from datetime import datetime
+
+import log
+
 
 filename = "data/context.json"
 
@@ -22,6 +24,7 @@ def add_context(contextElem):
                 max_id = this_id
         except (ValueError, KeyError):
             print("ID wasn't a number or missing.")
+            log.create_log(msg="Context ID wasn't a number or was missing", level=log.warning)
 
     contextElem["id"] = max_id + 1
     context.append(contextElem)

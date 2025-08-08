@@ -317,6 +317,7 @@ def get_health(args, returning=False, app_context=None):
     out = []
     for m in meters:
         print(m.id)
+        log.create_log(msg=f"Started health check for {m.id}", level=log.info)
         threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
         threads[-1].start()
 
@@ -326,6 +327,7 @@ def get_health(args, returning=False, app_context=None):
 
     proc_time = (time.time() - start_time)
     # print("--- Health check took %s seconds ---" % proc_time)
+    log.create_log(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
     if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
@@ -351,11 +353,14 @@ def get_health(args, returning=False, app_context=None):
             except Exception as e:
                 print("Error trying to save metadata for latest HC cache")
                 print(e)
+                log.create_log(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
         except Exception as e:
             print("Error trying to save current health check in cache")
             print(e)
+            log.create_log(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
 
         print("Completed HC update")
+        log.create_log(msg="Completed health check update", level=log.info)
     
     if returning:
         exclude_tenants = not is_admin()
