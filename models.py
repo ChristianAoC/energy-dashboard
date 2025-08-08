@@ -414,30 +414,13 @@ class LoginCode(db.Model):
     def __repr__(self) -> str:
         return f"<LoginCode {self.code} for {self.email}>"
 
-class Setting(db.Model):
+class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
-    value = db.Column(db.String, nullable=False)
-    value_type = db.Column(db.String, CheckConstraint("value_type IN ('string', 'bool', 'int', 'float', 'json')"),
-                           nullable=False)
+    value = db.Column(db.JSON, nullable=False)
     
-    def __init__(self, key: str, value: str, value_type: str):
+    def __init__(self, key: str, value):
         self.key = key
         self.value = value
-        self.value_type = value_type.lower()
-    
-    def get_value(self) -> str|bool|int|float|dict:
-        if self.value_type == "string":
-            return str(self.value)
-        elif self.value_type == "bool":
-            return True if self.value == "1" else False
-        elif self.value_type == "int":
-            return int(self.value)
-        elif self.value_type == "float":
-            return float(self.value)
-        elif self.value_type == "json":
-            return json.loads(self.value)
-        
-        return str(self.value)
     
     def __repr__(self) -> str:
         return f"<Settings {self.key}>"
