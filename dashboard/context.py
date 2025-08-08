@@ -66,7 +66,7 @@ def delete_context(contextID):
 
 def view_all():
     if not os.path.isfile(filename):
-        return "Context file missing"
+        return []
     with open(filename, 'r', encoding="utf-8", errors="replace") as openfile:
         context = json.load(openfile)
         for i, c in enumerate(context):

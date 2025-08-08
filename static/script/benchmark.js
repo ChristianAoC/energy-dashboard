@@ -386,6 +386,7 @@ async function getNewSummary() {
 
     const startDate = document.getElementById("sb-start-date").value;
     const endDate = document.getElementById("sb-end-date").value;
+	document.getElementById('comparison-plot').innerHTML = `<div class="centered"><img src='${appConfig.loadingGifUrl}' alt='Loading...' /><div>`;
 
     try {
         const { summary, getcontext } = await getData({

@@ -66,7 +66,6 @@ function initHCTable() {
             $(row).attr("data-meter", data[metaLabel["meter_id"]]);
             $(row).addClass('colorScore'+data[metaLabel["HC_score"]]);
 
-            // TODO: check date range applies
             for (const c of browserData.context || []) {
                 const startInputStr = document.getElementById("sb-start-date").value;
                 const endInputStr = document.getElementById("sb-end-date").value;
@@ -101,7 +100,7 @@ function initHCTable() {
         initComplete: function () {
             const api = this.api();
 
-            setupFilters(api); // <- run once on init
+            setupFilters(api);
 
             // Rebuild filters every time visibility changes
             api.on('column-visibility', function () {
@@ -202,71 +201,12 @@ function initHCTable() {
     });    
 };
 
-async function getNewHealthCheck() {
-    const startDateInput = document.getElementById("sb-start-date");
-    const endDateInput = document.getElementById("sb-end-date");
-    const healthcheckStatus = document.getElementById("healthcheckStatus");
-
-    startDateInput.disabled = true;
-    endDateInput.disabled = true;
-    healthcheckStatus.textContent = 'Reloading health check...';
-
-    const startDateStr = startDateInput.value;
-    const endDateStr = endDateInput.value;
-
-    try {
-        // Convert date strings to Unix timestamps (seconds)
-        const fromTime = Math.floor(new Date(startDateStr).getTime() / 1000);
-        const toTime = Math.floor(new Date(endDateStr).getTime() / 1000);
-        const timestamp = Date.now() / 1000;
-
-        // Construct URL with query parameters
-        const url = new URL(apiEndpoints.meterHealth, window.location.origin);
-        url.searchParams.append('start', startDateStr);
-        url.searchParams.append('end', endDateStr);
-
-        // Fetch new health check
-        const response = await fetch(url.toString());
-        const newHealthData = await response.json();
-
-        browserData.meterHealth = newHealthData;
-        browserData.hcMeta = {
-            from_time: fromTime,
-            to_time: toTime,
-            timestamp: timestamp,
-            processing_time: null // Optional: could compute or leave null
-        };
-
-        updateHCTable();
-
-        healthcheckStatus.textContent = 'Health check updated.';
-    } catch (err) {
-        console.error("Failed to reload health check", err);
-        healthcheckStatus.textContent = 'Error updating health check.';
-    } finally {
-        startDateInput.disabled = false;
-        endDateInput.disabled = false;
-    }
-}
-
 function updateHCTable() {
-    // Update the info span
-    let sp_str = "";
-    if (jQuery.isEmptyObject(browserData.hcMeta)) {
-        sp_str += "No cached health check found, showing simple meter list. A check is being performed, check again in a few minutes.<br>";
-    } else {
-        sp_str += "This is the latest health check for the period between ";
-        sp_str += new Date(browserData.hcMeta["from_time"] * 1000).toDateString() +
-                  " and " +
-                  new Date(browserData.hcMeta["to_time"] * 1000).toDateString() +
-                  ".<br>";
-    }
-
     // Update DataTable contents
     const table = $('#healthcheckTable').DataTable();
 
     table.clear();
-    table.rows.add(newData);
+    table.rows.add(browserData.meterHealth);
     table.draw();
 }
 
@@ -371,80 +311,101 @@ function buildColumnToggles() {
     });
 }
 
-$(async function () {
-    document.getElementById("comment-bubble").classList.remove("hidden");
-    commentParent = "healthcheckTable";
-
-    let filterRow = $('<tr class="filters"></tr>');
-    hctColumns.forEach(() => {
-        filterRow.append('<th></th>');
-    });
-    $('#healthcheckTable thead').append(filterRow);
-
-    buildColumnToggles();
+// Unified fetch + update function
+async function fetchAndUpdateHealthCheck({ startDateStr, endDateStr, showStatus = true }) {
+    if (showStatus) {
+        $('#healthcheckStatus').text('Loading health check...');
+    }
 
     try {
-        // Load meterHealth and headers directly (need X-Cache-State)
-        let meterHealthResponse = await fetch(apiEndpoints.meterHealth);
+        const startDate = startDateStr || document.getElementById("sb-start-date").value;
+        const endDate = endDateStr || document.getElementById("sb-end-date").value;
+
+        const fromTime = Math.floor(new Date(startDate).getTime() / 1000);
+        const toTime = Math.floor(new Date(endDate).getTime() / 1000);
+        const timestamp = Date.now() / 1000;
+
+        // Construct URL with query params if dates provided
+        const url = new URL(apiEndpoints.meterHealth, window.location.origin);
+        if (startDate && endDate) {
+            url.searchParams.append('start', startDate);
+            url.searchParams.append('end', endDate);
+        }
+
+        const meterHealthResponse = await fetch(url.toString());
         const cacheState = meterHealthResponse.headers.get('X-Cache-State');
         const meterHealth = await meterHealthResponse.json();
 
-        // Load hcMeta and context together using getData
         const { hcMeta, getcontext } = await getData({
             hcMeta: {},
             getcontext: {}
         });
 
-        browserData.meterHealth = meterHealth;
-        browserData.hcMeta = hcMeta;
+        browserData.meterHealth = meterHealth || [];
+        browserData.hcMeta = hcMeta || {};
         browserData.context = getcontext || [];
 
-        document.getElementById("sb-start-date").value = new Date(browserData.hcMeta.from_time * 1000).toISOString().split("T")[0];
-        document.getElementById("sb-end-date").value = new Date(browserData.hcMeta.to_time * 1000).toISOString().split("T")[0];
-
-        if (browserData.hcMeta && browserData.meterHealth) {
-            initHCTable();
+        if (hcMeta?.from_time && hcMeta?.to_time) {
+            document.getElementById("sb-start-date").value = new Date(hcMeta.from_time * 1000).toISOString().split("T")[0];
+            document.getElementById("sb-end-date").value = new Date(hcMeta.to_time * 1000).toISOString().split("T")[0];
         }
+
+        updateHCTable();
 
         if (cacheState === 'stale') {
-            const retryIntervalMs = 5000;
-
             $('#healthcheckStatus').text('Updating health check... table will reload when done.');
-
-            setTimeout(async () => {
-                try {
-                    const retryResp = await fetch(apiEndpoints.meterHealth + `?_=${Date.now()}`);
-                    const retryCacheState = retryResp.headers.get('X-Cache-State');
-                    const retryData = await retryResp.json();
-
-                    if (retryCacheState === 'fresh') {
-                        // Re-fetch meta and context too
-                        const { hcMeta: updatedMeta, getcontext: updatedContext } = await getData({
-                            hcMeta: {},
-                            getcontext: {}
-                        });
-
-                        browserData.meterHealth = retryData;
-                        browserData.hcMeta = updatedMeta;
-                        browserData.context = updatedContext || [];
-
-                        document.getElementById("sb-start-date").value = new Date(browserData.hcMeta.from_time * 1000).toISOString().split("T")[0];
-                        document.getElementById("sb-end-date").value = new Date(browserData.hcMeta.to_time * 1000).toISOString().split("T")[0];
-
-                        updateHCTable();
-
-                        $('#healthcheckStatus').text('Updated');
-                    } else {
-                        $('#healthcheckStatus').text('Still updating...');
-                        // Optionally retry again
-                    }
-                } catch (err) {
-                    console.error("Retry failed", err);
-                    $('#healthcheckStatus').text('Update failed');
-                }
-            }, retryIntervalMs);
+            retryHealthCheckUpdate();
+        } else {
+            $('#healthcheckStatus').text('Health check loaded.');
         }
+
     } catch (err) {
-        console.error("Failed to load data", err);
+        console.error("Failed to load health check", err);
+        $('#healthcheckStatus').text('Error loading health check.');
     }
+}
+
+// Retry logic now reuses the unified fetcher
+function retryHealthCheckUpdate() {
+    const retryIntervalMs = 5000;
+    setTimeout(() => {
+        fetchAndUpdateHealthCheck({ showStatus: true });
+    }, retryIntervalMs);
+}
+
+// Manual reload button handler now just calls the unified fetcher
+async function getNewHealthCheck() {
+    const startDateInput = document.getElementById("sb-start-date");
+    const endDateInput = document.getElementById("sb-end-date");
+
+    startDateInput.disabled = true;
+    endDateInput.disabled = true;
+    $('#healthcheckStatus').text('Reloading health check...');
+
+    await fetchAndUpdateHealthCheck({
+        startDateStr: startDateInput.value,
+        endDateStr: endDateInput.value,
+        showStatus: false
+    });
+
+    startDateInput.disabled = false;
+    endDateInput.disabled = false;
+}
+
+// Document ready
+$(async function () {
+    document.getElementById("comment-bubble").classList.remove("hidden");
+    commentParent = "healthcheckTable";
+
+    // Always init browserData safely
+    browserData.meterHealth = [];
+    browserData.hcMeta = {};
+    browserData.context = [];
+
+    // Always init table once with empty data
+    buildColumnToggles();
+    initHCTable();
+
+    // Kick off first load
+    fetchAndUpdateHealthCheck({ showStatus: true });
 });
