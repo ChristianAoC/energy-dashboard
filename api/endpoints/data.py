@@ -80,7 +80,7 @@ def meters():
             raise Exception
         keys = keys.split(";")
     except:
-        keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
     
     out = data_cleaner(data, keys)
     

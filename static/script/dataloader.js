@@ -9,7 +9,7 @@ let metaLabel = {
     "meter_id": "meter_id",
     "building_id": "building_id",
     "utility_type": "utility_type",
-    "description": "meter_name", // replace with description once updated in meta upload
+    "description": "description",
     "reading_type": "reading_type",
     "tenant": "tenant",
     "location": "meter_location",

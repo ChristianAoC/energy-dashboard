@@ -23,11 +23,9 @@ from api.users import is_admin
 def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
     if offlineMode:
         try:
-            with open(os.path.join(offline_data_files, f"{m.id}.json"), "r") as f:
-                obs = json.load(f)
-
-            obs = pd.DataFrame.from_dict(obs)
-            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+            with open(os.path.join(offline_data_files, f"{m.id}.csv"), "r") as f:
+                obs = pd.read_csv(f)
+            obs['time'] = pd.to_datetime(obs['time'], format="%Y-%m-%d %H:%M:%S%z", utc=True)
             obs.drop(obs[obs.time < from_time.astimezone(dt.timezone.utc)].index, inplace=True)
             obs.drop(obs[obs.time > to_time.astimezone(dt.timezone.utc)].index, inplace=True)
             obs['time'] = obs['time'].dt.strftime("%Y-%m-%dT%H:%M:%S%z")
@@ -73,7 +71,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     # set the basic output
     out = {
         "id": m.id,
-        "label": m.name,
+        "label": m.description,
         "obs": [],
         "unit": m.units
     }
@@ -153,12 +151,11 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
 
     # Bring SQL update output back in line with the original output (instead of just returning calculated values)
     # Filter out SEED_UUID and invoiced
-    keys = ["meter_id", "meter_name", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+    keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
     out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
     m_obs = query_influx(m, from_time, to_time)
-    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
 
     # count values. if no values, stop
     out["HC_count"] = len(m_obs)
@@ -169,7 +166,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
         all_outputs.append(out)
         return out
-
+    
+    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+    
     out["HC_count_perc"] = round(100 * out["HC_count"] / xcount, 2)
     if out["HC_count_perc"] > 100:
         out["HC_count_perc"] = 100
