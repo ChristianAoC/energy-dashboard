@@ -446,10 +446,13 @@ class Log(db.Model):
     id = db.Column(db.Integer, primary_key=True, autoincrement=True)
     timestamp = db.Column(db.DateTime, nullable=False)
     message = db.Column(db.String, nullable=False)
+    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"),
+                      nullable=False)
     
-    def __init__(self, timestamp: datetime, message: str):
+    def __init__(self, timestamp: datetime, message: str, level: str):
         self.timestamp = timestamp
         self.message = message
+        self.level = level
     
     def __repr__(self) -> str:
-        return f"<Log {self.id} at {self.timestamp}>"
+        return f"<Log {self.id} at {self.timestamp} is {self.level.upper()}>"
