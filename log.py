@@ -1,7 +1,7 @@
 import datetime as dt
 
-import models
 from database import db
+import models
 
 info = "info"
 warning = "warning"
@@ -15,7 +15,7 @@ index = {
     "critical": 4
 }
 
-def create_log(msg: str, level: str):
+def create_log(msg: str, level: str, extra_info: str|None = None):
     # Import here to stop circular import issue
     from constants import log_level
     
@@ -29,7 +29,8 @@ def create_log(msg: str, level: str):
         new_log = models.Log(
             timestamp=dt.datetime.now(),
             message=msg,
-            level=level
+            level=level,
+            info=extra_info
         )
         db.session.add(new_log)
         db.session.commit()
