@@ -441,3 +441,15 @@ class Setting(db.Model):
     
     def __repr__(self) -> str:
         return f"<Settings {self.key}>"
+
+class Log(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    message = db.Column(db.String, nullable=False)
+    
+    def __init__(self, timestamp: datetime, message: str):
+        self.timestamp = timestamp
+        self.message = message
+    
+    def __repr__(self) -> str:
+        return f"<Log {self.id} at {self.timestamp}>"
