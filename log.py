@@ -1,7 +1,9 @@
 import datetime as dt
 
+from constants import log_level
 from database import db
 import models
+
 
 # Levels were loosly based on https://stackoverflow.com/a/2031209 (and other anwers for that question),
 # along with past experience.
@@ -45,9 +47,6 @@ index = {
 }
 
 def write(msg: str, level: str, extra_info: str|None = None):
-    # Import here to stop circular import issue
-    from constants import log_level
-    
     level_index = index.get(level.lower(), 1)
     minimum_index = index.get(log_level.lower(), 1)
     

@@ -2,9 +2,6 @@ from dotenv import load_dotenv
 import json
 import pandas as pd
 import os
-import sys
-
-import log
 
 
 def generate_offine_meta() -> bool:
@@ -108,57 +105,3 @@ mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
 log_level = os.getenv("LOG_LEVEL", "warning")
 
 del val
-
-###########################################################
-###              Check required files exist             ###
-###########################################################
-
-cannot_initialise = False
-
-if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline")):
-    print("\n" + "="*20)
-    print("\tERROR: You are runnning in offline mode without any offline data!")
-    print("\tPlease place your data in ./data/offline/")
-    print("="*20 + "\n")
-    log.write(msg="You are runnning in offline mode without any offline data",
-                   extra_info="Place your data in ./data/offline/",
-                   level=log.critical)
-    cannot_initialise = True
-
-if offlineMode and not os.path.exists(offline_meta_file):
-    result = generate_offine_meta()
-    if not result:
-        print("\n" + "="*20)
-        print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
-        print("\tPlease place your metadata in ./data/meta/offline_data.json")
-        print("="*20 + "\n")
-        log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated)",
-                       extra_info="Place your metadata in ./data/meta/offline_data.json",
-                       level=log.critical)
-        cannot_initialise = True
-
-if not os.path.exists(benchmark_data_file):
-    print("\n" + "="*20)
-    print("\tERROR: You have removed the included benchmark data!")
-    print("\tPlease place the benchmark data in ./data/benchmarks.json")
-    print("="*20 + "\n")
-    log.write(msg="Can't find benchmark data",
-                   extra_info="Place the benchmark data in ./data/benchmarks.json, an example is included in the repo",
-                   level=log.critical)
-    cannot_initialise = True
-
-if not os.path.exists(mazemap_polygons_file):
-    print("\n" + "="*20)
-    print("\tERROR: You don't have any mazemap polygons defined!")
-    print("\tPlease place the data in ./data/mazemap_polygons.json")
-    print("="*20 + "\n")
-    log.write(msg="Can't find any mazemap polygons",
-                   extra_info="Place the polygon data in ./data/mazemap_polygons.json",
-                   level=log.critical)
-    cannot_initialise = True
-
-# Show all error messages before exiting
-if cannot_initialise:
-    sys.exit(1)
-
-del cannot_initialise
