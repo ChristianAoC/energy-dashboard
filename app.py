@@ -15,6 +15,7 @@ import requests
 
 from api.endpoints.data import data_api_bp
 from api.endpoints.user import users_api_bp
+from api.endpoints.settings import settings_api_bp
 import constants
 from dashboard.main import dashboard_bp
 import database
@@ -86,6 +87,7 @@ del cannot_initialise
 
 app.register_blueprint(data_api_bp, url_prefix='/api')
 app.register_blueprint(users_api_bp, url_prefix='/api/user')
+app.register_blueprint(settings_api_bp, url_prefix='/api/settings')
 app.register_blueprint(dashboard_bp)
 
 load_dotenv()
