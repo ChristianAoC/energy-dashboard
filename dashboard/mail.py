@@ -15,7 +15,7 @@ def send_email(email_receiver, email_subject, email_body_plain, email_body_html)
     smtp_port = current_app.config["SMTP_PORT"]
     if email_sender == None or email_password == None or smtp_server == None or smtp_port == None:
         print("SMTP variables not set in .env, couldn't send email!")
-        log.create_log(msg="SMTP variables not set in .env, couldn't send email", level=log.error)
+        log.write(msg="SMTP variables not set in .env, couldn't send email", level=log.error)
         return "SMTP variables not set in .env, couldn't send email!"
     em = MIMEMultipart("alternative")
     em['Subject'] = email_subject

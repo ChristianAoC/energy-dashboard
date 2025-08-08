@@ -83,11 +83,11 @@ def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, pa
         print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
         print("\tPlease manually call the endpoint to complete the scheduled task")
         print("="*20 + "\n")
-        log.create_log(msg=f"Scheduled api call to {url} failed with code {request_response.status_code}",
+        log.write(msg=f"Scheduled api call to {url} failed with code {request_response.status_code}",
                        level=log.error)
     else:
         print(f"Finished scheduled request to: {url}")
-        log.create_log(msg=f"Finished scheduled request to: {url}", level=log.info)
+        log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
 val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
 background_task_timing = val.split(":")

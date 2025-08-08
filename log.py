@@ -44,7 +44,7 @@ index = {
     "critical": 4
 }
 
-def create_log(msg: str, level: str, extra_info: str|None = None):
+def write(msg: str, level: str, extra_info: str|None = None):
     # Import here to stop circular import issue
     from constants import log_level
     

@@ -78,7 +78,7 @@ def initial_database_population() -> bool:
         except Exception as e:
             db.session.rollback()
             print(e)
-            log.create_log(msg="Error loading building from metadata file", extra_info=str(e), level=log.warning)
+            log.write(msg="Error loading building from metadata file", extra_info=str(e), level=log.warning)
             continue
     
     meters = pd.read_excel(metadata_file, sheet_name=meter_sheet)
@@ -158,6 +158,6 @@ def initial_database_population() -> bool:
         except Exception as e:
             db.session.rollback()
             print(e)
-            log.create_log(msg="Error loading meter from metadata file", extra_info=str(e), level=log.warning)
+            log.write(msg="Error loading meter from metadata file", extra_info=str(e), level=log.warning)
             continue
     return True
