@@ -276,7 +276,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     return out
 
 def get_health(args, returning=False, app_context=None):
-    # Because this function can be run in a separate thread, we need to
+    # Because this function can be run in a separate thread, we need to push the app context
     if app_context is not None:
         app_context.push()
 
