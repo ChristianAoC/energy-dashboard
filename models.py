@@ -414,7 +414,7 @@ class LoginCode(db.Model):
     def __repr__(self) -> str:
         return f"<LoginCode {self.code} for {self.email}>"
 
-class Settings(db.Model):
+class Setting(db.Model):
     key = db.Column(db.String, primary_key=True)
     value = db.Column(db.String, nullable=False)
     value_type = db.Column(db.String, CheckConstraint("value_type IN ('string', 'bool', 'int', 'float', 'json')"),
