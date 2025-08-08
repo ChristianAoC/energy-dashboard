@@ -1,4 +1,3 @@
-import datetime as dt
 from dotenv import load_dotenv
 import json
 import pandas as pd
@@ -21,7 +20,6 @@ def generate_offine_meta() -> bool:
         lower_index = df.first_valid_index()
         upper_index = df.last_valid_index()
         if lower_index is None or upper_index is None:
-            print(df)
             return False
         
         temp_start_time = df['time'][lower_index]
@@ -104,6 +102,8 @@ offline_meta_file = os.path.join(DATA_DIR, "meta", "offline_data.json")
 offline_data_files = os.path.join(DATA_DIR, "offline")
 
 mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
+
+log_level = os.getenv("LOG_LEVEL", "warning")
 
 del val
 
