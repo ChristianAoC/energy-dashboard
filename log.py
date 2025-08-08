@@ -15,9 +15,10 @@ import models
 info = "info"
 
 # An error that doesn't stop the operation from continuing, e.g:
-# - an error that occurs while reading an individual record from a json/csv/xlsx file
+# - an error while reading an individual record from a json/csv/xlsx file
 # - an error while reading a cache, but we can just recalculate the information
 # - an error saving a cache but we can still return the information
+# - an external call is sent to a user level protected endpoint without being logged it
 # May require direct intervention from an administrator
 warning = "warning"
 
