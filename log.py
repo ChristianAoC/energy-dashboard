@@ -1,4 +1,5 @@
 import datetime as dt
+from sqlalchemy import or_
 
 from constants import log_level
 from database import db
@@ -64,3 +65,40 @@ def write(msg: str, level: str, extra_info: str|None = None):
         db.session.commit()
     except:
         db.session.rollback()
+
+def read(from_time: dt.datetime|None = None, to_time: dt.datetime|None = None, minimum_level: str|None = None,
+         exact_level: str|None = None, count: int|None = None, newest_first: bool = True) -> list|None:
+    if exact_level in index.keys():
+        minimum_level = None
+    else:
+        exact_level = None
+    
+    if minimum_level not in index.keys():
+        minimum_level = None
+    
+    statement = db.Select(models.Log)
+    if from_time is not None:
+        statement = statement.where(models.Log.timestamp >= from_time)
+    
+    if to_time is not None:
+        statement = statement.where(models.Log.timestamp <= to_time)
+    
+    if exact_level is not None:
+        statement = statement.where(models.Log.level == exact_level)
+    elif minimum_level is not None:
+        if minimum_level == info:
+            statement = statement.where(or_(models.Log.level == info, models.Log.level == warning, # type: ignore
+                                            models.Log.level == error, models.Log.level == critical)) # type: ignore
+        elif minimum_level == warning:
+            statement = statement.where(or_(models.Log.level == warning, models.Log.level == error, # type: ignore
+                                            models.Log.level == critical)) # type: ignore
+        elif minimum_level == error:
+            statement = statement.where(or_(models.Log.level == error, models.Log.level == critical)) # type: ignore
+        elif minimum_level == critical:
+            statement = statement.where(models.Log.level == critical)
+    
+    if newest_first:
+        statement = statement.order_by(models.Log.timestamp.desc()) # type: ignore
+    else:
+        statement = statement.order_by(models.Log.timestamp.asc()) # type: ignore 
+    return [x.to_dict() for x in db.session.execute(statement).scalars().fetchmany(count)]

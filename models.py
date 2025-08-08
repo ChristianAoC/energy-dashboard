@@ -456,5 +456,13 @@ class Log(db.Model):
         self.info = info
         self.level = level
     
+    def to_dict(self) -> dict:
+        return {
+            "level": self.level.upper(),
+            "timestamp": self.timestamp.isoformat(sep=" "),
+            "message": self.message,
+            "info": self.info
+        }
+    
     def __repr__(self) -> str:
         return f"<Log {self.id} at {self.timestamp} is {self.level.upper()}>"
