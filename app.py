@@ -13,18 +13,83 @@ from datetime import timezone
 from dotenv import load_dotenv
 import requests
 
+from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.user import users_api_bp
+from api.endpoints.settings import settings_api_bp
+import constants
 from dashboard.main import dashboard_bp
 import database
+import log
+
 
 app = Flask(__name__)
 database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
 
+# This is so that the log can be written to if an error occurs when loading constants
+###########################################################
+###              Check required files exist             ###
+###########################################################
+
+cannot_initialise = False
+
+if constants.offlineMode and not os.path.exists(os.path.join(constants.DATA_DIR, "offline")):
+    print("\n" + "="*20)
+    print("\tERROR: You are runnning in offline mode without any offline data!")
+    print("\tPlease place your data in ./data/offline/")
+    print("="*20 + "\n")
+    with app.app_context():
+        log.write(msg="You are runnning in offline mode without any offline data",
+                  extra_info="Place your data in ./data/offline/",
+                  level=log.critical)
+    cannot_initialise = True
+
+if constants.offlineMode and not os.path.exists(constants.offline_meta_file):
+    result = constants.generate_offine_meta()
+    if not result:
+        print("\n" + "="*20)
+        print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
+        print("\tPlease place your metadata in ./data/meta/offline_data.json")
+        print("="*20 + "\n")
+        with app.app_context():
+            log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated)",
+                      extra_info="Place your metadata in ./data/meta/offline_data.json",
+                      level=log.critical)
+        cannot_initialise = True
+
+if not os.path.exists(constants.benchmark_data_file):
+    print("\n" + "="*20)
+    print("\tERROR: You have removed the included benchmark data!")
+    print("\tPlease place the benchmark data in ./data/benchmarks.json")
+    print("="*20 + "\n")
+    with app.app_context():
+        log.write(msg="Can't find benchmark data",
+                  extra_info="Place the benchmark data in ./data/benchmarks.json, an example is included in the repo",
+                  level=log.critical)
+    cannot_initialise = True
+
+if not os.path.exists(constants.mazemap_polygons_file):
+    print("\n" + "="*20)
+    print("\tERROR: You don't have any mazemap polygons defined!")
+    print("\tPlease place the data in ./data/mazemap_polygons.json")
+    print("="*20 + "\n")
+    with app.app_context():
+        log.write(msg="Can't find any mazemap polygons",
+                  extra_info="Place the polygon data in ./data/mazemap_polygons.json",
+                  level=log.critical)
+    cannot_initialise = True
+
+# Show all error messages before exiting
+if cannot_initialise:
+    sys.exit(1)
+del cannot_initialise
+
 app.register_blueprint(data_api_bp, url_prefix='/api')
+app.register_blueprint(context_api_bp, url_prefix='/api/context')
 app.register_blueprint(users_api_bp, url_prefix='/api/user')
+app.register_blueprint(settings_api_bp, url_prefix='/api/settings')
 app.register_blueprint(dashboard_bp)
 
 load_dotenv()
@@ -82,8 +147,11 @@ def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, pa
         print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
         print("\tPlease manually call the endpoint to complete the scheduled task")
         print("="*20 + "\n")
+        log.write(msg=f"Scheduled api call to {url} failed with code {request_response.status_code}",
+                       level=log.error)
     else:
         print(f"Finished scheduled request to: {url}")
+        log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
 val = os.getenv("BACKGROUND_TASK_TIMING", "02:00")
 background_task_timing = val.split(":")

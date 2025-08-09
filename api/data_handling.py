@@ -14,6 +14,7 @@ from database import db
 import models
 from api.helpers import calculate_time_args, data_cleaner, clean_file_name
 from api.users import is_admin
+import log
 
 
 ## Minimal/efficient call - get time series as Pandas
@@ -276,7 +277,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     return out
 
 def get_health(args, returning=False, app_context=None):
-    # Because this function can be run in a separate thread, we need to
+    # Because this function can be run in a separate thread, we need to push the app context
     if app_context is not None:
         app_context.push()
 
@@ -317,6 +318,7 @@ def get_health(args, returning=False, app_context=None):
     out = []
     for m in meters:
         print(m.id)
+        log.write(msg=f"Started health check for {m.id}", level=log.info)
         threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
         threads[-1].start()
 
@@ -326,6 +328,7 @@ def get_health(args, returning=False, app_context=None):
 
     proc_time = (time.time() - start_time)
     # print("--- Health check took %s seconds ---" % proc_time)
+    log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
     if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
@@ -351,11 +354,14 @@ def get_health(args, returning=False, app_context=None):
             except Exception as e:
                 print("Error trying to save metadata for latest HC cache")
                 print(e)
+                log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
         except Exception as e:
             print("Error trying to save current health check in cache")
             print(e)
+            log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
 
         print("Completed HC update")
+        log.write(msg="Completed health check update", level=log.info)
     
     if returning:
         exclude_tenants = not is_admin()

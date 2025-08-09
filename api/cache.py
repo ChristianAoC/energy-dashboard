@@ -87,6 +87,7 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 ## data_end_time - The latest date that there is data for (Current time if online)
 def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
     print(f"Started: {m.id}")
+    log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
     try:
         file_name = clean_file_name(f"{m.id}.json")
 
@@ -103,6 +104,7 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             if score is None:
                 # Something happended to the offline data since running cache_validity_checker, quit thread
                 print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
                 return
             meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
 
@@ -129,8 +131,10 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             json.dump(meter_snapshots, f)
     except Exception as e:
         print(f"An error occurred generating cache for meter {m.id}")
+        log.write(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
         raise e
     print(f"Ended: {m.id}")
+    log.write(msg=f"Finished data cache generation for {m.id}", level=log.info)
 
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
@@ -189,6 +193,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             if (cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and
                     cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time)):
                 print(f"Skipping: {m.id}")
+                log.write(msg=f"Skipping data cache generation for {m.id}", level=log.info)
                 continue
 
             threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))
@@ -208,111 +213,3 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
     cache_generation_lock.release()
     return
-
-def get_health(args, returning=False, app_context=None):
-    # Because this function can be run in a separate thread, we need to
-    if app_context is not None:
-        app_context.push()
-
-    try:
-        meter_ids = args["id"] # this is url decoded
-        meter_ids = meter_ids.split(";")
-    except:
-        statement = db.select(models.Meter.id)
-        if not is_admin():
-            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-        
-        meter_ids = [x.id for x in db.session.execute(statement)]
-
-    to_time = args.get("to_time")
-    from_time = args.get("from_time")
-    try:
-        date_range = int(args["date_range"]) # this is url decoded
-    except:
-        date_range = 30
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range)
-
-    # TODO: Should this be implemented or removed?
-    try:
-        fmt = args["format"] # this is url decoded
-    except:
-        fmt = "json"
-
-    ## load and trim meters
-    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
-    if not is_admin():
-        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-    
-    meters = db.session.execute(statement).scalars().all()
-
-    start_time = time.time()
-
-    threads = []
-    out = []
-    for m in meters:
-        print(m.id)
-        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
-        threads[-1].start()
-
-    # Wait for all threads to complete
-    for t in threads:
-        t.join()
-
-    proc_time = (time.time() - start_time)
-    # print("--- Health check took %s seconds ---" % proc_time)
-
-    # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
-        try:
-            for meter in out:
-                update_health_check(meter)
-
-            try:
-                hc_meta = {
-                    "to_time": to_time.timestamp(),
-                    "from_time": from_time.timestamp(),
-                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
-                    "processing_time": proc_time
-                }
-
-                existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
-                if existing_hc_meta is None:
-                    new_hc_meta = models.CacheMeta("health_check", hc_meta)
-                    db.session.add(new_hc_meta)
-                else:
-                    existing_hc_meta.update(hc_meta)
-                db.session.commit()
-            except Exception as e:
-                print("Error trying to save metadata for latest HC cache")
-                print(e)
-        except Exception as e:
-            print("Error trying to save current health check in cache")
-            print(e)
-
-        print("Completed HC update")
-    
-    if returning:
-        exclude_tenants = not is_admin()
-        if not exclude_tenants:
-            return out
-        
-        cleaned_out = []
-        for meter_data in out:
-            meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
-            if meter is None:
-                continue
-            
-            if meter.invoiced:
-                continue
-            
-            cleaned_out.append(meter_data)
-        return out
-
-def update_health_check(values: dict):
-    existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
-    if existing_hc is None:
-        new_hc = models.HealthCheck(meter_id=values["meter_id"], hc_data=values)
-        db.session.add(new_hc)
-    else:
-        existing_hc.update(values)
-    db.session.commit()

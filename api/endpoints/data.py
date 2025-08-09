@@ -9,6 +9,7 @@ import time
 
 from constants import *
 from database import db, initial_database_population
+import log
 import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
@@ -26,6 +27,7 @@ def required_user_level(level_config_key):
             # Bypass authentication for internal calls
             if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
                 print("Bypassed user level authorization for internal call")
+                log.write(msg="Bypassed user level authorization for internal call", level=log.info)
                 return function(*args, **kwargs)
             
             # Skip validating if required level is 0 (allow unauthenticated users)
@@ -40,8 +42,9 @@ def required_user_level(level_config_key):
                 
                 if get_user_level(email, sessionID) < level:
                     return make_response("Access Denied", 401)
-            except:
+            except Exception as e:
                 print("No or wrong cookie")
+                log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 return make_response("Access Denied", 401)
 
             return function(*args, **kwargs)
@@ -328,6 +331,7 @@ def meter_health():
                     return response
             except:
                 print("Error reading cache metadata, skipping HC cache")
+                log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
         # TODO: Implement a lock here instead of this
         updateOngoing = False
@@ -478,6 +482,7 @@ def regenerate_cache():
     end_time = time.time()
     total_time = end_time - start_time
     print(f"Cache regeneratation took {total_time} seconds")
+    log.write(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
 @data_api_bp.route('/populate_database')
@@ -487,3 +492,74 @@ def populate_database():
     if result:
         return make_response("OK", 200)
     return make_response("ERROR", 500)
+
+## Read the server logs
+##
+## Parameters:
+## from_time - The earliest timestamp to look for
+## to_time - The latest timestamp to look for
+## minimum_level - The lowest log level to look for (inclusive)
+## exact_level - The exact log level to look for (overrules minimal_level)
+## count - The number of logs to return
+## newest_first - Whether we start with the newest log ("true"/"false") - defaults to True
+##
+## Returns:
+## json object:
+## [
+##     {
+##         "info": log info,  # May be "" for some logs
+##         "level": log level,
+##         "message": log message,
+##         "timestamp": log timestamp
+##     },
+##     ...
+## ]
+##
+## Example:
+## http://127.0.0.1:5000/api/logs - Returns all logs
+## http://127.0.0.1:5000/api/logs?from_time=1754672345&exact_level=info&count=100&newest_first=False
+## http://127.0.0.1:5000/api/logs?to_time=1754672345&minimum_level=error
+@data_api_bp.route('/logs')
+def logs():
+    try:
+        from_time = dt.datetime.fromtimestamp(float(request.args["from_time"]))
+    except:
+        from_time = None
+    
+    try:
+        to_time = dt.datetime.fromtimestamp(float(request.args["to_time"]))
+    except:
+        to_time = None
+    
+    try:
+        minimum_level = request.args["minimum_level"].lower()
+        if minimum_level not in log.index.keys():
+            minimum_level = None
+    except:
+        minimum_level = None
+    
+    try:
+        exact_level = request.args["exact_level"].lower()
+        if exact_level not in log.index.keys():
+            exact_level = None
+    except:
+        exact_level = None
+    
+    try:
+        count = int(request.args["count"])
+    except:
+        count = None
+    
+    try:
+        newest_first= False
+        if str(request.args["newest_first"]).strip().lower() in ["yes", "1", "y", "true"]:
+            newest_first = True
+    except:
+        newest_first = True
+    
+    data = log.read(from_time=from_time, to_time=to_time, minimum_level=minimum_level, exact_level=exact_level,
+                    count=count, newest_first=newest_first)
+    if data is None:
+        return make_response(jsonify([]), 404)
+
+    return make_response(jsonify(data), 200)

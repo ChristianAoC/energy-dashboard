@@ -1,4 +1,5 @@
 from datetime import datetime
+import json
 
 from database import db
 from sqlalchemy import CheckConstraint
@@ -412,3 +413,94 @@ class LoginCode(db.Model):
     
     def __repr__(self) -> str:
         return f"<LoginCode {self.code} for {self.email}>"
+
+class Settings(db.Model):
+    key = db.Column(db.String, primary_key=True)
+    value = db.Column(db.JSON, nullable=False)
+    
+    def __init__(self, key: str, value):
+        self.key = key
+        self.value = value
+    
+    def __repr__(self) -> str:
+        return f"<Settings {self.key}>"
+
+class Log(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    timestamp = db.Column(db.DateTime, nullable=False)
+    message = db.Column(db.String, nullable=False)
+    info = db.Column(db.String)
+    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"),
+                      nullable=False)
+    
+    def __init__(self, timestamp: datetime, message: str, level: str, info: str|None = None):
+        self.timestamp = timestamp
+        self.message = message
+        self.info = info
+        self.level = level
+    
+    def to_dict(self) -> dict:
+        return {
+            "level": self.level.upper(),
+            "timestamp": self.timestamp.isoformat(sep=" "),
+            "message": self.message,
+            "info": self.info
+        }
+    
+    def __repr__(self) -> str:
+        return f"<Log {self.id} at {self.timestamp} is {self.level.upper()}>"
+
+class Context(db.Model):
+    id = db.Column(db.Integer, primary_key=True, autoincrement=True)
+    author = db.Column(db.String(254), db.ForeignKey("user.email"), nullable=False)
+    target_type = db.Column(db.String(8), CheckConstraint("target_type IN ('building', 'meter')"), nullable=False)
+    target_id = db.Column(db.String, nullable=False)
+    start_timestamp = db.Column(db.DateTime)
+    end_timestamp = db.Column(db.DateTime)
+    
+    # No constraint as users can set arbitrary context types
+    context_type = db.Column(db.String(), nullable=False)
+    
+    comment = db.Column(db.String, nullable=False)
+    deleted = db.Column(db.Boolean, nullable=False)
+    
+    def __init__(self, contextElem: dict):
+        self.update(contextElem)
+    
+    def update(self, contextElem):
+        try:
+            self.author = contextElem["author"]
+            self.target_type = contextElem["target_type"].lower()
+            self.target_id = contextElem["target_id"]
+
+            start_time = contextElem.get("start")
+            if start_time is not None:
+                start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M")
+            self.start_timestamp = start_time
+
+            end_time = contextElem.get("end")
+            if end_time is not None:
+                end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M")
+            self.end_timestamp = end_time
+
+            self.context_type = contextElem["type"]
+            self.comment = contextElem.get("comment", "")
+            self.deleted = contextElem.get("deleted", False)
+        except:
+            raise ValueError
+    
+    def to_dict(self) -> dict:
+        return {
+            "id": self.id,
+            "author": self.author,
+            "target_type": self.target_type,
+            "target_id": self.target_id,
+            "start_timestamp": self.start_timestamp.isoformat(sep=" ") if self.start_timestamp is not None else None,
+            "end_timestamp": self.end_timestamp.isoformat(sep=" ") if self.end_timestamp is not None else None,
+            "context_type": self.context_type,
+            "comment": self.comment,
+            "deleted": self.deleted
+        }
+    
+    def __repr__(self) -> str:
+        return f"<Context {self.id}>"

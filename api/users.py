@@ -7,6 +7,7 @@ import uuid
 
 import dashboard.mail as mail
 from database import db
+import log
 import models
 
 
@@ -93,6 +94,7 @@ def is_admin(user: models.User|None = None) -> bool:
         # Run all internal calls at admin level
         if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
             print("Bypassed admin level check for internal call")
+            log.write(msg="Bypassed user level authorization for internal call", level=log.info)
             return True
         
         required_level = int(current_app.config["USER_LEVEL_ADMIN"])
@@ -250,6 +252,7 @@ def login_request(email: str) -> tuple:
 
     print("Mail sending off until everything else works. Post this URL into the browser:")
     print(codeurl)
+    log.write(msg="Mail sending is off", extra_info=f"For user {email}", level=log.info)
     return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 200)
 
 def check_code(email: str, code: str) -> tuple:

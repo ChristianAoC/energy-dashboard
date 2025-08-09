@@ -97,8 +97,7 @@ const apiEndpoints = {
 
     // Gets all context entries
     // noparams
-    // TODO-CONTEXTSQL this will have to be changed once context gets moved to SQL
-    getcontext: BASE_PATH + '/getcontext',
+    getcontext: BASE_PATH + '/api/context/get',
 
     // get user level
     // params: email, SessionID

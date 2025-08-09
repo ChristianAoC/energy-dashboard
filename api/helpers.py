@@ -1,5 +1,3 @@
-from flask import request, current_app
-
 import datetime as dt
 import json
 
