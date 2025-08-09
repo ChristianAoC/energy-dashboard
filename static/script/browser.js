@@ -78,7 +78,7 @@ async function redrawPlot() {
     let startDate = document.getElementById("sb-start-date").value;
 	let endDate = document.getElementById("sb-end-date").value;
 
-	document.getElementById('b-plot').innerHTML = `<img src='${appConfig.loadingGifUrl}' alt='Loading...' />`;
+	document.getElementById('b-plot').innerHTML = `<div class="centered"><img src='${appConfig.loadingGifUrl}' alt='Loading...' /><div>`;
 
 	let params = {
         id: selMeter,
