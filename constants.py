@@ -97,7 +97,7 @@ cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
 
 benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
-offline_meta_file = os.path.join(DATA_DIR, "meta", "offline_data.json")
+offline_meta_file = os.path.join(DATA_DIR, "offline_data.json")
 offline_data_files = os.path.join(DATA_DIR, "offline")
 
 mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")

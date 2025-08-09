@@ -97,7 +97,7 @@ const apiEndpoints = {
 
     // Gets all context entries
     // noparams
-    getcontext: BASE_PATH + '/api/context/get',
+    getcontext: BASE_PATH + '/api/context/all',
 
     // get user level
     // params: email, SessionID
