@@ -397,6 +397,7 @@ async function getNewSummary() {
             getcontext: {}
         });
 
+		document.getElementById('comparison-plot').innerHTML = "";
         if (summary) {
             if (getcontext) browserData.context = getcontext;
             else browserData.context = [];
