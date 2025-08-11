@@ -1,9 +1,13 @@
-from flask import Blueprint, make_response, request, jsonify
+from flask import Blueprint, make_response, request, jsonify, session, current_app
+from werkzeug.utils import secure_filename
 
 import api.endpoints.data as data_api_bp
+from constants import *
 from database import db
 import models
-
+import uuid
+import os
+# import openpyxl
 
 settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
 
@@ -119,3 +123,167 @@ def post():
 #                              headers = {'Content-type': 'application/json'},
 #                              json={"str": "test2"}
 #                         ).text
+
+@settings_api_bp.route("/upload/metadata", methods=["POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def upload_metadata():
+    if 'file' not in request.files:
+        return make_response("Invalid data", 400)
+    
+    file = request.files['file']
+    if not file or file.filename == '':
+        return make_response("Invalid data", 400)
+    
+    if file.content_type != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+        response = make_response("Invalid data", 415)
+        response.headers["Accept-Post"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+        return response
+    
+    filename = str(file.filename)
+    
+    if not ("." in filename and filename.rsplit(".", 1)[1].lower() == "xlsx"):
+        return make_response("Invalid data", 415)
+    
+    try:
+        tempfile = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
+        file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
+        os.replace(tempfile, metadata_file)
+    except:
+        return make_response("Error saving file", 500)
+    return make_response("OK", 200)
+
+@settings_api_bp.route("/upload/benchmarks", methods=["POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def upload_benchmark():
+    if 'file' not in request.files:
+        return make_response("Invalid data", 400)
+    
+    file = request.files['file']
+    if not file or file.filename == '':
+        return make_response("Invalid data", 400)
+    
+    if file.content_type != "application/json":
+        response = make_response("Invalid data", 415)
+        response.headers["Accept-Post"] = "application/json"
+        return response
+    
+    filename = str(file.filename)
+    
+    if not ("." in filename and filename.rsplit(".", 1)[1].lower() == "json"):
+        return make_response("Invalid data", 415)
+    
+    try:
+        tempfile = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
+        file.save(tempfile)
+        os.replace(tempfile, benchmark_data_file)
+    except:
+        return make_response("Error saving file", 500)
+    return make_response("OK", 200)
+
+@settings_api_bp.route("/upload/polygons", methods=["POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def upload_polygons():
+    if 'file' not in request.files:
+        return make_response("Invalid data", 400)
+    
+    file = request.files['file']
+    if not file or file.filename == '':
+        return make_response("Invalid data", 400)
+    
+    if file.content_type != "application/json":
+        response = make_response("Invalid data", 415)
+        response.headers["Accept-Post"] = "application/json"
+        return response
+    
+    filename = str(file.filename)
+    
+    if not ("." in filename and filename.rsplit(".", 1)[1].lower() == "json"):
+        return make_response("Invalid data", 415)
+    
+    try:
+        tempfile = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
+        file.save(tempfile)
+        os.replace(tempfile, mazemap_polygons_file)
+    except:
+        return make_response("Error saving file", 500)
+    return make_response("OK", 200)
+
+
+## This is the start of a more guided upload for metadata
+# @settings_api_bp.route("/upload/new", methods=["POST"])
+# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# def upload_new():
+#     if 'file' not in request.files:
+#         return make_response("Invalid data", 400)
+    
+#     file = request.files['file']
+#     if not file or file.filename == '':
+#         return make_response("Invalid data", 400)
+    
+#     if file.content_type != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
+#         response = make_response("Invalid data", 415)
+#         response.headers["Accept-Post"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+#         return response
+    
+#     filename = str(file.filename)
+    
+#     if not ("." in filename and filename.rsplit(".", 1)[1].lower() == "xlsx"):
+#         return make_response("Invalid data", 415)
+#     cleaned_filename = f"{str(uuid.uuid4())}.xlsx"
+#     folder_path = os.path.join(upload_folder, "metadata_upload")
+    
+#     os.makedirs(folder_path, exist_ok=True)
+    
+#     file_path = os.path.join(folder_path, cleaned_filename)
+    
+#     if os.path.exists(file_path):
+#         os.remove(file_path)
+    
+#     try:
+#         file.save(file_path)
+#     except:
+#         return make_response("Error saving file", 500)
+    
+#     session["metadata_upload_filename"] = cleaned_filename
+#     return make_response("OK", 200)
+
+# @settings_api_bp.route("/upload/sheets", methods=["GET"])
+# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# def upload_sheets_get():
+#     try:
+#         filename = session["metadata_upload_filename"]
+#     except:
+#         return make_response("Upload the file first", 400)
+    
+#     cleaned_filename = secure_filename(filename)
+#     file_path = os.path.join(upload_folder, "metadata_upload", cleaned_filename)
+    
+#     if not os.path.exists(file_path):
+#         return make_response("Invalid file", 404)
+    
+#     results = openpyxl.load_workbook(file_path).sheetnames
+    
+#     return make_response(jsonify(results), 200)
+
+# @settings_api_bp.route("/upload/sheets", methods=["POST"])
+# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# def upload_sheets_post():
+#     try:
+#         filename = session["metadata_upload_filename"]
+#     except:
+#         return make_response("Upload the file first", 400)
+    
+#     try:
+#         data = request.get_json()
+#     except:
+#         return make_response("Error parsing data", 400)
+    
+#     cleaned_filename = secure_filename(filename)
+#     file_path = os.path.join(upload_folder, cleaned_filename)
+    
+#     if not os.path.exists(file_path):
+#         return make_response("Invalid filename", 404)
+    
+#     results = openpyxl.load_workbook(file_path).sheetnames
+    
+#     return make_response(jsonify(results), 200)

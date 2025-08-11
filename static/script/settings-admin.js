@@ -154,17 +154,17 @@ $(document).ready(function () {
     const fileInput = document.getElementById('file-input');
 
     document.getElementById('upload-metadata').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/metadata';
+        fileInput.dataset.endpoint = '/api/settings/upload/metadata';
         fileInput.click();
     });
 
     document.getElementById('upload-benchmarks').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/benchmarks';
+        fileInput.dataset.endpoint = '/api/settings/upload/benchmarks';
         fileInput.click();
     });
 
     document.getElementById('upload-polygons').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/polygons';
+        fileInput.dataset.endpoint = '/api/settings/upload/polygons';
         fileInput.click();
     });
 
