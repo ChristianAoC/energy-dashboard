@@ -14,9 +14,9 @@
 <h2>Settings</h2>
 
 {% if message %}
-  <div class="message-box {{ status | default('info') }}">
-    {{ message }}
-  </div>
+    <div class="message-box {{ status | default('info') }}">
+        {{ message }}
+    </div>
 {% endif %}
 
 {% if user %}
@@ -26,7 +26,30 @@ Logged in as {{ user.email | tojson | safe }}.<br><br>
 
 {% if user.level == 5 %}
 
-<br>
+<br><br>
+
+<form action="" id="viewToggle">
+    <div></div>
+    <label class="selected">
+        <input type="radio" name="select-setting" data-location="0" value="settings-users" checked />
+        <div>List Users</div>
+    </label>
+    <label>
+        <input type="radio" name="select-setting" data-location="calc(100%)" value="settings-variables" />
+        <div>Set Variables</div>
+    </label>
+    <label>
+        <input type="radio" name="select-setting" data-location="calc(200%)" value="settings-logs" />
+        <div>View Logs</div>
+    </label>
+    <label>
+        <input type="radio" name="select-setting" data-location="calc(300%)" value="settings-upload" />
+        <div>Upload Files</div>
+    </label>
+</form>
+
+<div id="settings-users">
+
 <h2>List of Users</h2>
 
 <script>
@@ -37,6 +60,63 @@ Logged in as {{ user.email | tojson | safe }}.<br><br>
     <table id="usersTable">
     </table>
 </div>
+
+</div>
+
+<div id="settings-variables" hidden>
+
+<h2>System Variables</h2>
+
+<div id="settings-container">
+    <table id="settings-table">
+        <thead><tr><th>Key</th><th>Value</th></tr></thead>
+        <tbody id="settings-rows"></tbody>
+    </table>
+</div>
+<br>
+<button id="add-setting-btn" class="button-generic">Add Setting</button>
+
+</div>
+
+<div id="settings-logs" hidden>
+
+<h2>System Logs</h2>
+
+<div id="logsTableContainer">
+    <table id="logsTable">
+    </table>
+</div>
+
+</div>
+
+<div id="settings-upload" hidden>
+
+<h2>Upload New Data Files</h2>
+
+<input type="file" id="file-input" hidden>
+
+Here you can upload new files (not entire offline datasets - those will have to be put directly into the /data folder).
+
+<br><br>
+
+New metadata file, in .xlsx format. Make sure the sheet names and column names are correctly set (click on the "Set Variables" tab).<br>
+
+<button id="upload-metadata" class="button-generic">Upload Metadata</button>
+
+<br><br>
+
+New benchmark file, in JSON format.<br>
+
+<button id="upload-benchmarks" class="button-generic">Upload Benchmarks</button>
+
+<br><br>
+
+New polygon file, in .JSON format. An example file, for the Lancaster University campus map, can be found in the Github release sidebar.<br>
+
+<button id="upload-polygons" class="button-generic">Upload Polygons</button>
+
+</div>
+
 {% endif %}
 
 {% else %}
