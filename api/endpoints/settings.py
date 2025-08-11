@@ -41,21 +41,19 @@ def update_record(obj: models.Settings, value):
 @settings_api_bp.route("/", methods=["GET"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def get():
-    statement = db.select(models.Settings)
     try:
         key = request.args["key"]
     except:
         key = None
     
     if key is None:
-        result = db.session.execute(statement).scalars().all()
+        result = db.session.execute(db.select(models.Settings)).scalars().all()
         out = {}
         for entry in result:
             out[entry.key] = entry.value
         return make_response(jsonify(out), 200)
     
-    statement = statement.where(models.Settings.key == key)
-    result = db.session.execute(statement).scalar_one_or_none()
+    result = db.session.execute(db.select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
     if result is None:
         return make_response("Key not found", 404)
     return make_response(jsonify(result.value), 200)
