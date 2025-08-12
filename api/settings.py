@@ -28,10 +28,11 @@ default_settings = {
     "cache_time_health_score": 365,
     "cache_time_summary": 30,
     "BACKGROUND_TASK_TIMING": "02:00",
+    # Metadata settings
     "meter_sheet": "Energie points",
     "building_sheet": "Buildings",
-    # "log_level": log.warning
-    "log_level": log.info
+    # Logging settings
+    "log_level": log.warning
 }
 
 def load_settings():
@@ -47,7 +48,6 @@ def load_settings():
             **default_settings,
             **{setting.key: setting.value for setting in db.session.execute(db.select(models.Settings)).scalars().all()}
         }
-
 
 def create_record(key: str, value, setting_type: str, category: str|None = None):
     try:
@@ -66,10 +66,10 @@ def create_record(key: str, value, setting_type: str, category: str|None = None)
 def update_record(obj: models.Settings, value, setting_type: str, category: str|None = None):
     try:
         if obj.setting_type != setting_type:
-            raise TypeError
+            raise TypeError(f"Type {setting_type} doesn't match the existing type of {obj.setting_type}")
 
         if obj.key == "offline_mode":
-            current_app.config["offline_mode"]
+            current_app.config["offline_mode"] = value
         
         obj.value = value
         obj.category = category

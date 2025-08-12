@@ -17,7 +17,7 @@ from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.settings import settings_api_bp
 from api.endpoints.user import users_api_bp
-from api.settings import load_settings
+from api.settings import load_settings, default_settings
 import constants
 from dashboard.main import dashboard_bp
 import database
@@ -30,10 +30,10 @@ database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
 
-# This is so that the log can be written to if an error occurs when loading constants
 ###########################################################
 ###              Check required files exist             ###
 ###########################################################
+# This is so that the log can be written to if an error occurs when loading constants
 
 cannot_initialise = False
 
@@ -95,6 +95,10 @@ if cannot_initialise:
     sys.exit(1)
 del cannot_initialise
 
+###########################################################
+###                      Blueprints                     ###
+###########################################################
+
 @app.before_request
 def call_load_settings():
     load_settings()
@@ -109,7 +113,10 @@ load_dotenv()
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
 
-# #################################################################
+###########################################################
+###               Set up scheduled tasks                ###
+###########################################################
+
 def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, params: dict = {}, send_data: dict = {}):
     request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
     
@@ -130,7 +137,7 @@ with app.app_context():
         database.db.Select(models.Settings)
         .where(models.Settings.key == "BACKGROUND_TASK_TIMING")
     ).scalar_one_or_none()
-    val = "02:00"
+    val = default_settings["BACKGROUND_TASK_TIMING"]
     if result is not None:
         val = result.value
     background_task_timing = val.split(":")
