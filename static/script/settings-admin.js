@@ -21,7 +21,7 @@ function viewToggled(elem, event) {
         });
     }
 };
-
+ 
 // Send update when user leaves the field
 function onSettingChange(e) {
     const input = e.target;
@@ -127,6 +127,9 @@ function loadSettings() {
 }
 
 function loadLogs() {
+    // http://127.0.0.1:5000/api/logs?from_time=1754672345&exact_level=info&count=100&newest_first=False
+    // http://127.0.0.1:5000/api/logs?to_time=1754672345&minimum_level=error
+
     fetch(BASE_PATH + '/api/logs')
         .then(res => {
             if (!res.ok) throw new Error("Not authorized");
@@ -141,7 +144,51 @@ function loadLogs() {
                     { data: "level", title: "Level"},
                     { data: "message", title: "Message"},
                     { data: 'timestamp', title: "Timestamp"}
-                ]
+                ],
+                initComplete: function () {
+                this.api()
+                    .columns()
+                    .every(function () {
+                        let column = this;
+        
+                        if (this.header().classList.contains("select")) {
+                            // Create select element
+                            let select = document.createElement('select');
+                            select.add(new Option(''));
+                            column.header().replaceChildren(select);
+            
+                            // Apply listener for user change in value
+                            select.addEventListener('change', function () {
+                                column
+                                    .search(select.value, {exact: true})
+                                    .draw();
+                            });
+            
+                            // Add list of options
+                            column
+                                .data()
+                                .unique()
+                                .sort()
+                                .each(function (d, j) {
+                                    select.add(new Option(d));
+                                });
+                        } else if (this.header().classList.contains("text")) {
+                            var text = $('<input type="text" />')
+                                    .appendTo($(column.header()).empty())
+                                    .on('keyup change', function () {
+                                        var val = $.fn.dataTable.util.escapeRegex(
+                                            $(this).val()
+                                            );
+                                        if (column.search() !== this.value) {
+                                            column
+                                                    .search(val)
+                                                    .draw();
+                                        }
+                                        return false;
+                                    });
+                        }
+                    });
+                }
             });
             document.getElementById('logsTable').dataset.loaded = "true";
         })
