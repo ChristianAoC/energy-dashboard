@@ -34,15 +34,13 @@ def required_user_level(level_config_key):
                 level = g.settings[level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
-                if level == 0:
-                    return function(*args, **kwargs)
-            
-                cookies = request.cookies
-                email = cookies.get("Email", None)
-                sessionID = cookies.get("SessionID", None)
-                
-                if get_user_level(email, sessionID) < level:
-                    return make_response("Access Denied", 401)
+                if level != 0:
+                    cookies = request.cookies
+                    email = cookies.get("Email", None)
+                    sessionID = cookies.get("SessionID", None)
+                    
+                    if get_user_level(email, sessionID) < level:
+                        return make_response("Access Denied", 401)
             except Exception as e:
                 print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
