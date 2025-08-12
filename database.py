@@ -30,7 +30,7 @@ def initial_database_population() -> bool:
     if len(db.session.execute(db.select(models.Building)).scalars().all()) > 0:
         return False
     
-    buildings = pd.read_excel(metadata_file, sheet_name=g.settings.get("building_sheet", g.defaults["building_sheet"]))
+    buildings = pd.read_excel(metadata_file, sheet_name=g.settings["building_sheet"])
     building_mappings = {
         "building_code": "Property code",
         "building_name": "Building Name",
@@ -86,7 +86,7 @@ def initial_database_population() -> bool:
             log.write(msg="Error loading building from metadata file", extra_info=str(e), level=log.warning)
             continue
     
-    meters = pd.read_excel(metadata_file, sheet_name=g.settings.get("meter_sheet", g.defaults["meter_sheet"]))
+    meters = pd.read_excel(metadata_file, sheet_name=g.settings["meter_sheet"])
     meter_mappings = {
         "meter_id_clean": "meter_id_clean2",
         "raw_uuid": "SEED_uuid",

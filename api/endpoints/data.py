@@ -31,7 +31,7 @@ def required_user_level(level_config_key):
                 return function(*args, **kwargs)
             
             try:
-                level = g.settings.get(level_config_key, g.defaults[level_config_key])
+                level = g.settings[level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if level == 0:
@@ -190,7 +190,7 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+        if g.settings["offline_mode"]:
             with open(offline_meta_file, "r") as f:
                 latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
         else:
@@ -315,7 +315,7 @@ def meter_health():
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
         if hc_cache:
             try:
-                if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+                if g.settings["offline_mode"]:
                     with open(offline_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
@@ -326,7 +326,7 @@ def meter_health():
                     raise Exception
 
                 cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * g.settings.get("hc_update_time", g.defaults["hc_update_time"]):
+                if cache_age < 3600 * g.settings["hc_update_time"]:
                     response = make_response(jsonify(hc_cache), 200)
                     response.headers['X-Cache-State'] = "fresh"
                     return response
@@ -458,7 +458,7 @@ def health_score():
 @data_api_bp.route('/offline_meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
-    if not os.path.exists(offline_meta_file) or not g.settings.get("offline_mode", g.defaults["offline_mode"]):
+    if not os.path.exists(offline_meta_file) or not g.settings["offline_mode"]:
         return make_response(jsonify({}), 404)
     
     with open(offline_meta_file, "r") as f:

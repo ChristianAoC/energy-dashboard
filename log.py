@@ -36,7 +36,9 @@ error = "error"
 
 # An error that stops the service from running/starting, e.g:
 # - a required file is missing
-# - can't access a 
+# - can't access a required file or resource
+# - can't generate a required file on the fly (offline meta)
+# - can't recover from a condition
 # Requires direct, immediate intervention from an adminitrator
 # Note: These logs must contain both a message and extra info
 critical = "critical"
@@ -50,10 +52,19 @@ index = {
 
 def write(msg: str, level: str, extra_info: str|None = None):
     level_index = index.get(level.lower(), 1)
+    from api.settings import get as get_settings
     try:
-        minimum_index = index.get(g.settings.get("log_level", g.defaults.get("log_level", info)).lower())
+        minimum_index = index.get(g.settings.get("log_level", info).lower())
+        pass
     except:
-        minimum_index = index.get(info)
+        try:
+            minimum_level = get_settings("log_level")
+            if minimum_level is None:
+                raise ValueError
+            
+            minimum_index = index.get(minimum_level)
+        except:
+            minimum_index = index.get(info)
     
     if minimum_index is None:
         minimum_index = 1

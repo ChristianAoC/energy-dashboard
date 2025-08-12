@@ -94,14 +94,14 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
     
     print(f"Started: {m.id}")
     with app_context:
-        log.write(msg=f"Started data cache generation for {m.id}", level=log.critical)
+        log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
     try:
         file_name = clean_file_name(f"{m.id}.csv")
 
         if has_g_support():
-            offline_mode = g.settings.get("offline_mode", g.defaults["offline_mode"])
-            cache_time_health_score = g.settings.get("cache_time_health_score", g.defaults["cache_time_health_score"])
-            cache_time_summary = g.settings.get("cache_time_summary", g.defaults["cache_time_summary"])
+            offline_mode = g.settings["offline_mode"]
+            cache_time_health_score = g.settings["cache_time_health_score"]
+            cache_time_summary = g.settings["cache_time_summary"]
         else:
             with app_context:
                 offline_mode = current_app.config["offline_mode"]
@@ -185,7 +185,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
-    if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+    if g.settings["offline_mode"]:
         with open(offline_meta_file, "r") as f:
             anon_data_meta = json.load(f)
         data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
@@ -213,7 +213,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
             file_name = f"{clean_meter_name}.csv"
 
-            if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+            if g.settings["offline_mode"]:
                 if not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
                     print(f"Skipping: {m.id}")
                     continue
@@ -223,11 +223,11 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
             seen_meters.append(file_name)
             
-            if (cache_validity_checker(g.settings.get("cache_time_health_score", g.defaults["cache_time_health_score"]),
+            if (cache_validity_checker(g.settings["cache_time_health_score"],
                                        meter_health_score_file,
                                        data_start_time,
                                        data_end_time)
-                and cache_validity_checker(g.settings.get("cache_time_summary", g.defaults["cache_time_summary"]),
+                and cache_validity_checker(g.settings["cache_time_summary"],
                                            meter_snapshots_file,
                                            data_start_time,
                                            data_end_time)):

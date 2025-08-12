@@ -45,10 +45,10 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode = True) -> pd
         ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
 
     if has_g_support():
-        InfluxURL = g.settings.get("InfluxURL", g.defaults["InfluxURL"])
-        InfluxPort = g.settings.get("InfluxPort", g.defaults["InfluxPort"])
-        InfluxUser = g.settings.get("InfluxUser", g.defaults["InfluxUser"])
-        InfluxPass = g.settings.get("InfluxPass", g.defaults["InfluxPass"])
+        InfluxURL = g.settings["InfluxURL"]
+        InfluxPort = g.settings["InfluxPort"]
+        InfluxUser = g.settings["InfluxUser"]
+        InfluxPass = g.settings["InfluxPass"]
     else:
         InfluxURL = settings.get("InfluxURL")
         InfluxPort = settings.get("InfluxPort")
@@ -91,7 +91,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     }
 
     if has_g_support():
-        offline_mode = g.settings.get("offline_mode", g.defaults["offline_mode"])
+        offline_mode = g.settings["offline_mode"]
     else:
         offline_mode = current_app.config["offline_mode"]
     
@@ -159,7 +159,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         app_context = current_app.app_context()
     
     if has_g_support():
-        offline_mode = g.settings.get("offline_mode", g.defaults["offline_mode"])
+        offline_mode = g.settings["offline_mode"]
     else:
         with app_context:
             offline_mode = current_app.config["offline_mode"]
@@ -616,7 +616,7 @@ def generate_health_score(from_time: dt.datetime, days: int) -> dict:
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
-            if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+            if g.settings["offline_mode"]:
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, f"{clean_meter_name}.json")
             else:
                 meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")

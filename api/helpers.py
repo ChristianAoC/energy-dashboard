@@ -20,7 +20,7 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     if type(to_time_requested) is str:
         to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
     
-    if not g.settings.get("offline_mode", g.defaults["offline_mode"]):
+    if not g.settings["offline_mode"]:
         if to_time_requested is None:
             to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
 

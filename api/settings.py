@@ -37,14 +37,15 @@ default_settings = {
 def load_settings():
     # I had an idea to implement a "lazy loading" system here but for now there isn't enough settings to require it.
     # May be worth looking into if the DB gets locked up
+    
+    # NOTE: When accessing g settings you should use `g.settings[key]` to raise an Exception (unless you can handle it locally)
     if request.path.startswith('/static'):
         return
     
-    if 'defaults' not in g:
-        g.defaults = default_settings
     if 'settings' not in g:
         g.settings = {
-            setting.key: setting.value for setting in db.session.execute(db.select(models.Settings)).scalars().all()
+            **default_settings,
+            **{setting.key: setting.value for setting in db.session.execute(db.select(models.Settings)).scalars().all()}
         }
 
 

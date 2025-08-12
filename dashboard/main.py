@@ -17,7 +17,7 @@ dashboard_bp = Blueprint('dashboard_bp'
 
 @dashboard_bp.route("/helloworld")
 def helloworld():
-    return g.settings.get("SITE_NAME", g.defaults["SITE_NAME"])
+    return g.settings["SITE_NAME"]
 
 @dashboard_bp.route("/")
 def index():
@@ -37,7 +37,7 @@ def required_user_level(level_config_key):
         @wraps(function)
         def wrapper(*args, **kwargs):
             try:
-                required_level = g.settings.get(level_config_key, g.defaults[level_config_key])
+                required_level = g.settings[level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if required_level == 0:

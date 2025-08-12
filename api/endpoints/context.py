@@ -26,8 +26,7 @@ def addContext():
         cookies = request.cookies
         email = cookies.get("Email", None)
         sessionID = cookies.get("SessionID", None)
-        if users.get_user_level(email, sessionID) < g.settings.get("USER_LEVEL_EDIT_COMMENTS",
-                                                                   g.defaults["USER_LEVEL_EDIT_COMMENTS"]):
+        if users.get_user_level(email, sessionID) < g.settings["USER_LEVEL_EDIT_COMMENTS"]:
             return make_response("Unauthorised", 401)
     
     return context.add_context(contextElem)
