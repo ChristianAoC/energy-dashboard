@@ -104,12 +104,26 @@ def post():
     try:
         for key, value in data.items():
             existing_setting = db.session.execute(db.Select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
-            if existing_setting is None:
-                settings.create_record(key=key, value=value["value"], setting_type=value["type"], category=value.get("category"))
+            
+            if type(value) is not dict and existing_setting is None:
+                setting_value = value
+                setting_type = type(value).__name__
+                category = None
+            elif type(value) is not dict and existing_setting is not None:
+                setting_value = value
+                setting_type = type(value).__name__
+                category = existing_setting.category
             else:
-                settings.update_record(obj=existing_setting, value=value["value"], setting_type=value["type"], category=value.get("category"))
+                setting_value = value["value"]
+                setting_type = value["type"]
+                category = value.get("category")
+            
+            if existing_setting is None:
+                settings.create_record(key=key, value=setting_value, setting_type=setting_type, category=category)
+            else:
+                settings.update_record(obj=existing_setting, value=setting_value, setting_type=setting_type, category=category)
     except Exception as e:
-        log.write()
+        log.write(msg=f"Error processing key: '{key}'", extra_info=str(e), level=log.error)
         return make_response(f"Error processing key: '{key}'", 500)
     
     return make_response("Success!", 200)
