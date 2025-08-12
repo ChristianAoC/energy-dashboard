@@ -402,6 +402,9 @@ def process_meter_row(row) -> dict:
 def create_building_record(building_data: dict):
     # Import here to stop circular import issue
     import models
+    import log
+    log.write(msg=f"Creating building record: {building_data['building_id']}", level=log.info)
+    
     new_building = models.Building(
         building_data["building_id"],
         building_data["building_name"],
@@ -415,6 +418,9 @@ def create_building_record(building_data: dict):
 def create_meter_record(meter_data: dict):
     # Import here to stop circular import issue
     import models
+    import log
+    log.write(msg=f"Creating meter record: {meter_data['meter_id']}", level=log.info)
+    
     new_meter = models.Meter(
         meter_data["meter_id"],
         meter_data["raw_uuid"],
@@ -433,7 +439,9 @@ def create_meter_record(meter_data: dict):
 def delete_building_record(building_obj):
     # Import here to stop circular import issue
     import models
+    import log
     building_id = building_obj.id
+    log.write(msg=f"Deleting building record: {building_id}", level=log.info)
     
     db.session.execute(db.delete(models.UtilityData).where(models.UtilityData.building_id == building_id))
     
@@ -452,7 +460,9 @@ def delete_building_record(building_obj):
 def delete_meter_record(meter_obj):
     # Import here to stop circular import issue
     import models
+    import log
     meter_id = meter_obj.id
+    log.write(msg=f"Deleting meter record: {meter_id}", level=log.info)
     
     db.session.execute(db.delete(models.HealthCheck).where(models.HealthCheck.meter_id == meter_id))
     
