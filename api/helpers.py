@@ -1,3 +1,5 @@
+from flask import g, has_request_context
+
 import datetime as dt
 import json
 
@@ -18,7 +20,7 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     if type(to_time_requested) is str:
         to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
     
-    if not offlineMode:
+    if not g.settings.get("offline_mode", g.defaults["offline_mode"]):
         if to_time_requested is None:
             to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
 
@@ -84,3 +86,9 @@ def data_cleaner(data: list[dict]|dict, keys: list) -> list[dict]|dict:
         out.append({key: data_point.get(key) for key in keys})
     
     return out
+
+def has_g_support():
+    try:
+        return has_request_context()
+    except RuntimeError:
+        return False

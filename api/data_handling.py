@@ -1,3 +1,4 @@
+from flask import g, current_app
 from sqlalchemy import not_
 
 import datetime as dt
@@ -9,20 +10,21 @@ import pandas as pd
 import threading
 import time
 
+from api.helpers import calculate_time_args, data_cleaner, clean_file_name, has_g_support
+import api.settings as settings
+from api.users import is_admin
 from constants import *
 from database import db
-import models
-from api.helpers import calculate_time_args, data_cleaner, clean_file_name
-from api.users import is_admin
 import log
+import models
 
 
 ## Minimal/efficient call - get time series as Pandas
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
-    if offlineMode:
+def query_influx(m: models.Meter, from_time, to_time, offline_mode = True) -> pd.DataFrame:
+    if offline_mode:
         try:
             with open(os.path.join(offline_data_files, f"{m.id}.csv"), "r") as f:
                 obs = pd.read_csv(f)
@@ -42,6 +44,17 @@ def query_influx(m: models.Meter, from_time, to_time) -> pd.DataFrame:
         '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
         ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
 
+    if has_g_support():
+        InfluxURL = g.settings.get("InfluxURL", g.defaults["InfluxURL"])
+        InfluxPort = g.settings.get("InfluxPort", g.defaults["InfluxPort"])
+        InfluxUser = g.settings.get("InfluxUser", g.defaults["InfluxUser"])
+        InfluxPass = g.settings.get("InfluxPass", g.defaults["InfluxPass"])
+    else:
+        InfluxURL = settings.get("InfluxURL")
+        InfluxPort = settings.get("InfluxPort")
+        InfluxUser = settings.get("InfluxUser")
+        InfluxPass = settings.get("InfluxPass")
+    
     # create client for influx
     client = InfluxDBClient(host = InfluxURL,
                             port = InfluxPort,
@@ -77,7 +90,12 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
         "unit": m.units
     }
 
-    df = query_influx(m, from_time, to_time)
+    if has_g_support():
+        offline_mode = g.settings.get("offline_mode", g.defaults["offline_mode"])
+    else:
+        offline_mode = current_app.config["offline_mode"]
+    
+    df = query_influx(m, from_time, to_time, offline_mode)
     if df.empty:
         return out
 
@@ -135,8 +153,18 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = []) -> dict|None:
-    if offlineMode:
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = [], app_context = None) -> dict|None:
+    # # Because this function can be run in a separate thread, we need to push the app context
+    if app_context is None:
+        app_context = current_app.app_context()
+    
+    if has_g_support():
+        offline_mode = g.settings.get("offline_mode", g.defaults["offline_mode"])
+    else:
+        with app_context:
+            offline_mode = current_app.config["offline_mode"]
+    
+    if offline_mode:
         try:
             with open(offline_meta_file, "r") as f:
                 anon_data_meta = json.load(f)
@@ -156,7 +184,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
-    m_obs = query_influx(m, from_time, to_time)
+    m_obs = query_influx(m, from_time, to_time, offline_mode)
 
     # count values. if no values, stop
     out["HC_count"] = len(m_obs)
@@ -278,8 +306,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
 
 def get_health(args, returning=False, app_context=None):
     # Because this function can be run in a separate thread, we need to push the app context
-    if app_context is not None:
-        app_context.push()
+    if app_context is None:
+        app_context = current_app.app_context()
 
     try:
         meter_ids = args["id"] # this is url decoded
@@ -289,7 +317,8 @@ def get_health(args, returning=False, app_context=None):
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
-        meter_ids = [x.id for x in db.session.execute(statement)]
+        with app_context:
+            meter_ids = [x.id for x in db.session.execute(statement)]
 
     to_time = args.get("to_time")
     from_time = args.get("from_time")
@@ -310,31 +339,40 @@ def get_health(args, returning=False, app_context=None):
     if not is_admin():
         statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
     
-    meters = db.session.execute(statement).scalars().all()
+    with app_context:
+        meters = db.session.execute(statement).scalars().all()
 
     start_time = time.time()
 
     threads = []
     out = []
-    for m in meters:
-        print(m.id)
-        log.write(msg=f"Started health check for {m.id}", level=log.info)
-        threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out), name=f"HC_{m.id}", daemon=True))
-        threads[-1].start()
 
-    # Wait for all threads to complete
-    for t in threads:
-        t.join()
+    n = 15 # Process 15 meters at a time (15 was a random number I chose)
+    meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
+    for meter_chunk in meter_chunks:
+        threads = []
+        for m in meter_chunk:
+            print(m.id)
+            with app_context:
+                log.write(msg=f"Started health check for {m.id}", level=log.info)
+            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out, app_context), name=f"HC_{m.id}", daemon=True))
+            threads[-1].start()
+
+        # Wait for all threads in chunk to complete
+        for t in threads:
+            t.join()
 
     proc_time = (time.time() - start_time)
     # print("--- Health check took %s seconds ---" % proc_time)
-    log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
+    with app_context:
+        log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
     if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
         try:
-            for meter in out:
-                update_health_check(meter)
+            with app_context:
+                for meter in out:
+                    update_health_check(meter)
 
             try:
                 hc_meta = {
@@ -343,25 +381,29 @@ def get_health(args, returning=False, app_context=None):
                     "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
                     "processing_time": proc_time
                 }
-
-                existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
-                if existing_hc_meta is None:
-                    new_hc_meta = models.CacheMeta("health_check", hc_meta)
-                    db.session.add(new_hc_meta)
-                else:
-                    existing_hc_meta.update(hc_meta)
-                db.session.commit()
+                
+                with app_context:
+                    existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+                    if existing_hc_meta is None:
+                        new_hc_meta = models.CacheMeta("health_check", hc_meta)
+                        db.session.add(new_hc_meta)
+                    else:
+                        existing_hc_meta.update(hc_meta)
+                    db.session.commit()
             except Exception as e:
                 print("Error trying to save metadata for latest HC cache")
                 print(e)
-                log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
+                with app_context:
+                    log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
         except Exception as e:
             print("Error trying to save current health check in cache")
             print(e)
-            log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
+            with app_context:
+                log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
 
         print("Completed HC update")
-        log.write(msg="Completed health check update", level=log.info)
+        with app_context:
+            log.write(msg="Completed health check update", level=log.info)
     
     if returning:
         exclude_tenants = not is_admin()
@@ -370,14 +412,15 @@ def get_health(args, returning=False, app_context=None):
         
         cleaned_out = []
         for meter_data in out:
-            meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
-            if meter is None:
-                continue
-            
-            if meter.invoiced:
-                continue
-            
-            cleaned_out.append(meter_data)
+            with app_context:
+                meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
+                if meter is None:
+                    continue
+                
+                if meter.invoiced:
+                    continue
+                
+                cleaned_out.append(meter_data)
         return out
 
 def update_health_check(values: dict):
@@ -573,7 +616,10 @@ def generate_health_score(from_time: dt.datetime, days: int) -> dict:
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
-            meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")
+            if g.settings.get("offline_mode", g.defaults["offline_mode"]):
+                meter_health_score_file = os.path.join(offline_meter_health_score_files, f"{clean_meter_name}.json")
+            else:
+                meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")
 
             if not os.path.exists(meter_health_score_file):
                 continue

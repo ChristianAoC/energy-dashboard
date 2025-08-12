@@ -1,9 +1,9 @@
-from datetime import datetime
-import json
-
-from database import db
 from sqlalchemy import CheckConstraint
+
+from datetime import datetime
+
 from api.helpers import data_cleaner
+from database import db
 
 
 class Meter(db.Model):
@@ -416,11 +416,23 @@ class LoginCode(db.Model):
 
 class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
+    category = db.Column(db.String, primary_key=True, nullable=True)
     value = db.Column(db.JSON, nullable=False)
+    setting_type = db.Column(db.String, nullable=False)
     
-    def __init__(self, key: str, value):
+    def __init__(self, key: str, value, category: str|None, setting_type: str):
         self.key = key
         self.value = value
+        self.category = category
+        self.setting_type = setting_type
+    
+    def to_dict(self):
+        return {
+            "key": self.key,
+            "value": self.value,
+            "category": self.category,
+            "setting_type": self.setting_type
+        }
     
     def __repr__(self) -> str:
         return f"<Settings {self.key}>"
@@ -455,8 +467,8 @@ class Context(db.Model):
     author = db.Column(db.String(254), db.ForeignKey("user.email"), nullable=False)
     target_type = db.Column(db.String(8), CheckConstraint("target_type IN ('building', 'meter')"), nullable=False)
     target_id = db.Column(db.String, nullable=False)
-    start_timestamp = db.Column(db.DateTime)
-    end_timestamp = db.Column(db.DateTime)
+    start_timestamp = db.Column(db.DateTime, nullable=True)
+    end_timestamp = db.Column(db.DateTime, nullable=True)
     
     # No constraint as users can set arbitrary context types
     context_type = db.Column(db.String(), nullable=False)

@@ -1,4 +1,4 @@
-from flask import render_template, send_file, request, Blueprint, make_response, current_app, redirect
+from flask import render_template, send_file, request, Blueprint, make_response, redirect, g
 
 from functools import wraps
 
@@ -17,7 +17,7 @@ dashboard_bp = Blueprint('dashboard_bp'
 
 @dashboard_bp.route("/helloworld")
 def helloworld():
-    return current_app.config["SITE_NAME"]
+    return g.settings.get("SITE_NAME", g.defaults["SITE_NAME"])
 
 @dashboard_bp.route("/")
 def index():
@@ -36,13 +36,13 @@ def required_user_level(level_config_key):
     def decorator(function):
         @wraps(function)
         def wrapper(*args, **kwargs):
-            required_level = current_app.config[level_config_key]
-            
-            # Skip validating if required level is 0 (allow unauthenticated users)
-            if required_level == 0:
-                return function(*args, **kwargs)
-            
             try:
+                required_level = g.settings.get(level_config_key, g.defaults[level_config_key])
+                
+                # Skip validating if required level is 0 (allow unauthenticated users)
+                if required_level == 0:
+                    return function(*args, **kwargs)
+                
                 cookies = request.cookies
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)

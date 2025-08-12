@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify, make_response, request, Response
+from flask import Blueprint, current_app, jsonify, make_response, request, Response, g
 
 import datetime as dt
 from functools import wraps
@@ -7,14 +7,14 @@ import os
 import threading
 import time
 
-from constants import *
-from database import db, initial_database_population
-import log
-import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
 from api.helpers import calculate_time_args, data_cleaner
 from api.users import get_user_level, is_admin
+from constants import *
+from database import db, initial_database_population
+import log
+import models
 
 
 data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')
@@ -30,13 +30,14 @@ def required_user_level(level_config_key):
                 log.write(msg="Bypassed user level authorization for internal call", level=log.info)
                 return function(*args, **kwargs)
             
-            # Skip validating if required level is 0 (allow unauthenticated users)
-            if current_app.config[level_config_key] == 0:
-                return function(*args, **kwargs)
-            
             try:
+                level = g.settings.get(level_config_key, g.defaults[level_config_key])
+                
+                # Skip validating if required level is 0 (allow unauthenticated users)
+                if level == 0:
+                    return function(*args, **kwargs)
+            
                 cookies = request.cookies
-                level = int(current_app.config[level_config_key])
                 email = cookies.get("Email", None)
                 sessionID = cookies.get("SessionID", None)
                 
@@ -189,7 +190,7 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if offlineMode:
+        if g.settings.get("offline_mode", g.defaults["offline_mode"]):
             with open(offline_meta_file, "r") as f:
                 latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
         else:
@@ -314,7 +315,7 @@ def meter_health():
     if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
         if hc_cache:
             try:
-                if offlineMode:
+                if g.settings.get("offline_mode", g.defaults["offline_mode"]):
                     with open(offline_meta_file, "r") as f:
                         latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
@@ -325,7 +326,7 @@ def meter_health():
                     raise Exception
 
                 cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * hc_update_time:
+                if cache_age < 3600 * g.settings.get("hc_update_time", g.defaults["hc_update_time"]):
                     response = make_response(jsonify(hc_cache), 200)
                     response.headers['X-Cache-State'] = "fresh"
                     return response
@@ -353,7 +354,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
     else:
-        health_check_data = get_health(request.args, True)
+        health_check_data = get_health(request.args, True, current_app.app_context())
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -457,7 +458,7 @@ def health_score():
 @data_api_bp.route('/offline_meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
-    if not os.path.exists(offline_meta_file) or not offlineMode:
+    if not os.path.exists(offline_meta_file) or not g.settings.get("offline_mode", g.defaults["offline_mode"]):
         return make_response(jsonify({}), 404)
     
     with open(offline_meta_file, "r") as f:
@@ -563,3 +564,11 @@ def logs():
         return make_response(jsonify([]), 404)
 
     return make_response(jsonify(data), 200)
+
+@data_api_bp.route("/test")
+def test():
+    log.write(msg="Test log info", extra_info="TESTING - INFO", level=log.info)
+    log.write(msg="Test log warning", extra_info="TESTING - WARNING", level=log.warning)
+    log.write(msg="Test log error", extra_info="TESTING - ERROR", level=log.error)
+    log.write(msg="Test log critical", extra_info="TESTING - CRITICAL", level=log.critical)
+    return "OK"

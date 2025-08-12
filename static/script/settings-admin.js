@@ -137,10 +137,10 @@ function loadLogs() {
                 data: logs,
                 pageLength: 25,
                 columns: [
-                    { data: "info", title: "Info"},
+                    { data: 'timestamp', title: "Timestamp"},
                     { data: "level", title: "Level"},
                     { data: "message", title: "Message"},
-                    { data: 'timestamp', title: "Timestamp"}
+                    { data: "info", title: "Info"}
                 ]
             });
             document.getElementById('logsTable').dataset.loaded = "true";
@@ -243,10 +243,14 @@ $(document).ready(function () {
         const rows = document.getElementById('settings-rows');
         rows.appendChild(createSettingRow(key, value));
 
+        // TODO: Implement getting type and category
+        setting_type = "string"
+        category = null
+
         fetch('/api/settings/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [key]: value })
+            body: JSON.stringify({ [key]: {"value": value, "type": setting_type, "category": category} })
         })
         .then(res => res.text())
         .then()

@@ -1,34 +1,18 @@
-from flask import Blueprint, make_response, request, jsonify, session, current_app
-from werkzeug.utils import secure_filename
+from flask import Blueprint, make_response, request, jsonify#, session
+# from werkzeug.utils import secure_filename
 
-import api.endpoints.data as data_api_bp
-from constants import *
-from database import db
-import models
 import uuid
 import os
 # import openpyxl
 
+import api.endpoints.data as data_api_bp
+import api.settings as settings
+from constants import *
+from database import db
+import log
+import models
+
 settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
-
-def create_record(key: str, value):
-    try:
-        new_record = models.Settings(
-            key=key,
-            value=value,
-        )
-        db.session.add(new_record)
-        db.session.commit()
-    except:
-        db.session.rollback()
-        raise ValueError
-
-def update_record(obj: models.Settings, value):
-    try:
-        obj.value = value
-        db.session.commit()
-    except:
-        db.session.rollback()
 
 ## Returns the data stored with the given key (or all records as a dict if no key is sent)
 ##
@@ -61,18 +45,43 @@ def get():
 ## Creates/updates settings records 
 ##
 ## Send the data in the following format:
-## json = {"key": "value"}
+## json = {
+##     key: {
+##         "value": value,
+##         "type": type,
+##         "category": category
+##     }
+## }
 ##
 ## Example request (python requests format):
 ## requests.post("http://127.0.0.1:5000/api/settings/",
 ##               headers = {'Content-type': 'application/json'},
 ##               json={
-##                   "str": "test",
-##                   "int": 1,
-##                   "float": 2.3,
-##                   "bool": True,
-##                   "dict": {"test": "me", "out": "!"}
-##                   }
+##                   "str": {
+##                       "value": "test",
+##                       "type": "str",
+##                       "category": "testing"
+##                   },
+##                   "int": {
+##                       "value": 1,
+##                       "type": "int",
+##                       "category": "testing"
+##                   },
+##                   "float": {
+##                       "value": 2.3,
+##                       "type": "float",
+##                       "category": "testing"
+##                   },
+##                   "bool": {
+##                       "value": True,
+##                       "type": "bool",
+##                       "category": "testing"
+##                   },
+##                   "dict": {
+##                       "value": {"test": "me", "out": "!"},
+##                       "type": "dict",
+##                       "category": "testing"
+##               }
 ##              )
 ##
 ## Example:
@@ -96,10 +105,11 @@ def post():
         for key, value in data.items():
             existing_setting = db.session.execute(db.Select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
             if existing_setting is None:
-                create_record(key=key, value=value)
+                settings.create_record(key=key, value=value["value"], setting_type=value["type"], category=value.get("category"))
             else:
-                update_record(obj=existing_setting, value=value)
-    except:
+                settings.update_record(obj=existing_setting, value=value["value"], setting_type=value["type"], category=value.get("category"))
+    except Exception as e:
+        log.write()
         return make_response(f"Error processing key: '{key}'", 500)
     
     return make_response("Success!", 200)

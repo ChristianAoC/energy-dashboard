@@ -1,8 +1,8 @@
 from flask import make_response
 
 from database import db
-import models
 import log
+import models
 
 
 def add_context(contextElem):

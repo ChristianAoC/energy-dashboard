@@ -1,7 +1,8 @@
+from flask import g
+
 import datetime as dt
 from sqlalchemy import or_
 
-from constants import log_level
 from database import db
 import models
 
@@ -49,7 +50,13 @@ index = {
 
 def write(msg: str, level: str, extra_info: str|None = None):
     level_index = index.get(level.lower(), 1)
-    minimum_index = index.get(log_level.lower(), 1)
+    try:
+        minimum_index = index.get(g.settings.get("log_level", g.defaults.get("log_level", info)).lower())
+    except:
+        minimum_index = index.get(info)
+    
+    if minimum_index is None:
+        minimum_index = 1
     
     if level_index < minimum_index:
         return

@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>{{ config.SITE_NAME }}</title>
+<title>{{ g.settings.get("SITE_NAME", g.defaults["SITE_NAME"]) }}</title>
 <!-- CSS files (external and own, just main for all pages) -->
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery.datetimepicker.min.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery-ui.min.css') }}" />
@@ -31,9 +31,10 @@
     <div id="nav-parent">
     <nav id="nav-top-bar">
     <script>
-    const OFFLINE_MODE = {{ config.OFFLINE_MODE | tojson }};
+    const OFFLINE_MODE = {{ g.settings.get("offline_mode", g.defaults["offline_mode"]) | tojson }};
+    
     const STATIC_URLS = {
-        {% if config.OFFLINE_MODE %}
+        {% if g.settings.get("offline_mode", g.defaults["offline_mode"]) %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-offline-32.png') }}",
         {% else %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-32.png') }}",
