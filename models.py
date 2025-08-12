@@ -27,7 +27,7 @@ class Meter(db.Model):
 
     scaling_factor = db.Column(db.Float, nullable=False, default=1)
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
-    building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
+    building_id = db.Column(db.String, db.ForeignKey("building.id"))
     
     hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter', cascade="all, delete-orphan")
 
@@ -53,15 +53,21 @@ class Meter(db.Model):
         self.building_id = building
 
     def update(self, meter_data: dict):
-        self.SEED_uuid = meter_data["raw_uuid"],
-        self.description = meter_data["description"],
-        self.main = meter_data["building_level_meter"],
-        self.utility_type = meter_data["utility_type"],
-        self.reading_type = meter_data["reading_type"],
-        self.units = meter_data["units"],
-        self.resolution = meter_data["resolution"],
-        self.scaling_factor = meter_data["unit_conversion_factor"],
-        self.invoiced = meter_data["tenant"],
+        self.SEED_uuid = meter_data["raw_uuid"]
+        self.description = meter_data["description"]
+        self.main = meter_data["building_level_meter"]
+        self.utility_type = meter_data["utility_type"].lower()
+        
+        reading_type = meter_data["reading_type"].lower()
+        # Existing code assumes rate meter if not explicitly set to "cumulative"
+        if reading_type != "cumulative":
+            reading_type = "rate"
+        
+        self.reading_type = reading_type
+        self.units = meter_data["units"]
+        self.resolution = meter_data["resolution"]
+        self.scaling_factor = meter_data["unit_conversion_factor"]
+        self.invoiced = meter_data["tenant"]
         self.building_id = meter_data["building"]
     
     def to_dict(self) -> dict:
@@ -118,7 +124,11 @@ class Building(db.Model):
         self.name = building_data["building_name"]
         self.floor_area = building_data["floor_area"]
         self.year_built = building_data["year_built"]
-        self.occupancy_type = building_data["occupancy_type"]
+        
+        occupancy_type = building_data["occupancy_type"]
+        if occupancy_type == "Unknown" or occupancy_type is None or occupancy_type not in allowed_occupancy_types:
+            occupancy_type = "academic other"
+        self.occupancy_type = occupancy_type
         self.maze_map_label = building_data["maze_map_label"]
     
     def to_dict(self) -> dict:

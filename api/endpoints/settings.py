@@ -170,7 +170,8 @@ def upload_metadata():
         file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
         os.replace(tempfile, metadata_file)
         settings.process_metadata_update()
-    except:
+    except Exception as e:
+        log.write(msg="Failed to save or process new metadata", extra_info=str(e), level=log.error)
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
 

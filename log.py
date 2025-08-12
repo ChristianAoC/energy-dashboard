@@ -58,7 +58,7 @@ index = {
     "critical": 4
 }
 
-def write(msg: str, level: str, extra_info: str|None = None):
+def write(msg: str, level: str, extra_info: str|None = None, commit: bool = True):
     level_index = index.get(level.lower(), 1)
     from api.settings import get as get_settings
     try:
@@ -88,7 +88,8 @@ def write(msg: str, level: str, extra_info: str|None = None):
             info=extra_info
         )
         db.session.add(new_log)
-        db.session.commit()
+        if commit:
+            db.session.commit()
     except:
         db.session.rollback()
 
