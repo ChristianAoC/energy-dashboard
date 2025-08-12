@@ -30,6 +30,7 @@ warning = "warning"
 # - an internal api call fails
 # - unable to locate offline data
 # - an error occurs generating cache that cannot be recovered from
+# - unable to write/read required information to the DB and we cannot recover
 # Should require direct intervention from an administrator
 # Note: These logs should contain both a message and extra info
 error = "error"
