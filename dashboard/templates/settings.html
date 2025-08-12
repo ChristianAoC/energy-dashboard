@@ -84,6 +84,22 @@ Logged in as {{ user.email | tojson | safe }}.<br><br>
 
 <div id="logsTableContainer">
     <table id="logsTable">
+        <thead>
+        <tr>
+            <th>Info</th>
+            <th>Level</th>
+            <th>Message</th>
+            <th>Timestamp</th>
+        </tr>
+        <tr>
+            <th class="text" data-dt-order="disable">Info</th>
+            <th class="select" data-dt-order="disable">Level</th>
+            <th class="text" data-dt-order="disable">Message</th>
+            <th class="text" data-dt-order="disable">Timestamp</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
     </table>
 </div>
 
@@ -136,5 +152,6 @@ Enter email address to request a login token:<br>
 {% endif %}
     
 </div>
+<br><br>
 
 {% endblock %}
