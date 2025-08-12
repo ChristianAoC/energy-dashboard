@@ -70,13 +70,22 @@ $(async function () {
     const urlStart = getDateFromURL("from_time");
     const urlEnd = getDateFromURL("to_time");
 
+    function setDatePickerLimits(startDate, endDate) {
+        const minDateStr = startDate.toISOString().split("T")[0];
+        const maxDateStr = endDate.toISOString().split("T")[0];
+        startInput.min = minDateStr;
+        startInput.max = maxDateStr;
+        endInput.min = minDateStr;
+        endInput.max = maxDateStr;
+    }
+
     if (urlStart && urlEnd) {
         setDateRange(urlStart, urlEnd);
-        return;
     }
 
     const path = window.location.pathname.replace(BASE_PATH, '');
 	const filename = path.split('/')[1];
+    const earliestAllowed = new Date("2010-01-01");
 
     try {
         if (OFFLINE_MODE) {
@@ -87,7 +96,12 @@ $(async function () {
                 const endDate = new Date(offlineMeta.end_time);
                 const startDate = new Date(endDate);
                 startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
-                setDateRange(startDate, endDate);
+
+                setDatePickerLimits(new Date(offlineMeta.start_time), endDate);
+
+                if (!urlStart && !urlEnd) {
+                    setDateRange(startDate, endDate);
+                }
                 return;
             }
 
@@ -96,13 +110,26 @@ $(async function () {
             const endDate = new Date();
             const startDate = new Date(endDate);
             startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
-            setDateRange(startDate, endDate);
+
+            // set max selectable to one millisecond after today (otherwise today looks greyed out)
+            endDate.setHours(0, 0, 0, 0);
+            const maxSelectable = new Date(endDate);
+            maxSelectable.setDate(maxSelectable.getDate() + 100);
+            setDatePickerLimits(earliestAllowed, maxSelectable);
+            
+            if (!urlStart && !urlEnd) {
+                setDateRange(startDate, endDate);
+            }
         }
     } catch (err) {
         console.error("Failed to load or parse data", err);
         const endDate = new Date();
         const startDate = new Date(endDate);
         startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
-        setDateRange(startDate, endDate);
+
+        setDatePickerLimits(earliestAllowed, endDate);
+        if (!urlStart && !urlEnd) {
+            setDateRange(startDate, endDate);
+        }
     }
 });
