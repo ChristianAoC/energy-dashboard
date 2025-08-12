@@ -1,5 +1,4 @@
 from flask import Blueprint, make_response, request, jsonify#, session
-# from werkzeug.utils import secure_filename
 
 import uuid
 import os
@@ -170,6 +169,7 @@ def upload_metadata():
         tempfile = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
         file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
         os.replace(tempfile, metadata_file)
+        settings.process_metadata_update()
     except:
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
@@ -198,6 +198,7 @@ def upload_benchmark():
         tempfile = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
         file.save(tempfile)
         os.replace(tempfile, benchmark_data_file)
+        settings.invalidate_summary_cache()
     except:
         return make_response("Error saving file", 500)
     return make_response("OK", 200)

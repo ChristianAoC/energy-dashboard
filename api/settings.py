@@ -1,6 +1,10 @@
 from flask import request, g, current_app
+from sqlalchemy import not_
 
-from database import db
+import pandas as pd
+
+from constants import metadata_file
+from database import db, process_building_row, process_meter_row, create_building_record, create_meter_record, delete_building_record, delete_meter_record
 import log
 import models
 
@@ -91,3 +95,106 @@ def get(key: str):
     else:
         value = existing_setting.value
     return value
+
+def invalidate_summary_cache(commit: bool = True, just_meta: bool = False):
+    # This function invalidates *all* summary caches, usually because benchmark data has been updated
+    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
+    if just_meta:
+        db.session.execute(db.delete(models.UtilityData))
+    if commit:
+        db.session.commit()
+
+def invalidate_hc_cache(commit: bool = True, just_meta: bool = False):
+    # This function invalidates *all* health check caches, usually because benchmark data has been updated
+    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
+    if just_meta:
+        db.session.execute(db.delete(models.UtilityData))
+    if commit:
+        db.session.commit()
+
+def process_metadata_update() -> bool:
+    last_seen_id = "UNKNOWN BUILDING"
+    try:
+        buildings = pd.read_excel(metadata_file, sheet_name=g.settings["building_sheet"])
+        seen_building_ids = []
+        for _, row in buildings.iterrows():
+            try:
+                data = process_building_row(row)
+            except Exception as e:
+                log.write(msg="Error loading building from metadata file",
+                          extra_info=f"{str(e)} | Last seen ID: {last_seen_id}",
+                          level=log.warning)
+                continue
+            last_seen_id = data["building_id"]
+            
+            existing_building = db.session.execute(
+                db.select(models.Building)
+                .where(models.Building.id == data["building_id"])
+            ).scalars().all()
+            if existing_building is None:
+                create_building_record(data)
+            else:
+                existing_building.update(data) # type: ignore
+            
+            seen_building_ids.append(data["building_id"])
+        del buildings
+        
+        missing_buildings = db.session.execute(
+            db.select(models.Building)
+            .where(not_(models.Building.id.in_(seen_building_ids))) # type: ignore
+        ).scalars().all()
+        for building in missing_buildings:
+            delete_building_record(building)
+        
+        meters = pd.read_excel(metadata_file, sheet_name=g.settings["meter_sheet"])
+        seen_meter_ids = []
+        for _, row in meters.iterrows():
+            try:
+                data = process_meter_row(row)
+            except Exception as e:
+                log.write(msg="Error loading meter from metadata file",
+                          extra_info=f"{str(e)} | Last seen ID: {last_seen_id}",
+                          level=log.warning)
+                continue
+            last_seen_id = data["meter_id"]
+            
+            try:
+                # We don't currently handle Oil meters
+                if data["utility_type"] in ["Oil", "Spare"]:
+                    log.write(msg="Error loading meter from metadata file",
+                              extra_info=f"Meter {data['meter_id']} is has an invalid utility type {data['utility_type']}",
+                              level=log.warning)
+            except:
+                log.write(msg="Error loading meter from metadata file",
+                          extra_info=f"Meter {data['meter_id']} is has an invalid utility type {data['utility_type']}",
+                          level=log.warning)
+            
+            
+            existing_meter = db.session.execute(
+                db.select(models.Meter)
+                .where(models.Meter.id == data["meter_id"])
+            ).scalars().all()
+            if existing_meter is None:
+                create_meter_record(data)
+            else:
+                existing_meter.update(data) # type: ignore
+            seen_meter_ids.append(data["meter_id"])
+        del meters
+        
+        missing_meters = db.session.execute(
+            db.select(models.Meter)
+            .where(not_(models.Meter.id.in_(seen_meter_ids))) # type: ignore
+        ).scalars().all()
+        for meter in missing_meters:
+            delete_meter_record(meter)
+        
+        invalidate_summary_cache(commit=False, just_meta=True)
+        invalidate_hc_cache(commit=False, just_meta=True)
+        db.session.commit()
+    except Exception as e:
+        db.session.rollback()
+        log.write(msg="Error loading record from metadata file",
+                  extra_info=f"Last seen ID: {last_seen_id} | {str(e)}",
+                  level=log.error)
+        return False
+    return True

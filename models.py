@@ -52,6 +52,18 @@ class Meter(db.Model):
         self.invoiced = tenant
         self.building_id = building
 
+    def update(self, meter_data: dict):
+        self.SEED_uuid = meter_data["raw_uuid"],
+        self.description = meter_data["description"],
+        self.main = meter_data["building_level_meter"],
+        self.utility_type = meter_data["utility_type"],
+        self.reading_type = meter_data["reading_type"],
+        self.units = meter_data["units"],
+        self.resolution = meter_data["resolution"],
+        self.scaling_factor = meter_data["unit_conversion_factor"],
+        self.invoiced = meter_data["tenant"],
+        self.building_id = meter_data["building"]
+    
     def to_dict(self) -> dict:
         return {
             'meter_id': self.id,
@@ -102,6 +114,13 @@ class Building(db.Model):
         
         self.maze_map_label = maze_map_label
 
+    def update(self, building_data: dict):
+        self.name = building_data["building_name"]
+        self.floor_area = building_data["floor_area"]
+        self.year_built = building_data["year_built"]
+        self.occupancy_type = building_data["occupancy_type"]
+        self.maze_map_label = building_data["maze_map_label"]
+    
     def to_dict(self) -> dict:
         return {
             "building_id": self.id,
