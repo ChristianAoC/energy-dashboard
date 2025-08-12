@@ -55,6 +55,12 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode = True) -> pd
         InfluxUser = settings.get("InfluxUser")
         InfluxPass = settings.get("InfluxPass")
     
+    if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
+        log.write(msg="Tried to talk to Influx with no credentials",
+                  extra_info="To use online mode the Influx credentials need to be filled in",
+                  level=log.error)
+        return pd.DataFrame()
+    
     # create client for influx
     client = InfluxDBClient(host = InfluxURL,
                             port = InfluxPort,

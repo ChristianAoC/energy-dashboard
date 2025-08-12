@@ -15,6 +15,7 @@ import models
 # - processing times
 # - bypassing authentication (in a normal case)
 # - skipping something (a meter/building in a health check / summary)
+#
 # Useful for debugging and must not require direct intervention, it should be safe to ignore/disgard
 info = "info"
 
@@ -23,6 +24,7 @@ info = "info"
 # - an error while reading a cache, but we can just recalculate the information
 # - an error saving a cache but we can still return the information
 # - an external call is sent to a user level protected endpoint without being logged it
+#
 # May require direct intervention from an administrator
 warning = "warning"
 
@@ -31,6 +33,10 @@ warning = "warning"
 # - unable to locate offline data
 # - an error occurs generating cache that cannot be recovered from
 # - unable to write/read required information to the DB and we cannot recover
+#
+# An exception to this is when there is a situation where the user has set incompatible settings,
+# e.g: Offline mode has been set to false but one or more Influx credentials haven't been provided
+#
 # Should require direct intervention from an administrator
 # Note: These logs should contain both a message and extra info
 error = "error"
@@ -40,6 +46,7 @@ error = "error"
 # - can't access a required file or resource
 # - can't generate a required file on the fly (offline meta)
 # - can't recover from a condition
+#
 # Requires direct, immediate intervention from an adminitrator
 # Note: These logs must contain both a message and extra info
 critical = "critical"
