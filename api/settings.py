@@ -41,7 +41,7 @@ default_settings = {
     "data_end_time": None,
     "data_interval": None,
     # Logging settings
-    "log_level": log.warning
+    "log_level": "warning"
 }
 
 def load_settings():
