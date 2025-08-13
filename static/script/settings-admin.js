@@ -121,7 +121,7 @@ function loadSettings() {
             $('#settingsTable').DataTable({
                 data: settings,
                 pageLength: 25,
-                searching: false,
+                dom: 'lrtp',
                 columns: [
                     { data: "category", title: "Category"},
                     { data: "key", title: "Key"},
@@ -212,7 +212,7 @@ function loadLogs() {
             $('#logsTable').DataTable({
                 data: logs,
                 pageLength: 25,
-                searching: false,
+                dom: 'lrtp',
                 columns: [
                     { data: 'timestamp', title: "Timestamp"},
                     { data: "level", title: "Level"},
