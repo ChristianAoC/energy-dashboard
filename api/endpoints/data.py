@@ -169,7 +169,8 @@ def hc_meta():
 def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time, 365)
+    offline_mode = g.settings["offline_mode"]
+    from_time, to_time, days = calculate_time_args(from_time, to_time, 365, offline_mode)
     
     valid_cache = set(request.args).isdisjoint({"from_time", "to_time"})
     
@@ -235,7 +236,7 @@ def meter_obs():
 
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time)
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -454,7 +455,7 @@ def meter_hierarchy():
 def health_score():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time)
+    from_time, to_time, days = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
 
     data = generate_health_score(from_time, days)
     

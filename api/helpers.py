@@ -6,7 +6,7 @@ import json
 from constants import *
 
 
-def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
+def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30, offline_mode: bool = True) -> tuple[dt.datetime,dt.datetime,int]:
     from_time: dt.datetime = None # type: ignore
     if type(from_time_requested) is dt.datetime:
         from_time = from_time_requested
@@ -20,7 +20,7 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     if type(to_time_requested) is str:
         to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
     
-    if not g.settings["offline_mode"]:
+    if not offline_mode:
         if to_time_requested is None:
             to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
 

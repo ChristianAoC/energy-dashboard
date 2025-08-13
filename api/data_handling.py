@@ -320,25 +320,25 @@ def get_health(args, returning=False, app_context=None):
         with app_context:
             meter_ids = [x.id for x in db.session.execute(statement)]
 
+    if has_g_support():
+        offline_mode = g.settings["offline_mode"]
+    else:
+        with app_context:
+            offline_mode = current_app.config["offline_mode"]
+
     to_time = args.get("to_time")
     from_time = args.get("from_time")
     try:
         date_range = int(args["date_range"]) # this is url decoded
     except:
         date_range = 30
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range)
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
 
     # TODO: Should this be implemented or removed?
     try:
         fmt = args["format"] # this is url decoded
     except:
         fmt = "json"
-
-    if has_g_support():
-        offline_mode = g.settings["offline_mode"]
-    else:
-        with app_context:
-            offline_mode = current_app.config["offline_mode"]
     
     ## load and trim meters
     statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
