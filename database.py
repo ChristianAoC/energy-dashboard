@@ -126,11 +126,6 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         InfluxTable = os.getenv("INFLUX_TABLE")
 
         if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
-            InfluxURL = None
-            InfluxPort = None
-            InfluxUser = None
-            InfluxPass = None
-            InfluxTable = None
             offlineMode = True
         
         result["offline_mode"] = offlineMode
@@ -162,10 +157,6 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         SMTP_ENABLED = val.strip().lower() in ("1", "true", "yes", "on")
         
         if SMTP_ADDRESS is None or SMTP_PASSWORD is None or SMTP_SERVER is None or SMTP_PORT is None:
-            SMTP_ADDRESS = None
-            SMTP_PASSWORD = None
-            SMTP_SERVER = None
-            SMTP_PORT = None
             SMTP_ENABLED = False
         result["SMTP_ENABLED"] = SMTP_ENABLED
         result["SMTP_ADDRESS"] = SMTP_ADDRESS
