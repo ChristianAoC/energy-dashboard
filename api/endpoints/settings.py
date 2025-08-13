@@ -31,9 +31,9 @@ def get():
     
     if key is None:
         result = db.session.execute(db.select(models.Settings)).scalars().all()
-        out = {}
+        out = []
         for entry in result:
-            out[entry.key] = entry.value
+            out.append(entry.to_dict())
         return make_response(jsonify(out), 200)
     
     result = db.session.execute(db.select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
