@@ -57,19 +57,7 @@ with app.app_context():
                 extra_info="Place your data in ./data/offline/",
                 level=log.critical)
         cannot_initialise = True
-
-    if offline_mode and not os.path.exists(constants.offline_meta_file):
-        result = constants.generate_offine_meta()
-        if not result:
-            print("\n" + "="*20)
-            print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
-            print("\tPlease place your metadata in ./data/offline_data.json")
-            print("="*20 + "\n")
-            log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated)",
-                    extra_info="Place your metadata in ./data/offline_data.json",
-                    level=log.critical)
-            cannot_initialise = True
-
+    
     if not os.path.exists(constants.benchmark_data_file):
         print("\n" + "="*20)
         print("\tERROR: You have removed the included benchmark data!")

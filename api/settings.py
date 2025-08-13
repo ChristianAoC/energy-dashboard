@@ -35,6 +35,9 @@ default_settings = {
     # Metadata settings
     "meter_sheet": "Energie points",
     "building_sheet": "Buildings",
+    "data_start_time": None,
+    "data_end_time": None,
+    "data_interval": None,
     # Logging settings
     "log_level": log.warning
 }

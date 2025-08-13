@@ -4,9 +4,10 @@ from flask_sqlalchemy import SQLAlchemy
 from dotenv import load_dotenv
 import os
 import pandas as pd
+import json
 import sys
 
-from constants import metadata_file, building_mappings, meter_mappings
+from constants import metadata_file, building_mappings, meter_mappings, offline_data_files, offline_meta_file
 
 db = SQLAlchemy(engine_options={
     "pool_size": 20,
@@ -22,12 +23,80 @@ def init(app):
 
         try:
             initialise_settings_table(True)
-        except:
+        except Exception as e:
             print("\n" + "="*20)
             print("\tERROR: Failed to initialise settings table!")
-            print("\tThis could be because:")
+            print(f"\tThis could be because: {e}")
             print("="*20 + "\n")
             sys.exit(1)
+
+def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
+    import api.settings as settings
+    from database import db
+    import models
+    start_time = None
+    end_time = None
+    interval = None
+    
+    for file in os.listdir(offline_data_files):
+        if not file.endswith(".csv"):
+            continue
+        
+        file_path = os.path.join(offline_data_files, file)
+        df = pd.read_csv(file_path)
+        df['time'] = pd.to_datetime(df['time'], format="%Y-%m-%d %H:%M:%S%z", utc=True)
+        lower_index = df.first_valid_index()
+        upper_index = df.last_valid_index()
+        if lower_index is None or upper_index is None:
+            return False
+        
+        temp_start_time = df['time'][lower_index]
+        temp_end_time = df['time'][upper_index]
+        
+        temp_interval = df['time'].diff().dropna().min().total_seconds()/60 # type: ignore
+        if start_time is None:
+            start_time = temp_start_time
+        if end_time is None:
+            end_time = temp_end_time
+        if interval is None:
+            interval = temp_interval
+        
+        if temp_start_time < start_time:
+            start_time = temp_start_time
+        if temp_end_time > end_time:
+            end_time = temp_end_time
+        if temp_interval != interval:
+            return False
+
+    if start_time is None or end_time is None:
+        return False
+    
+    out = {
+        "start_time": start_time,
+        "end_time": end_time,
+        "interval": interval
+    }
+    
+    if not write_to_db:
+        return out
+    
+    for key in out.keys():
+        setting = db.session.execute(
+            db.select(models.Settings)
+            .where(models.Settings.key == key)
+            .where(models.Settings.category == "metadata")
+        ).scalar_one_or_none()
+        if setting is None:
+            return False
+        
+        setting_type = "datetime" if key != "interval" else "int"
+        
+        try:
+            settings.update_record(setting, out[key], setting_type, "metadata") # type: ignore
+        except:
+            return False
+    
+    return True
 
 def load_settings_from_env(from_env: bool = True) -> dict:
     from api.settings import default_settings
@@ -106,6 +175,29 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         
         result["BACKGROUND_TASK_TIMING"] = os.getenv("BACKGROUND_TASK_TIMING",
                                                      default_settings["BACKGROUND_TASK_TIMING"])
+        
+        val = generate_offine_meta(write_to_db=False)
+        
+        start_time = None
+        end_time = None
+        interval = None
+        if type(val) is dict:
+            start_time = val["start_time"]
+            end_time = val["end_time"]
+            interval = val["interval"]
+        elif type(val) is bool and offlineMode:
+            try:
+                with open(offline_meta_file, "r") as f:
+                    anon_data_meta = json.load(f)
+                start_time = anon_data_meta["start_time"]
+                end_time = anon_data_meta["end_time"]
+                interval = anon_data_meta["interval"]
+            except:
+                raise ValueError("Can't generate required file: offline metadata")
+        
+        result["data_start_time"] = start_time
+        result["data_end_time"] = end_time
+        result["data_interval"] = interval
     return result
 
 def initialise_settings_table(from_env: bool = False) -> bool:
@@ -284,6 +376,24 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             category="metadata",
             setting_type="str"
         ))
+        settings.append(models.Settings(
+            key="data_start_time",
+            value=temp_default_settings["data_start_time"],
+            category="metadata",
+            setting_type="datetime"
+        ))
+        settings.append(models.Settings(
+            key="data_end_time",
+            value=temp_default_settings["data_end_time"],
+            category="metadata",
+            setting_type="datetime"
+        ))
+        settings.append(models.Settings(
+            key="data_interval",
+            value=temp_default_settings["data_interval"],
+            category="metadata",
+            setting_type="int"
+        ))
         
         # Logging
         settings.append(models.Settings(
@@ -297,6 +407,19 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         
         db.session.commit()
         return True
+    except ValueError as e:
+        db.session.rollback()
+        if str(e) == "Can't generate required file: offline metadata":
+            print("\n" + "="*20)
+            print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
+            print("\tPlease either place it in ./data/offline_data.json or add the data directly to the database")
+            print("="*20 + "\n")
+            log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
+                        extra_info="Note: there may be other critical errors that are being masked by this one.",
+                        level=log.critical)
+            sys.exit(1)
+        log.write(msg="Error initialising settings table", extra_info=str(e), level=log.critical)
+        raise Exception("Error initialising settings table")
     except Exception as e:
         log.write(msg="Error initialising settings table", extra_info=str(e), level=log.critical)
         db.session.rollback()
