@@ -3,6 +3,7 @@
 {% block head %}
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/settings.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/datatables.min.css') }}">
+<link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/switch.css') }}">
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/dataTables.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='script/settings.js') }}"></script>
 {% endblock %}
@@ -70,14 +71,26 @@ Logged in as {{ user.email | tojson | safe }}.<br><br>
 Note: switching between online and offline modes invalidates the health check and summary caches
 <br><br>
 
-<div id="settings-container">
-    <table id="settings-table">
-        <thead><tr><th>Key</th><th>Value</th></tr></thead>
-        <tbody id="settings-rows"></tbody>
+<div id="settingsTableContainer">
+    <table id="settingsTable">
+        <thead>
+        <tr>
+            <th>Category</th>
+            <th>Key</th>
+            <th>Value</th>
+            <th>Type</th>
+        </tr>
+        <tr>
+            <th class="select" data-dt-order="disable">Category</th>
+            <th class="text" data-dt-order="disable">Key</th>
+            <th class="text" data-dt-order="disable">Value</th>
+            <th class="select" data-dt-order="disable">Type</th>
+        </tr>
+        </thead>
+        <tbody>
+        </tbody>
     </table>
 </div>
-<br>
-<button id="add-setting-btn" class="button-generic">Add Setting</button>
 
 </div>
 
