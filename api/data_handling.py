@@ -39,27 +39,29 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFr
     if m.SEED_uuid is None:
         return pd.DataFrame()
 
-    # format query
-    qry = 'SELECT * as value FROM "SEED"."autogen"."' + m.SEED_uuid + \
-        '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
-        ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
-
     if has_g_support():
         InfluxURL = g.settings["InfluxURL"]
         InfluxPort = g.settings["InfluxPort"]
         InfluxUser = g.settings["InfluxUser"]
         InfluxPass = g.settings["InfluxPass"]
+        InfluxTable = g.settings["InfluxTable"]
     else:
         InfluxURL = settings.get("InfluxURL")
         InfluxPort = settings.get("InfluxPort")
         InfluxUser = settings.get("InfluxUser")
         InfluxPass = settings.get("InfluxPass")
+        InfluxTable = settings.get("InfluxTable")
     
-    if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
+    if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
         log.write(msg="Tried to talk to Influx with no credentials",
                   extra_info="To use online mode the Influx credentials need to be filled in",
                   level=log.error)
         return pd.DataFrame()
+    
+    # format query
+    qry = f'SELECT * as value FROM "{InfluxTable}"."autogen"."' + m.SEED_uuid + \
+        '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
+        ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
     
     # create client for influx
     client = InfluxDBClient(host = InfluxURL,

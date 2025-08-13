@@ -123,18 +123,22 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         InfluxPort = os.getenv("INFLUX_PORT")
         InfluxUser = os.getenv("INFLUX_USER")
         InfluxPass = os.getenv("INFLUX_PASS")
+        InfluxTable = os.getenv("INFLUX_TABLE")
 
-        if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
+        if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
             InfluxURL = None
             InfluxPort = None
             InfluxUser = None
             InfluxPass = None
+            InfluxTable = None
             offlineMode = True
+        
         result["offline_mode"] = offlineMode
         result["InfluxURL"] = InfluxURL
         result["InfluxPort"] = InfluxPort
         result["InfluxUser"] = InfluxUser
         result["InfluxPass"] = InfluxPass
+        result["InfluxTable"] = InfluxTable
         
         result["hc_update_time"] = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", default_settings["hc_update_time"]))
         result["cache_time_health_score"] = int(os.getenv("HEALTH_SCORE_CACHE_TIME",
@@ -340,6 +344,38 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             key="SITE_NAME",
             value=temp_default_settings["SITE_NAME"],
             category="site",
+            setting_type="str"
+        ))
+        
+        # Influx
+        settings.append(models.Settings(
+            key="InfluxURL",
+            value=temp_default_settings["InfluxURL"],
+            category="influx",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="InfluxPort",
+            value=temp_default_settings["InfluxPort"],
+            category="influx",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="InfluxUser",
+            value=temp_default_settings["InfluxUser"],
+            category="influx",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="InfluxPass",
+            value=temp_default_settings["InfluxPass"],
+            category="influx",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="InfluxTable",
+            value=temp_default_settings["InfluxTable"],
+            category="influx",
             setting_type="str"
         ))
         
