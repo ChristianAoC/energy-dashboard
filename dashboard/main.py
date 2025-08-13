@@ -48,13 +48,13 @@ def required_user_level(level_config_key):
                     if users.get_user_level(email, sessionID) < required_level:
                         if request.method == "POST":
                             return make_response("Access Denied", 401)
-                        return noaccess()
+                        return no_access()
             except Exception as e:
                 print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 if request.method == "POST":
                     return make_response("Access Denied", 401)
-                return noaccess()
+                return no_access()
             
             return function(*args, **kwargs)
         return wrapper
@@ -64,8 +64,8 @@ def required_user_level(level_config_key):
 ###                 main web templates                  ###
 ###########################################################
 
-@dashboard_bp.route("/noacess")
-def noaccess():
+@dashboard_bp.route("/no-acess")
+def no_access():
     return render_template('noaccess.html')
 
 @dashboard_bp.route("/map")
