@@ -166,6 +166,7 @@ def upload_metadata():
         return make_response("Invalid data", 415)
     
     try:
+        os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
         tempfile = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
         file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
         os.replace(tempfile, metadata_file)
@@ -196,6 +197,7 @@ def upload_benchmark():
         return make_response("Invalid data", 415)
     
     try:
+        os.makedirs(os.path.dirname(benchmark_data_file), exist_ok=True)
         tempfile = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
         file.save(tempfile)
         os.replace(tempfile, benchmark_data_file)
@@ -225,6 +227,7 @@ def upload_polygons():
         return make_response("Invalid data", 415)
     
     try:
+        os.makedirs(os.path.dirname(mazemap_polygons_file), exist_ok=True)
         tempfile = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
         file.save(tempfile)
         os.replace(tempfile, mazemap_polygons_file)
