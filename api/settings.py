@@ -84,11 +84,18 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
         db.session.rollback()
         raise e
 
-def get(key: str):
-    existing_setting = db.session.execute(
-        db.Select(models.Settings)
-        .where(models.Settings.key == key)
-    ).scalar_one_or_none()
+def get(key: str, app_context = None):
+    try:
+        statement = db.Select(models.Settings).where(models.Settings.key == key)
+        if app_context is None:
+            existing_setting = db.session.execute(statement).scalar_one_or_none()
+        else:
+            from app import app
+            with app.app_context():
+                existing_setting = db.session.execute(statement).scalar_one_or_none()
+    except:
+        existing_setting = None
+    
     if existing_setting is None:
         value = default_settings.get(key)
         if value is None:
