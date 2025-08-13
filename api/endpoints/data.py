@@ -313,8 +313,8 @@ def meter_health():
         statement = statement.where(models.HealthCheck.meter_id == models.Meter.id).where(models.Meter.invoiced.is_(False)) # type: ignore
     hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
 
-    # TODO: What does the 2nd statement do?
-    if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
+    # TODO: What does the last statement do?
+    if len(request.args) == 0 or g.settings["offline_mode"] or list(request.args.keys()) == ["hidden"]:
         if hc_cache:
             try:
                 if g.settings["offline_mode"]:
