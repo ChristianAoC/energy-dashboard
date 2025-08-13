@@ -401,7 +401,7 @@ class User(db.Model):
             "level": self.level,
             "logincount": self.login_count,
             "lastlogin": self.last_login.isoformat(sep=" ") if self.last_login is not None else None,
-            "sessions": len(self.sessions)
+            "sessions": len(self.sessions) # type: ignore
         }
     
     def __repr__(self) -> str:

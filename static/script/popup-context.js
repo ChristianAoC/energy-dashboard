@@ -255,14 +255,18 @@ function saveContext() {
         targetId = selectedMeter;
     }
 
+    let start_ts = document.getElementById("con-start-date").value;
+    if (document.getElementById("none-from").checked) start_ts = null;
+
+    let end_ts = document.getElementById("con-end-date").value;
+    if (document.getElementById("none-to").checked) end_ts = null;
+
     const toSubmit = {
         author: getCookie("Email") || "(anonymous)",
         target_type: targetType,
         target_id: targetId,
-        startnone: document.getElementById("none-from").checked,
-        start: document.getElementById("con-start-date").value,
-        endnone: document.getElementById("none-to").checked,
-        end: document.getElementById("con-end-date").value,
+        start: start_ts,
+        end: end_ts,
         type: submitType,
         comment: htmlEscape(document.getElementById("context-comment").value)
     };
