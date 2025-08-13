@@ -46,10 +46,14 @@ function switchClicked(e) {
 
 // Send update when user leaves the input field/switches bool
 function onSettingChange(input) {
+    let value = htmlEscape(input.value);
+    if (input.getAttribute("data-type") == "int") value = parseInt(value);
+    if (input.getAttribute("data-type") == "float") value = parseFloat(value);
+
     fetch(BASE_PATH + '/api/settings/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [input.getAttribute("data-key")]: htmlEscape(input.value) })
+        body: JSON.stringify({ [input.getAttribute("data-key")]: value })
     })
     .then(res => {
         if (!res.ok) {
@@ -124,11 +128,11 @@ function loadSettings() {
                     { data: 'value', title: "Value",
                         render: function (data, type, row) {
                             if (row.setting_type === "str") {
-                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}'>`;
+                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${data}' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "int") {
-                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}'>`;
+                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "float") {
-                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}'>`;
+                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "bool") {
                                 return `<div role="switch" aria-checked="true" tabindex="0" onclick="switchClicked(this)" data-key="${row.key}">
                                         <span class="switch">
