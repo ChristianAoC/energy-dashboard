@@ -26,6 +26,8 @@ default_settings = {
     "SMTP_ENABLED": False,
     # Site info
     "SITE_NAME": "Energy Dashboard",
+    # Influx settings
+    "data_interval": 60,
     # Data settings
     "offline_mode": True,
     "hc_update_time": 9,

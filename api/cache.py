@@ -186,10 +186,8 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         return
 
     if g.settings["offline_mode"]:
-        with open(offline_meta_file, "r") as f:
-            anon_data_meta = json.load(f)
-        data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
-        data_end_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        data_start_time = dt.datetime.strptime(g.settings["data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(g.settings["data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         current_meter_health_score_files = offline_meter_health_score_files
         current_meter_snapshots_files = offline_meter_snapshots_files
     else:

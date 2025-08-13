@@ -168,9 +168,10 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     
     if offline_mode:
         try:
-            with open(offline_meta_file, "r") as f:
-                anon_data_meta = json.load(f)
-            interval = anon_data_meta.get("interval", 60) * 60
+            if has_g_support():
+                interval = g.settings.get("data_interval", 60) * 60
+            else:
+                interval = settings.get("data_interval") * 60 # type: ignore
         except:
             interval = 3600
 

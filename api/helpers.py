@@ -4,6 +4,7 @@ import datetime as dt
 import json
 
 from constants import *
+import api.settings as settings
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30, offline_mode: bool = True) -> tuple[dt.datetime,dt.datetime,int]:
@@ -27,11 +28,14 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
         if from_time_requested is None:
             from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
     else:
-        with open(offline_meta_file, "r") as f:
-            anon_data_meta = json.load(f)
-
-        offline_to_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
-        offline_from_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
+        if has_g_support():
+            offline_to_time_raw = g.settings["data_end_time"]
+            offline_from_time_raw = g.settings["data_start_time"]
+        else:
+            offline_to_time_raw = settings.get("data_end_time")
+            offline_from_time_raw = settings.get("data_start_time")
+        offline_to_time = dt.datetime.strptime(offline_to_time_raw, "%Y-%m-%dT%H:%M:%S%z")
+        offline_from_time = dt.datetime.strptime(offline_from_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         
         changed_time = False
         if to_time is not None:

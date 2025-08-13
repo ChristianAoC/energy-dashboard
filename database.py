@@ -84,8 +84,8 @@ def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
         return False
     
     out = {
-        "start_time": start_time,
-        "end_time": end_time,
+        "start_time": start_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
+        "end_time": end_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
         "interval": interval
     }
     
@@ -101,7 +101,7 @@ def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
         if setting is None:
             return False
         
-        setting_type = "datetime" if key != "interval" else "int"
+        setting_type = "str" if key != "interval" else "int"
         
         try:
             settings.update_record(setting, out[key], setting_type, "metadata") # type: ignore
@@ -428,13 +428,13 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             key="data_start_time",
             value=temp_default_settings["data_start_time"],
             category="metadata",
-            setting_type="datetime"
+            setting_type="str"
         ))
         settings.append(models.Settings(
             key="data_end_time",
             value=temp_default_settings["data_end_time"],
             category="metadata",
-            setting_type="datetime"
+            setting_type="str"
         ))
         settings.append(models.Settings(
             key="data_interval",
