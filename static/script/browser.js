@@ -352,7 +352,11 @@ $(document).ready(async function () {
 
         browserData.hierarchy = hierarchy;
         browserData.meters = meters;
-        browserData.context = getcontext;
+        if (getcontext) {
+            browserData.context = getcontext;
+        } else {
+            browserData.context = [];
+        }
 
         if (browserData.hierarchy) {
             const buildingEntries = Object.entries(browserData.hierarchy);

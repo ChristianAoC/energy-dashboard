@@ -53,7 +53,10 @@ $(document).ready( async function () {
         const [hierarchyData, mazemapPolygons, getcontext] = await Promise.all([
             getData({ hierarchy: {} }).then(res => res.hierarchy),
             fetch(apiEndpoints.mazemap_polygons).then(res => res.json()),
-            fetch(apiEndpoints.getcontext).then(res => res.json())
+            fetch(apiEndpoints.getcontext).then(res => {
+                if (!res.ok) return [];
+                return res.json();
+            })
         ]);
 
         browserData.hierarchy = hierarchyData;
