@@ -98,8 +98,7 @@ function updateBuildingSpan() {
 
         const buildingId = meterObj[metaLabel["building_id"]];
         
-        // TODO change this to building name once backend provides it
-        curBuilding.textContent = buildingId;
+        curBuilding.textContent = meterObj[metaLabel["building_name"]] + " (" + buildingId + ")";
         
         curBuilding.setAttribute("data-building-id", buildingId);
     }
