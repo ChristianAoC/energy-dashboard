@@ -587,11 +587,3 @@ def logs():
         return make_response(jsonify([]), 404)
 
     return make_response(jsonify(data), 200)
-
-@data_api_bp.route("/test")
-def test():
-    log.write(msg="Test log info", extra_info="TESTING - INFO", level=log.info)
-    log.write(msg="Test log warning", extra_info="TESTING - WARNING", level=log.warning)
-    log.write(msg="Test log error", extra_info="TESTING - ERROR", level=log.error)
-    log.write(msg="Test log critical", extra_info="TESTING - CRITICAL", level=log.critical)
-    return "OK"
