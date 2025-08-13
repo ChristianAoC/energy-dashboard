@@ -317,6 +317,13 @@ def meter_health():
         statement = (statement.where(models.HealthCheck.meter_id == models.Meter.id)
                      .where(models.Meter.invoiced.is_(False))) # type: ignore
     hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
+    
+    # If database hasn't been initialised properly then the frontend enters a loop of retries because a 500 is returned
+    # if there isn't any cache available to serve.
+    if len(db.session.execute(db.select(models.Meter)).scalars().all()) == 0:
+        response = make_response(jsonify(hc_cache), 200)
+        response.headers['X-Cache-State'] = "fresh"
+        return response
 
     # TODO: What does the last statement do?
     if len(request.args) == 0 or g.settings["offline_mode"] or list(request.args.keys()) == ["hidden"]:

@@ -1,4 +1,4 @@
-from flask import g
+from flask import g, has_app_context
 
 import datetime as dt
 from sqlalchemy import or_
@@ -87,9 +87,16 @@ def write(msg: str, level: str, extra_info: str|None = None, commit: bool = True
             level=level,
             info=extra_info
         )
-        db.session.add(new_log)
-        if commit:
-            db.session.commit()
+        if has_app_context():
+            db.session.add(new_log)
+            if commit:
+                db.session.commit()
+        else:
+            from app import app
+            with app.app_context():
+                db.session.add(new_log)
+                if commit:
+                    db.session.commit()
     except:
         db.session.rollback()
 

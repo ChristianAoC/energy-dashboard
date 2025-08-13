@@ -184,7 +184,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     # Bring SQL update output back in line with the original output (instead of just returning calculated values)
     # Filter out SEED_UUID and invoiced
     keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
-    out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
+    with app_context:
+        out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
     # time series for this meter
     m_obs = query_influx(m, from_time, to_time, offline_mode)
