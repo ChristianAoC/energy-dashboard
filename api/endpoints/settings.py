@@ -7,7 +7,7 @@ import os
 import api.endpoints.data as data_api_bp
 import api.settings as settings
 from constants import *
-from database import db
+from database import db, generate_offine_meta
 import log
 import models
 
@@ -232,6 +232,12 @@ def upload_polygons():
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
 
+@settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def regenerate_offline_metadata():
+    if generate_offine_meta():
+        return make_response("OK", 200)
+    return make_response("ERROR", 500)
 
 ## This is the start of a more guided upload for metadata
 # @settings_api_bp.route("/upload/new", methods=["POST"])
