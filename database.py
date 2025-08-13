@@ -467,11 +467,11 @@ def initialise_settings_table(from_env: bool = False) -> bool:
                         level=log.critical)
             sys.exit(1)
         log.write(msg="Error initialising settings table", extra_info=str(e), level=log.critical)
-        raise Exception("Error initialising settings table")
+        raise e
     except Exception as e:
         log.write(msg="Error initialising settings table", extra_info=str(e), level=log.critical)
         db.session.rollback()
-        raise Exception("Error initialising settings table")
+        raise e
 
 # ======================================================================================================================
 # NOTE: None of the helper functions in this section commit to the database.
