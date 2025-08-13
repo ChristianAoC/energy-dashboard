@@ -1,4 +1,4 @@
-from flask import current_app
+from flask import g
 
 import ssl
 import smtplib
@@ -9,14 +9,14 @@ import log
 
 
 def send_email(email_receiver, email_subject, email_body_plain, email_body_html):
-    email_sender = current_app.config["SMTP_ADDRESS"]
-    email_password = current_app.config["SMTP_PASSWORD"]
-    smtp_server = current_app.config["SMTP_SERVER"]
-    smtp_port = current_app.config["SMTP_PORT"]
+    email_sender = g.settings["SMTP_ADDRESS"]
+    email_password = g.settings["SMTP_PASSWORD"]
+    smtp_server = g.settings["SMTP_SERVER"]
+    smtp_port = g.settings["SMTP_PORT"]
     if email_sender == None or email_password == None or smtp_server == None or smtp_port == None:
-        print("SMTP variables not set in .env, couldn't send email!")
-        log.write(msg="SMTP variables not set in .env, couldn't send email", level=log.error)
-        return "SMTP variables not set in .env, couldn't send email!"
+        print("SMTP variables not set in settings, couldn't send email!")
+        log.write(msg="SMTP variables not set in settings, couldn't send email", level=log.error)
+        return "SMTP variables not set in settings, couldn't send email!"
     em = MIMEMultipart("alternative")
     em['Subject'] = email_subject
     em['From'] = email_sender
@@ -33,9 +33,14 @@ def send_email(email_receiver, email_subject, email_body_plain, email_body_html)
             server.login(email_sender, email_password)
             try:
                 server.sendmail(email_sender, email_receiver, em.as_string())
-                response = "Email to "+email_receiver+" sent."
+                response = f"Email to {email_receiver} sent."
+                log.write(msg="Successfully sent email!", extra_info=f"Email to {email_receiver} sent", level=log.info)
             except:
-                response = "Sending email from "+email_sender+" failed!"
+                log.write(msg="Failed to send email",
+                          extra_info=f"Sending email from {email_sender} failed!",
+                          level=log.error)
+                response = f"Sending email from {email_sender} failed!"
         except:
-            response = "Login to SMTP "+smtp_server+" failed!"
+            log.write(msg="Failed to send email", extra_info=f"Login to SMTP {smtp_server} failed", level=log.error)
+            response = f"Login to SMTP {smtp_server} failed!"
         return response

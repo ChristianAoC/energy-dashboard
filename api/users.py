@@ -1,4 +1,4 @@
-from flask import request, current_app, Response, make_response, render_template
+from flask import request, current_app, Response, make_response, render_template, g
 
 import datetime as dt
 import random
@@ -92,12 +92,13 @@ def is_admin(user: models.User|None = None) -> bool:
     from api.users import get_user_level
     try:
         # Run all internal calls at admin level
-        if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
+        if (request.remote_addr in ['127.0.0.1', '::1'] and
+                request.headers.get("Authorization") == current_app.config["internal_api_key"]):
             print("Bypassed admin level check for internal call")
             log.write(msg="Bypassed user level authorization for internal call", level=log.info)
             return True
         
-        required_level = int(current_app.config["USER_LEVEL_ADMIN"])
+        required_level = g.settings["USER_LEVEL_ADMIN"]
         
         cookies = request.cookies
         email = cookies.get("Email", None)
@@ -114,7 +115,7 @@ def is_admin(user: models.User|None = None) -> bool:
         return False
     return True
 
-def set_cookies(email: str, sessionID: str, message: str = None, status: str = "info") -> Response:
+def set_cookies(email: str, sessionID: str, message: str|None = None, status: str = "info") -> Response:
     user = get_logged_in_user()
     resp = make_response(render_template('settings.html', user=user, message=message, status=status))
     resp.set_cookie("SessionID", sessionID, 60*60*24*365)
@@ -190,16 +191,15 @@ def login_request(email: str) -> tuple:
     
     email_domain = email.split('@')[1]
     
-    if current_app.config["DEMO_EMAIL_DOMAINS"] != None:
+    if (raw_demo := g.settings.get("DEMO_EMAIL_DOMAINS")) is not None:
         demo_domains = []
-        raw_demo = current_app.config["DEMO_EMAIL_DOMAINS"]
         if raw_demo:
             demo_domains = [x.strip() for x in raw_demo.split(",")]
         
         if len(demo_domains) != 0 and email_domain in demo_domains:
             sessionID = str(uuid.uuid4())
             timestamp = dt.datetime.now().replace(second=0, microsecond=0)
-            create_user(email, current_app.config["DEFAULT_USER_LEVEL"], timestamp)
+            create_user(email, g.settings["DEFAULT_USER_LEVEL"], timestamp)
             
             added = update_session(email, sessionID, timestamp)
             if not added:
@@ -207,15 +207,14 @@ def login_request(email: str) -> tuple:
             return ((email, sessionID), 200)
     
     required_domains = []
-    raw_required = current_app.config["REQUIRED_EMAIL_DOMAINS"]
-    if raw_required:
+    if raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS"):
         required_domains = [x.strip() for x in raw_required.split(",")]
     
     if len(required_domains) != 0 and email_domain not in required_domains:
         return ("Email needs to have one of those domains: "+", ".join(required_domains), 400)
     
     if not user_exists(email):
-        level = current_app.config["DEFAULT_USER_LEVEL"]
+        level = g.settings["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
             level = 5
@@ -236,9 +235,9 @@ def login_request(email: str) -> tuple:
     codeurl += "api/user/verify?email=" + email
     codeurl += "&code=" + code
 
-    if current_app.config["SMTP_ENABLED"]:
+    if g.settings["SMTP_ENABLED"]:
         mailtext  = "You requested a login token for:\t\n\t\n"
-        mailtext += current_app.config["SITE_NAME"] + "\t\n\t\n"
+        mailtext += g.settings["SITE_NAME"] + "\t\n\t\n"
         mailtext += "Copy/paste the following URL into your browser:\t\n\t\n"
         mailtext += codeurl + "\t\n\t\n"
         mailtext += "This code is valid for one hour."
@@ -247,7 +246,7 @@ def login_request(email: str) -> tuple:
         mailhtml = mailhtml.replace("Copy/paste", "<a href='"+codeurl+"' target='_blank'>Click here</a> or copy/paste", )
         mailhtml = mailhtml.replace("\n", "<br>", )
         
-        mail.send_email(email, current_app.config["SITE_NAME"]+" Access Code", mailtext, mailhtml)
+        mail.send_email(email, f"{g.settings['SITE_NAME']} Access Code", mailtext, mailhtml)
         return ("Login token generated, check your mail.", 200)
 
     print("Mail sending off until everything else works. Post this URL into the browser:")

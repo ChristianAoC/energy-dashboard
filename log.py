@@ -1,7 +1,8 @@
+from flask import g
+
 import datetime as dt
 from sqlalchemy import or_
 
-from constants import log_level
 from database import db
 import models
 
@@ -14,6 +15,7 @@ import models
 # - processing times
 # - bypassing authentication (in a normal case)
 # - skipping something (a meter/building in a health check / summary)
+#
 # Useful for debugging and must not require direct intervention, it should be safe to ignore/disgard
 info = "info"
 
@@ -22,6 +24,7 @@ info = "info"
 # - an error while reading a cache, but we can just recalculate the information
 # - an error saving a cache but we can still return the information
 # - an external call is sent to a user level protected endpoint without being logged it
+#
 # May require direct intervention from an administrator
 warning = "warning"
 
@@ -29,13 +32,21 @@ warning = "warning"
 # - an internal api call fails
 # - unable to locate offline data
 # - an error occurs generating cache that cannot be recovered from
+# - unable to write/read required information to the DB and we cannot recover
+#
+# An exception to this is when there is a situation where the user has set incompatible settings,
+# e.g: Offline mode has been set to false but one or more Influx credentials haven't been provided
+#
 # Should require direct intervention from an administrator
 # Note: These logs should contain both a message and extra info
 error = "error"
 
 # An error that stops the service from running/starting, e.g:
 # - a required file is missing
-# - can't access a 
+# - can't access a required file or resource
+# - can't generate a required file on the fly (offline meta)
+# - can't recover from a condition
+#
 # Requires direct, immediate intervention from an adminitrator
 # Note: These logs must contain both a message and extra info
 critical = "critical"
@@ -47,9 +58,24 @@ index = {
     "critical": 4
 }
 
-def write(msg: str, level: str, extra_info: str|None = None):
+def write(msg: str, level: str, extra_info: str|None = None, commit: bool = True):
     level_index = index.get(level.lower(), 1)
-    minimum_index = index.get(log_level.lower(), 1)
+    from api.settings import get as get_settings
+    try:
+        minimum_index = index.get(g.settings.get("log_level", info).lower())
+        pass
+    except:
+        try:
+            minimum_level = get_settings("log_level")
+            if minimum_level is None:
+                raise ValueError
+            
+            minimum_index = index.get(minimum_level)
+        except:
+            minimum_index = index.get(info)
+    
+    if minimum_index is None:
+        minimum_index = 1
     
     if level_index < minimum_index:
         return
@@ -62,7 +88,8 @@ def write(msg: str, level: str, extra_info: str|None = None):
             info=extra_info
         )
         db.session.add(new_log)
-        db.session.commit()
+        if commit:
+            db.session.commit()
     except:
         db.session.rollback()
 

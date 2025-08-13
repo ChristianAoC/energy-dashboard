@@ -1,4 +1,4 @@
-from flask import Blueprint, current_app, jsonify, make_response, request, Response
+from flask import Blueprint, current_app, jsonify, make_response, request, Response, g
 
 import datetime as dt
 from functools import wraps
@@ -7,14 +7,14 @@ import os
 import threading
 import time
 
-from constants import *
-from database import db, initial_database_population
-import log
-import models
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
 from api.helpers import calculate_time_args, data_cleaner
 from api.users import get_user_level, is_admin
+from constants import *
+from database import db, initial_database_population
+import log
+import models
 
 
 data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')
@@ -25,23 +25,23 @@ def required_user_level(level_config_key):
         @wraps(function)
         def wrapper(*args, **kwargs):
             # Bypass authentication for internal calls
-            if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
+            if (request.remote_addr in ['127.0.0.1', '::1']
+                and request.headers.get("Authorization") == current_app.config["internal_api_key"]):
                 print("Bypassed user level authorization for internal call")
                 log.write(msg="Bypassed user level authorization for internal call", level=log.info)
                 return function(*args, **kwargs)
             
-            # Skip validating if required level is 0 (allow unauthenticated users)
-            if current_app.config[level_config_key] == 0:
-                return function(*args, **kwargs)
-            
             try:
-                cookies = request.cookies
-                level = int(current_app.config[level_config_key])
-                email = cookies.get("Email", None)
-                sessionID = cookies.get("SessionID", None)
+                level = g.settings[level_config_key]
                 
-                if get_user_level(email, sessionID) < level:
-                    return make_response("Access Denied", 401)
+                # Skip validating if required level is 0 (allow unauthenticated users)
+                if level != 0:
+                    cookies = request.cookies
+                    email = cookies.get("Email", None)
+                    sessionID = cookies.get("SessionID", None)
+                    
+                    if get_user_level(email, sessionID) < level:
+                        return make_response("Access Denied", 401)
             except Exception as e:
                 print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
@@ -83,7 +83,8 @@ def meters():
             raise Exception
         keys = keys.split(";")
     except:
-        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution",
+                "scaling_factor", "building_id", "building_name"]
     
     out = data_cleaner(data, keys)
     
@@ -93,7 +94,10 @@ def meters():
 @data_api_bp.route('/hc_meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
-    hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+    hc_meta = db.session.execute(
+        db.select(models.CacheMeta)
+        .where(models.CacheMeta.meta_type == "health_check")
+    ).scalar_one_or_none()
     if hc_meta is None:
         return make_response(jsonify({}), 404)
 
@@ -170,7 +174,8 @@ def hc_meta():
 def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time, 365)
+    offline_mode = g.settings["offline_mode"]
+    from_time, to_time, days = calculate_time_args(from_time, to_time, 365, offline_mode)
     
     valid_cache = set(request.args).isdisjoint({"from_time", "to_time"})
     
@@ -180,7 +185,10 @@ def summary():
     ).scalar_one_or_none()
     
     valid_cache = False
-    if cache_meta is not None and cache_meta.to_time == to_time.timestamp() and cache_meta.from_time == from_time.timestamp():
+    if (cache_meta is not None
+        and cache_meta.to_time == to_time.timestamp()
+        and cache_meta.from_time == from_time.timestamp()
+        and cache_meta.offline == g.settings["offline_mode"]):
         valid_cache = True
     
     data = {}
@@ -189,9 +197,8 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if offlineMode:
-            with open(offline_meta_file, "r") as f:
-                latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+        if g.settings["offline_mode"]:
+            latest_data_date = dt.datetime.strptime(g.settings["data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
         latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -233,7 +240,7 @@ def meter_obs():
 
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time)
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -307,28 +314,37 @@ def meter_health():
     # load existing cache
     statement = db.select(models.HealthCheck)
     if not is_admin():
-        statement = statement.where(models.HealthCheck.meter_id == models.Meter.id).where(models.Meter.invoiced.is_(False)) # type: ignore
+        statement = (statement.where(models.HealthCheck.meter_id == models.Meter.id)
+                     .where(models.Meter.invoiced.is_(False))) # type: ignore
     hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
 
-    # TODO: What does the 2nd statement do?
-    if len(request.args) == 0 or list(request.args.keys()) == ["hidden"]:
+    # TODO: What does the last statement do?
+    if len(request.args) == 0 or g.settings["offline_mode"] or list(request.args.keys()) == ["hidden"]:
         if hc_cache:
             try:
-                if offlineMode:
-                    with open(offline_meta_file, "r") as f:
-                        latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+                if g.settings["offline_mode"]:
+                    latest_data_date = dt.datetime.strptime(g.settings["data_end_time"],
+                                                            "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
 
-                meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+                meta = db.session.execute(
+                    db.select(models.CacheMeta)
+                    .where(models.CacheMeta.meta_type == "health_check")
+                ).scalar_one_or_none()
                 if meta is None:
                     raise Exception
-
-                cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * hc_update_time:
-                    response = make_response(jsonify(hc_cache), 200)
-                    response.headers['X-Cache-State'] = "fresh"
-                    return response
+                
+                if not g.settings["offline_mode"]:
+                    cache_age = latest_data_date - meta.to_time
+                    if cache_age < 3600 * g.settings["hc_update_time"] and meta.offline == g.settings["offline_mode"]:
+                        response = make_response(jsonify(hc_cache), 200)
+                        response.headers['X-Cache-State'] = "fresh"
+                        return response
+                elif meta.offline == g.settings["offline_mode"]:
+                        response = make_response(jsonify(hc_cache), 200)
+                        response.headers['X-Cache-State'] = "fresh"
+                        return response
             except:
                 print("Error reading cache metadata, skipping HC cache")
                 log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
@@ -341,7 +357,8 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()),
+                                      name="updateMainHC", daemon=True)
             thread.start()
 
         if hc_cache:
@@ -353,7 +370,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
     else:
-        health_check_data = get_health(request.args, True)
+        health_check_data = get_health(request.args, True, current_app.app_context())
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -447,22 +464,22 @@ def meter_hierarchy():
 def health_score():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time)
+    from_time, to_time, days = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
 
     data = generate_health_score(from_time, days)
     
     return make_response(jsonify(data), 200)
 
-## Returns the contents of data/meta/offline_data.json
 @data_api_bp.route('/offline_meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
-    if not os.path.exists(offline_meta_file) or not offlineMode:
-        return make_response(jsonify({}), 404)
+    out = {
+        "start_time": g.settings["data_start_time"],
+        "end_time": g.settings["data_end_time"],
+        "interval": g.settings["data_interval"]
+    }
     
-    with open(offline_meta_file, "r") as f:
-        data = json.load(f)
-    return make_response(jsonify(data), 200)
+    return make_response(jsonify(out), 200)
 
 @data_api_bp.route("/mazemap_polygons")
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
@@ -563,3 +580,11 @@ def logs():
         return make_response(jsonify([]), 404)
 
     return make_response(jsonify(data), 200)
+
+@data_api_bp.route("/test")
+def test():
+    log.write(msg="Test log info", extra_info="TESTING - INFO", level=log.info)
+    log.write(msg="Test log warning", extra_info="TESTING - WARNING", level=log.warning)
+    log.write(msg="Test log error", extra_info="TESTING - ERROR", level=log.error)
+    log.write(msg="Test log critical", extra_info="TESTING - CRITICAL", level=log.critical)
+    return "OK"

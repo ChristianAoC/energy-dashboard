@@ -1,8 +1,8 @@
-from flask import Blueprint, make_response, request, render_template, redirect, url_for, jsonify, current_app
+from flask import Blueprint, make_response, request, jsonify, g
 
-import api.users as users
 import api.context as context
-import dashboard.main as dashboard_bp
+import api.endpoints.data as data_api_bp
+import api.users as users
 
 context_api_bp = Blueprint('context_api_bp',
                          __name__,
@@ -15,7 +15,7 @@ context_api_bp = Blueprint('context_api_bp',
 ###########################################################
 
 @context_api_bp.route("/add", methods=['POST'])
-@dashboard_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def addContext():
     contextElem = request.json
     if contextElem is None:
@@ -26,13 +26,13 @@ def addContext():
         cookies = request.cookies
         email = cookies.get("Email", None)
         sessionID = cookies.get("SessionID", None)
-        if users.get_user_level(email, sessionID) < current_app.config["USER_LEVEL_EDIT_COMMENTS"]:
+        if users.get_user_level(email, sessionID) < g.settings["USER_LEVEL_EDIT_COMMENTS"]:
             return make_response("Unauthorised", 401)
     
     return context.add_context(contextElem)
 
 @context_api_bp.route("/edit", methods=['POST'])
-@dashboard_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def editContext():
     contextElem = request.json
     if not contextElem:
@@ -46,7 +46,7 @@ def editContext():
     return context.edit_context(contextElem)
 
 @context_api_bp.route("/delete", methods=['POST'])
-@dashboard_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def deleteContext():
     contextID = request.args.get('contextID')
     if not contextID:
@@ -62,6 +62,6 @@ def deleteContext():
     return context.delete_context(contextID)
 
 @context_api_bp.route("/all", methods=['GET'])
-@dashboard_bp.required_user_level("USER_LEVEL_VIEW_COMMENTS")
+@data_api_bp.required_user_level("USER_LEVEL_VIEW_COMMENTS")
 def getContext():
     return jsonify(context.view_all())

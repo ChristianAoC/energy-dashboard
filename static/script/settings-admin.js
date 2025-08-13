@@ -140,10 +140,10 @@ function loadLogs() {
                 data: logs,
                 pageLength: 25,
                 columns: [
-                    { data: "info", title: "Info"},
+                    { data: 'timestamp', title: "Timestamp"},
                     { data: "level", title: "Level"},
                     { data: "message", title: "Message"},
-                    { data: 'timestamp', title: "Timestamp"}
+                    { data: "info", title: "Info"}
                 ],
                 initComplete: function () {
                 this.api()
@@ -201,17 +201,17 @@ $(document).ready(function () {
     const fileInput = document.getElementById('file-input');
 
     document.getElementById('upload-metadata').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/metadata';
+        fileInput.dataset.endpoint = '/api/settings/upload/metadata';
         fileInput.click();
     });
 
     document.getElementById('upload-benchmarks').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/benchmarks';
+        fileInput.dataset.endpoint = '/api/settings/upload/benchmarks';
         fileInput.click();
     });
 
     document.getElementById('upload-polygons').addEventListener('click', () => {
-        fileInput.dataset.endpoint = '/api/upload/polygons';
+        fileInput.dataset.endpoint = '/api/settings/upload/polygons';
         fileInput.click();
     });
 
@@ -290,10 +290,14 @@ $(document).ready(function () {
         const rows = document.getElementById('settings-rows');
         rows.appendChild(createSettingRow(key, value));
 
+        // TODO: Implement getting type and category
+        setting_type = "string"
+        category = null
+
         fetch('/api/settings/', {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ [key]: value })
+            body: JSON.stringify({ [key]: {"value": value, "type": setting_type, "category": category} })
         })
         .then(res => res.text())
         .then()

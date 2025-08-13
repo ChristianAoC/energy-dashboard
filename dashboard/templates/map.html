@@ -68,9 +68,9 @@ Buildings with data: <span id="span-total">0</span><br>
 <!-- end of side bar -->
 
 <script>
-    let mazemapCampusID = Number("{{ config.MAZEMAP_CAMPUS_ID }}");
-    let mazemapLng = parseFloat("{{ config.MAZEMAP_LNG }}");
-    let mazemapLat = parseFloat("{{ config.MAZEMAP_LAT }}");
+    let mazemapCampusID = Number("{{ g.settings['MAZEMAP_CAMPUS_ID'] }}");
+    let mazemapLng = parseFloat("{{ g.settings['MAZEMAP_LNG'] }}");
+    let mazemapLat = parseFloat("{{ g.settings['MAZEMAP_LAT'] }}");
 </script>
 
 <div id="view-map" class="mazemap start-view-selection">

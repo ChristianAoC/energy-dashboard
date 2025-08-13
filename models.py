@@ -1,9 +1,8 @@
+from sqlalchemy import CheckConstraint
+
 from datetime import datetime
-import json
 
 from database import db
-from sqlalchemy import CheckConstraint
-from api.helpers import data_cleaner
 
 
 class Meter(db.Model):
@@ -27,7 +26,7 @@ class Meter(db.Model):
 
     scaling_factor = db.Column(db.Float, nullable=False, default=1)
     invoiced = db.Column(db.Boolean, nullable=False, default=False)
-    building_id = db.Column(db.String, db.ForeignKey("building.id"), nullable=False)
+    building_id = db.Column(db.String, db.ForeignKey("building.id"))
     
     hc_record = db.relationship("HealthCheck", uselist=False, back_populates='meter', cascade="all, delete-orphan")
 
@@ -52,7 +51,31 @@ class Meter(db.Model):
         self.invoiced = tenant
         self.building_id = building
 
+    def update(self, meter_data: dict):
+        self.SEED_uuid = meter_data["raw_uuid"]
+        self.description = meter_data["description"]
+        self.main = meter_data["building_level_meter"]
+        self.utility_type = meter_data["utility_type"].lower()
+        
+        reading_type = meter_data["reading_type"].lower()
+        # Existing code assumes rate meter if not explicitly set to "cumulative"
+        if reading_type != "cumulative":
+            reading_type = "rate"
+        
+        self.reading_type = reading_type
+        self.units = meter_data["units"]
+        self.resolution = meter_data["resolution"]
+        self.scaling_factor = meter_data["unit_conversion_factor"]
+        self.invoiced = meter_data["tenant"]
+        self.building_id = meter_data["building"]
+    
     def to_dict(self) -> dict:
+        from models import Building
+        building = db.session.execute(db.select(Building).where(Building.id == self.building_id)).scalar_one_or_none()
+        building_name = None
+        if building is not None:
+            building_name = building.name
+        
         return {
             'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
@@ -64,7 +87,8 @@ class Meter(db.Model):
             'resolution': self.resolution,
             'scaling_factor': self.scaling_factor,
             'invoiced': self.invoiced,
-            'building_id': self.building_id
+            'building_id': self.building_id,
+            'building_name': building_name
         }
     
     def __repr__(self) -> str:
@@ -102,6 +126,17 @@ class Building(db.Model):
         
         self.maze_map_label = maze_map_label
 
+    def update(self, building_data: dict):
+        self.name = building_data["building_name"]
+        self.floor_area = building_data["floor_area"]
+        self.year_built = building_data["year_built"]
+        
+        occupancy_type = building_data["occupancy_type"]
+        if occupancy_type == "Unknown" or occupancy_type is None or occupancy_type not in allowed_occupancy_types:
+            occupancy_type = "academic other"
+        self.occupancy_type = occupancy_type
+        self.maze_map_label = building_data["maze_map_label"]
+    
     def to_dict(self) -> dict:
         return {
             "building_id": self.id,
@@ -202,6 +237,9 @@ class HealthCheck(db.Model):
         self.outliers_ignz_perc = hc_data.get("outliers_ignz_per")
 
     def to_dict(self) -> dict:
+        # Import here to stop circular import issue
+        from api.helpers import data_cleaner
+        
         # Filter out SEED_UUID and invoiced
         keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution",
                 "scaling_factor", "building_id"]
@@ -246,6 +284,7 @@ class CacheMeta(db.Model):
     from_time = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.Float, nullable=False)
     processing_time = db.Column(db.Float, nullable=False)
+    offline = db.Column(db.Boolean, nullable=False)
 
     def __init__(self, meta_type: str, new_meta: dict):
         if meta_type not in ["health_check", "usage_summary"]:
@@ -259,13 +298,15 @@ class CacheMeta(db.Model):
         self.from_time = new_meta["from_time"]
         self.timestamp = new_meta["timestamp"]
         self.processing_time = new_meta["processing_time"]
+        self.offline = new_meta["offline"]
 
     def to_dict(self) -> dict:
         return {
             "to_time": self.to_time,
             "from_time": self.from_time,
             "timestamp": self.timestamp,
-            "processing_time": self.processing_time
+            "processing_time": self.processing_time,
+            "offline": self.offline
         }
 
     def __repr__(self) -> str:
@@ -327,6 +368,8 @@ class UtilityData(db.Model):
         self.water = water
 
     def to_dict(self) -> dict:
+        # Import here to stop circular import issue
+        from api.helpers import data_cleaner
         # Filter out building id as the data is indexed with it
         keys = ["building_name", "floor_area", "year_built", "occupancy_type", "maze_map_label"]
         building_dict: dict = data_cleaner(self.building.to_dict(), keys) # type: ignore
@@ -372,7 +415,7 @@ class User(db.Model):
             "level": self.level,
             "logincount": self.login_count,
             "lastlogin": self.last_login.isoformat(sep=" ") if self.last_login is not None else None,
-            "sessions": len(self.sessions)
+            "sessions": len(self.sessions) # type: ignore
         }
     
     def __repr__(self) -> str:
@@ -416,11 +459,23 @@ class LoginCode(db.Model):
 
 class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
-    value = db.Column(db.JSON, nullable=False)
+    category = db.Column(db.String)
+    value = db.Column(db.JSON)
+    setting_type = db.Column(db.String, nullable=False)
     
-    def __init__(self, key: str, value):
+    def __init__(self, key: str, value, category: str|None, setting_type: str):
         self.key = key
         self.value = value
+        self.category = category
+        self.setting_type = setting_type
+    
+    def to_dict(self):
+        return {
+            "key": self.key,
+            "value": self.value,
+            "category": self.category,
+            "setting_type": self.setting_type
+        }
     
     def __repr__(self) -> str:
         return f"<Settings {self.key}>"
@@ -455,8 +510,8 @@ class Context(db.Model):
     author = db.Column(db.String(254), db.ForeignKey("user.email"), nullable=False)
     target_type = db.Column(db.String(8), CheckConstraint("target_type IN ('building', 'meter')"), nullable=False)
     target_id = db.Column(db.String, nullable=False)
-    start_timestamp = db.Column(db.DateTime)
-    end_timestamp = db.Column(db.DateTime)
+    start_timestamp = db.Column(db.DateTime, nullable=True)
+    end_timestamp = db.Column(db.DateTime, nullable=True)
     
     # No constraint as users can set arbitrary context types
     context_type = db.Column(db.String(), nullable=False)

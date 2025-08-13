@@ -1,99 +1,27 @@
-from dotenv import load_dotenv
-import json
-import pandas as pd
 import os
 
-
-def generate_offine_meta() -> bool:
-    start_time = None
-    end_time = None
-    interval = None
-    
-    for file in os.listdir(offline_data_files):
-        if not file.endswith(".csv"):
-            continue
-        
-        file_path = os.path.join(offline_data_files, file)
-        df = pd.read_csv(file_path)
-        df['time'] = pd.to_datetime(df['time'], format="%Y-%m-%d %H:%M:%S%z", utc=True)
-        lower_index = df.first_valid_index()
-        upper_index = df.last_valid_index()
-        if lower_index is None or upper_index is None:
-            return False
-        
-        temp_start_time = df['time'][lower_index]
-        temp_end_time = df['time'][upper_index]
-        
-        temp_interval = df['time'].diff().dropna().min().total_seconds()/60
-        if start_time is None:
-            start_time = temp_start_time
-        if end_time is None:
-            end_time = temp_end_time
-        if interval is None:
-            interval = temp_interval
-        
-        if temp_start_time < start_time:
-            start_time = temp_start_time
-        if temp_end_time > end_time:
-            end_time = temp_end_time
-        if temp_interval != interval:
-            return False
-
-    if start_time is None or end_time is None:
-        return False
-    
-    out = {
-        "start_time": start_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "end_time": end_time.strftime("%Y-%m-%dT%H:%M:%S%z"),
-        "interval": interval
-    }
-    
-    with open(offline_meta_file, "w") as f:
-        json.dump(out, f, indent=4)
-    
-    return True
-
-
-load_dotenv()
 
 ###########################################################
 ###                  Loading variables                  ###
 ###########################################################
 
-val = os.getenv("OFFLINE_MODE", "True")
-offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
-
-InfluxURL = os.getenv("INFLUX_URL")
-InfluxPort = os.getenv("INFLUX_PORT")
-InfluxUser = os.getenv("INFLUX_USER")
-InfluxPass = os.getenv("INFLUX_PASS")
-
-if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None:
-    InfluxURL = None
-    InfluxPort = None
-    InfluxUser = None
-    InfluxPass = None
-    offlineMode = True
-
 DATA_DIR = os.path.abspath(os.path.join(os.path.dirname(__file__), 'data'))
 
-hc_update_time = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", "9"))
-
-# meters_file = os.path.join(DATA_DIR, "input", 'meters_all.json')
-# buildings_file = os.path.join(DATA_DIR, "input", 'UniHierarchy.json')
 metadata_file = os.path.join(DATA_DIR, "input", "SingleSourceOfTruth.xlsx")
-meter_sheet = "Energie points"
-building_sheet = "Buildings"
 
 meter_health_score_files = os.path.join(DATA_DIR, "cache", "meter_health_score")
 if not os.path.exists(meter_health_score_files):
     os.makedirs(meter_health_score_files)
+offline_meter_health_score_files = os.path.join(DATA_DIR, "cache", "offline_meter_health_score")
+if not os.path.exists(offline_meter_health_score_files):
+    os.makedirs(offline_meter_health_score_files)
+
 meter_snapshots_files = os.path.join(DATA_DIR, "cache", "meter_snapshots")
 if not os.path.exists(meter_snapshots_files):
     os.makedirs(meter_snapshots_files)
-
-cache_time_health_score = int(os.getenv("HEALTH_SCORE_CACHE_TIME", "365"))
-cache_time_summary = int(os.getenv("SUMMARY_CACHE_TIME", "30"))
+offline_meter_snapshots_files = os.path.join(DATA_DIR, "cache", "offline_meter_snapshots")
+if not os.path.exists(offline_meter_snapshots_files):
+    os.makedirs(offline_meter_snapshots_files)
 
 benchmark_data_file = os.path.join(DATA_DIR, "benchmarks.json")
 
@@ -102,6 +30,24 @@ offline_data_files = os.path.join(DATA_DIR, "offline")
 
 mazemap_polygons_file = os.path.join(DATA_DIR, "mazemap_polygons.json")
 
-log_level = os.getenv("LOG_LEVEL", "warning")
-
-del val
+building_mappings = {
+    "building_code": "Property code",
+    "building_name": "Building Name",
+    "floor_area": "floor_area",
+    "year_built": "Year",
+    "usage": "Function",
+    "maze_map_label": "mazemap_ids"
+}
+meter_mappings = {
+    "meter_id_clean": "meter_id_clean2",
+    "raw_uuid": "SEED_uuid",
+    "description": "description",
+    "building_level_meter": "Building Level Meter",
+    "meter_type": "Meter Type",
+    "reading_type": "class",
+    "units_after_conversion": "units_after_conversion",
+    "resolution": "Resolution",
+    "unit_conversion_factor": "unit_conversion_factor",
+    "tenant": "tenant",
+    "building": "Building code"
+}

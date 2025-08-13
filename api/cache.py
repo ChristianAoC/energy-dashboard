@@ -1,15 +1,17 @@
+from flask import g, current_app
+
 import datetime as dt
 import json
 import os
 import threading
-import time
 
+from api.data_handling import process_meter_health, query_time_series
+from api.helpers import clean_file_name, has_g_support
+import api.settings as settings
 from constants import *
 from database import db
+import log
 import models
-from api.data_handling import process_meter_health, query_time_series
-from api.helpers import calculate_time_args, clean_file_name
-from api.users import is_admin
 
 
 cache_generation_lock = threading.Lock()
@@ -85,22 +87,40 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 ## m - the meter to generate cache for
 ## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
 ## data_end_time - The latest date that there is data for (Current time if online)
-def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime) -> None:
+def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime, app_context = None) -> None:
+    # Because this function can be run in a separate thread, we need to push the app context
+    if app_context is None:
+        app_context = current_app.app_context()
+    
     print(f"Started: {m.id}")
-    log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
+    with app_context:
+        log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
     try:
-        file_name = clean_file_name(f"{m.id}.json")
+        file_name = clean_file_name(f"{m.id}.csv")
 
-        meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+        if has_g_support():
+            offline_mode = g.settings["offline_mode"]
+            cache_time_health_score = g.settings["cache_time_health_score"]
+            cache_time_summary = g.settings["cache_time_summary"]
+        else:
+            with app_context:
+                offline_mode = current_app.config["offline_mode"]
+                cache_time_health_score = int(settings.get("cache_time_health_score")) # type: ignore
+                cache_time_summary = int(settings.get("cache_time_summary")) # type: ignore
+        
+        if offline_mode:
+            meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
+        else:
+            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
         meter_health_scores = {}
         if os.path.exists(meter_health_score_file):
             try:
                 meter_health_scores = json.load(open(meter_health_score_file, "r"))
             except:
                 meter_health_scores = {}
-
+        
         for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
-            score = process_meter_health(m, cache_item[1], cache_item[2])
+            score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_context=app_context)
             if score is None:
                 # Something happended to the offline data since running cache_validity_checker, quit thread
                 print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
@@ -113,15 +133,21 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
 
         # Meter Snapshot Cache
         meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+        if offline_mode:
+            meter_snapshots_file = os.path.join(offline_meter_snapshots_files, file_name)
+        else:
+            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+        
         meter_snapshots = {}
         if os.path.exists(meter_snapshots_file):
             try:
                 meter_snapshots = json.load(open(meter_snapshots_file, "r"))
             except:
                 meter_snapshots = {}
-
+        
         for cache_item in cache_items(cache_time_summary, meter_snapshots, data_start_time, data_end_time):
-            meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
+            with app_context:
+                meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
 
             cache_value = meter_obs[0]['value'] if len(meter_obs) > 0 else None
 
@@ -131,10 +157,12 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             json.dump(meter_snapshots, f)
     except Exception as e:
         print(f"An error occurred generating cache for meter {m.id}")
-        log.write(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
+        with app_context:
+            log.write(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
         raise e
     print(f"Ended: {m.id}")
-    log.write(msg=f"Finished data cache generation for {m.id}", level=log.info)
+    with app_context:
+        log.write(msg=f"Finished data cache generation for {m.id}", level=log.info)
 
 ## Generates the cache data for meter health scores and meter snapshots
 ## return_if_generating - Whether to return or wait for current generation to complete - defaults to True
@@ -157,20 +185,21 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
-    if offlineMode:
-        with open(offline_meta_file, "r") as f:
-            anon_data_meta = json.load(f)
-        data_start_time = dt.datetime.strptime(anon_data_meta['start_time'], "%Y-%m-%dT%H:%M:%S%z")
-        data_end_time = dt.datetime.strptime(anon_data_meta['end_time'], "%Y-%m-%dT%H:%M:%S%z")
+    if g.settings["offline_mode"]:
+        data_start_time = dt.datetime.strptime(g.settings["data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(g.settings["data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+        current_meter_health_score_files = offline_meter_health_score_files
+        current_meter_snapshots_files = offline_meter_snapshots_files
     else:
         data_start_time = None
         data_end_time = dt.datetime.now(dt.timezone.utc)
+        current_meter_health_score_files = meter_health_score_files
+        current_meter_snapshots_files = meter_snapshots_files
 
     # Don't need to filter id by not null as id is primary key and therefore not null
     # We aren't filtering out tenanted meters here so that the cache contains all meters
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
-
-    n = 35 # Process 35 meters at a time (35 was a random number I chose)
+    n = 35 # Process 25 meters at a time (25 was a random number I chose)
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -180,36 +209,51 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         for m in meter_chunk:
             clean_meter_name = clean_file_name(m.id)
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
-            file_name = f"{clean_meter_name}.json"
+            file_name = f"{clean_meter_name}.csv"
 
-            if offlineMode and not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
-                continue
+            if g.settings["offline_mode"]:
+                if not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
+                    print(f"Skipping: {m.id}")
+                    continue
 
-            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+            meter_health_score_file = os.path.join(current_meter_health_score_files, file_name)
+            meter_snapshots_file = os.path.join(current_meter_snapshots_files, file_name)
 
             seen_meters.append(file_name)
-
-            if (cache_validity_checker(cache_time_health_score, meter_health_score_file, data_start_time, data_end_time) and
-                    cache_validity_checker(cache_time_summary, meter_snapshots_file, data_start_time, data_end_time)):
+            
+            if (cache_validity_checker(g.settings["cache_time_health_score"],
+                                       meter_health_score_file,
+                                       data_start_time,
+                                       data_end_time)
+                and cache_validity_checker(g.settings["cache_time_summary"],
+                                           meter_snapshots_file,
+                                           data_start_time,
+                                           data_end_time)):
                 print(f"Skipping: {m.id}")
                 log.write(msg=f"Skipping data cache generation for {m.id}", level=log.info)
                 continue
 
-            threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time), name=thread_name, daemon=True))
+            threads.append(threading.Thread(target=generate_meter_cache, args=(m, data_start_time, data_end_time, current_app.app_context()), name=thread_name, daemon=True))
             threads[-1].start()
 
         # Wait for all threads in chunk to complete
         for t in threads:
             t.join()
+        threads = []
 
     # Clean up non-existent meters
-    existing_cache_files = os.listdir(meter_health_score_files)
+    existing_cache_files = os.listdir(current_meter_health_score_files)
     for existing_cache_file in existing_cache_files:
-        if existing_cache_file[-5:] != ".json":
+        if existing_cache_file[-4:] != ".csv":
             continue
         if existing_cache_file not in seen_meters:
-            os.remove(os.path.join(meter_health_score_files, existing_cache_file))
-
+            os.remove(os.path.join(current_meter_health_score_files, existing_cache_file))
+    
+    existing_cache_files = os.listdir(current_meter_health_score_files)
+    for existing_cache_file in existing_cache_files:
+        if existing_cache_file[-4:] != ".csv":
+            continue
+        if existing_cache_file not in seen_meters:
+            os.remove(os.path.join(current_meter_health_score_files, existing_cache_file))
+    
     cache_generation_lock.release()
-    return
