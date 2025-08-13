@@ -71,6 +71,12 @@ class Meter(db.Model):
         self.building_id = meter_data["building"]
     
     def to_dict(self) -> dict:
+        from models import Building
+        building = db.session.execute(db.select(Building).where(Building.id == self.building_id)).scalar_one_or_none()
+        building_name = None
+        if building is not None:
+            building_name = building.name
+        
         return {
             'meter_id': self.id,
             'SEED_uuid': self.SEED_uuid,
@@ -82,7 +88,8 @@ class Meter(db.Model):
             'resolution': self.resolution,
             'scaling_factor': self.scaling_factor,
             'invoiced': self.invoiced,
-            'building_id': self.building_id
+            'building_id': self.building_id,
+            'building_name': building_name
         }
     
     def __repr__(self) -> str:

@@ -25,7 +25,8 @@ def required_user_level(level_config_key):
         @wraps(function)
         def wrapper(*args, **kwargs):
             # Bypass authentication for internal calls
-            if request.remote_addr in ['127.0.0.1', '::1'] and request.headers.get("Authorization") == current_app.config["internal_api_key"]:
+            if (request.remote_addr in ['127.0.0.1', '::1']
+                and request.headers.get("Authorization") == current_app.config["internal_api_key"]):
                 print("Bypassed user level authorization for internal call")
                 log.write(msg="Bypassed user level authorization for internal call", level=log.info)
                 return function(*args, **kwargs)
@@ -82,7 +83,8 @@ def meters():
             raise Exception
         keys = keys.split(";")
     except:
-        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
+        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution",
+                "scaling_factor", "building_id", "building_name"]
     
     out = data_cleaner(data, keys)
     
@@ -92,7 +94,10 @@ def meters():
 @data_api_bp.route('/hc_meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
-    hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+    hc_meta = db.session.execute(
+        db.select(models.CacheMeta)
+        .where(models.CacheMeta.meta_type == "health_check")
+    ).scalar_one_or_none()
     if hc_meta is None:
         return make_response(jsonify({}), 404)
 
@@ -310,7 +315,8 @@ def meter_health():
     # load existing cache
     statement = db.select(models.HealthCheck)
     if not is_admin():
-        statement = statement.where(models.HealthCheck.meter_id == models.Meter.id).where(models.Meter.invoiced.is_(False)) # type: ignore
+        statement = (statement.where(models.HealthCheck.meter_id == models.Meter.id)
+                     .where(models.Meter.invoiced.is_(False))) # type: ignore
     hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
 
     # TODO: What does the last statement do?
@@ -319,11 +325,15 @@ def meter_health():
             try:
                 if g.settings["offline_mode"]:
                     with open(offline_meta_file, "r") as f:
-                        latest_data_date = dt.datetime.strptime(json.load(f)['end_time'], "%Y-%m-%dT%H:%M:%S%z").timestamp()
+                        latest_data_date = dt.datetime.strptime(json.load(f)['end_time'],
+                                                                "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
 
-                meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+                meta = db.session.execute(
+                    db.select(models.CacheMeta)
+                    .where(models.CacheMeta.meta_type == "health_check")
+                ).scalar_one_or_none()
                 if meta is None:
                     raise Exception
                 
@@ -349,7 +359,8 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()), name="updateMainHC", daemon=True)
+            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()),
+                                      name="updateMainHC", daemon=True)
             thread.start()
 
         if hc_cache:
