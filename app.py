@@ -5,7 +5,7 @@ os.chdir(dname)
 import sys
 sys.path.append(dname)
 
-from flask import Flask, g, request
+from flask import Flask
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 import base64
@@ -63,10 +63,10 @@ with app.app_context():
         if not result:
             print("\n" + "="*20)
             print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
-            print("\tPlease place your metadata in ./data/meta/offline_data.json")
+            print("\tPlease place your metadata in ./data/offline_data.json")
             print("="*20 + "\n")
             log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated)",
-                    extra_info="Place your metadata in ./data/meta/offline_data.json",
+                    extra_info="Place your metadata in ./data/offline_data.json",
                     level=log.critical)
             cannot_initialise = True
 
