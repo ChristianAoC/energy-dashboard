@@ -72,8 +72,10 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
         if obj.setting_type != setting_type:
             raise TypeError(f"Type {setting_type} doesn't match the existing type of {obj.setting_type}")
 
-        if obj.key == "offline_mode":
+        if obj.key == "offline_mode" and obj.value != value:
             current_app.config["offline_mode"] = value
+            invalidate_hc_cache()
+            invalidate_summary_cache()
         
         obj.value = value
         obj.category = category
