@@ -105,8 +105,8 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
         else:
             with app_context:
                 offline_mode = current_app.config["offline_mode"]
-                cache_time_health_score = settings.get("cache_time_health_score")
-                cache_time_summary = settings.get("cache_time_summary")
+                cache_time_health_score = int(settings.get("cache_time_health_score")) # type: ignore
+                cache_time_summary = int(settings.get("cache_time_summary")) # type: ignore
         
         if offline_mode:
             meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
@@ -120,7 +120,7 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 meter_health_scores = {}
         
         for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
-            score = process_meter_health(m, cache_item[1], cache_item[2], app_context=app_context)
+            score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_context=app_context)
             if score is None:
                 # Something happended to the offline data since running cache_validity_checker, quit thread
                 print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")

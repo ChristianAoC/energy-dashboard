@@ -179,7 +179,10 @@ def summary():
     ).scalar_one_or_none()
     
     valid_cache = False
-    if cache_meta is not None and cache_meta.to_time == to_time.timestamp() and cache_meta.from_time == from_time.timestamp():
+    if (cache_meta is not None
+        and cache_meta.to_time == to_time.timestamp()
+        and cache_meta.from_time == from_time.timestamp()
+        and cache_meta.offline == g.settings["offline_mode"]):
         valid_cache = True
     
     data = {}
@@ -322,12 +325,17 @@ def meter_health():
                 meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                 if meta is None:
                     raise Exception
-
-                cache_age = latest_data_date - meta.to_time
-                if cache_age < 3600 * g.settings["hc_update_time"]:
-                    response = make_response(jsonify(hc_cache), 200)
-                    response.headers['X-Cache-State'] = "fresh"
-                    return response
+                
+                if not g.settings["offline_mode"]:
+                    cache_age = latest_data_date - meta.to_time
+                    if cache_age < 3600 * g.settings["hc_update_time"] and meta.offline == g.settings["offline_mode"]:
+                        response = make_response(jsonify(hc_cache), 200)
+                        response.headers['X-Cache-State'] = "fresh"
+                        return response
+                elif meta.offline == g.settings["offline_mode"]:
+                        response = make_response(jsonify(hc_cache), 200)
+                        response.headers['X-Cache-State'] = "fresh"
+                        return response
             except:
                 print("Error reading cache metadata, skipping HC cache")
                 log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)

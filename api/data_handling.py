@@ -23,7 +23,7 @@ import models
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def query_influx(m: models.Meter, from_time, to_time, offline_mode = True) -> pd.DataFrame:
+def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFrame:
     if offline_mode:
         try:
             with open(os.path.join(offline_data_files, f"{m.id}.csv"), "r") as f:
@@ -159,16 +159,10 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, all_outputs: list = [], app_context = None) -> dict|None:
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, all_outputs: list = [], app_context = None) -> dict|None:
     # # Because this function can be run in a separate thread, we need to push the app context
     if app_context is None:
         app_context = current_app.app_context()
-    
-    if has_g_support():
-        offline_mode = g.settings["offline_mode"]
-    else:
-        with app_context:
-            offline_mode = current_app.config["offline_mode"]
     
     if offline_mode:
         try:
@@ -340,6 +334,12 @@ def get_health(args, returning=False, app_context=None):
     except:
         fmt = "json"
 
+    if has_g_support():
+        offline_mode = g.settings["offline_mode"]
+    else:
+        with app_context:
+            offline_mode = current_app.config["offline_mode"]
+    
     ## load and trim meters
     statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
     if not is_admin():
@@ -361,7 +361,7 @@ def get_health(args, returning=False, app_context=None):
             print(m.id)
             with app_context:
                 log.write(msg=f"Started health check for {m.id}", level=log.info)
-            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, out, app_context), name=f"HC_{m.id}", daemon=True))
+            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, out, app_context), name=f"HC_{m.id}", daemon=True))
             threads[-1].start()
 
         # Wait for all threads in chunk to complete
@@ -385,7 +385,8 @@ def get_health(args, returning=False, app_context=None):
                     "to_time": to_time.timestamp(),
                     "from_time": from_time.timestamp(),
                     "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
-                    "processing_time": proc_time
+                    "processing_time": proc_time,
+                    "offline": offline_mode
                 }
                 
                 with app_context:
@@ -581,7 +582,8 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
             "to_time": to_time.timestamp(),
             "from_time": from_time.timestamp(),
             "timestamp": dt.datetime.now(tz=dt.timezone.utc).timestamp(),
-            "processing_time": end_time - start_time
+            "processing_time": end_time - start_time,
+            "offline": g.settings["offline_mode"]
         }
         
         if existing_meta is None:

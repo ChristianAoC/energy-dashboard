@@ -275,6 +275,7 @@ class CacheMeta(db.Model):
     from_time = db.Column(db.Float, nullable=False)
     timestamp = db.Column(db.Float, nullable=False)
     processing_time = db.Column(db.Float, nullable=False)
+    offline = db.Column(db.Boolean, nullable=False)
 
     def __init__(self, meta_type: str, new_meta: dict):
         if meta_type not in ["health_check", "usage_summary"]:
@@ -288,13 +289,15 @@ class CacheMeta(db.Model):
         self.from_time = new_meta["from_time"]
         self.timestamp = new_meta["timestamp"]
         self.processing_time = new_meta["processing_time"]
+        self.offline = new_meta["offline"]
 
     def to_dict(self) -> dict:
         return {
             "to_time": self.to_time,
             "from_time": self.from_time,
             "timestamp": self.timestamp,
-            "processing_time": self.processing_time
+            "processing_time": self.processing_time,
+            "offline": self.offline
         }
 
     def __repr__(self) -> str:
