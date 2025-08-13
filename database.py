@@ -9,6 +9,7 @@ import sys
 
 from constants import metadata_file, building_mappings, meter_mappings, offline_data_files, offline_meta_file
 
+# TODO: Test with default settings again to see if we actually need to change these
 db = SQLAlchemy(engine_options={
     "pool_size": 20,
     "max_overflow": 20
