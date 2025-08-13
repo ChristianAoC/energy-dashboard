@@ -534,7 +534,8 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
                     continue
 
             # process EUI
-            eui = float(f"{(usage * time_days_multiplier/ b.floor_area):.2g}")
+            # eui = float(f"{(usage * time_days_multiplier/ b.floor_area):.2g}")
+            eui = round(usage * time_days_multiplier/ b.floor_area)
 
             # Create utility entries on occurrence so that the response is smaller
             if meter_type not in building_response:
