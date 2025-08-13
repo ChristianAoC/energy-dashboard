@@ -22,12 +22,24 @@ def init(app):
         db.create_all()
 
         try:
-            initialise_settings_table(True)
+            if not initialise_settings_table(True):
+                try:
+                    import log
+                    log.write(msg="Skipped initialising settings table",
+                              extra_info="Most likey already populated",
+                              level=log.info)
+                except:
+                    pass
         except Exception as e:
             print("\n" + "="*20)
             print("\tERROR: Failed to initialise settings table!")
             print(f"\tThis could be because: {e}")
             print("="*20 + "\n")
+            try:
+                import log
+                log.write(msg="Failed to initialise settings table", extra_info=str(e), level=log.critical)
+            except:
+                pass
             sys.exit(1)
 
 def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
