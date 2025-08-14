@@ -4,30 +4,40 @@ The goal of this dashboard is to allow users to contextualise energy data. A des
 
 # Setup Instructions
 
-You can download/fork/checkout the repository to run and test locally. There is a Dockerfile to simplify setup, but if you decide to run it in a testing environment (e.g., VSCode) make sure you have the required Python pages in `requirements.txt` installed in your virtual environment.
+You can download/fork/checkout the repository to run and test locally. There is a Dockerfile to simplify setup, but if you decide to run it in a testing environment (e.g., VSCode) make sure you have the required Python packages in `requirements.txt` installed in your virtual environment.
 
 A typical installation with Docker goes as follows (make sure Docker and Git are installed):
 
 1) `sudo git clone https://github.com/ChristianAoC/energy-dashboard/`
 2) `sudo docker build -t energy-dashboard .`
-3) `sudo docker compose down`
-4) `sudo docker compose up -d`
+3) `sudo docker compose up -d`
 
-You can check if the Docker container is running with `sudo docker logs energy-dashboard`.
+You can check if the container is running with `sudo docker compose ps`. Also check for any error messages in `sudo docker logs energy-dashboard`.
 
-As the first action, you will have to create the admin user before continuing the setup. Navigate to the URL you've deployed to and go to the settings page (click on the cogwheel in the top right). The first user will be activated and logged in automatically and be admin - so make sure you do this instantly after deployment. If someone got their before you first, delete the `data/data.sqlite` file and register.
+> [!NOTE]
+> For ease of deployment, you can optionally define some settings in a `.env` file. An example file is provided with in the repo and explains what each setting does.
+> Any settings that aren't provided in the file are given default values that can be edited later.
+>
+> The `.env` file is only used for initial setup, it won't be kept up-to-date with any changes made in the dashboard and vice-vera.
 
-After registration, you will upload some files. Go to settings -> upload files in the dashboard and upload a metadata and a polygon file. The benchmark file is optional and included in the release, so don't worry about that for now. You will also need offline files or set up the database endpoint to feed the dashboard. You can find an offline dataset along with the metadata and a polygon file under releases in the sidebar of this repository. The offline files need to be uploaded onto your deployment server into the /data/offline folder, metadata and polygons you can upload via the dashboard (or upload along with the offline files into the data folder).
+As the first action, you will have to create the admin user before continuing the setup. Navigate to the URL you've deployed to and go to the settings page (the cogwheel in the top right of the dashboard). The first user will be activated and logged in automatically and have admin level permissions - so make sure you do this quickly after deployment. If someone got there before you, delete the `data/data.sqlite` file, restart the container and try again.
 
-If you don't use offline data, you can define Influx database connectors in the system variables under settings.
+After registration, you will need to upload some files. Go to Settings > Upload Files and upload a metadata and a polygon file. The benchmark file is already included in the release, so don't worry about that for now. You will also need to either provide offline files or to set up the database endpoint to feed the dashboard (If you haven't done so already).
 
-For more users to sign up, they will need email authentication. If your server doesn't support some built-in SMTP and you need to set up a new account, the usual way to go about it is to create a GMail account. Just make sure to enable 2FA and then create an app password for logging in. Then enter the Gmail SMTP information again under system variables.
+You can find an example dataset along with the metadata and a polygon file [under releases in the sidebar of the GitHub repository](https://github.com/ChristianAoC/energy-dashboard/releases/latest). The offline files need to be uploaded onto your server into the `./data/offline/` folder, metadata and polygons can uploaded via the dashboard (or upload along with the offline files into the data folder).
 
-For ease of deployment some settings for credentials can be read from an `.env` file instead (will be automatically imported upon first initialisation, i.e., when no SQLite DB can be found). For available settings and explanations refer to `.env.template`.
+> [!IMPORTANT]
+> If you manually upload a metadata (.xlsx) file, you need to go to one of these endpoints to initialise them. You need to log into an account with admin level permissions to access the endpoints.
+> - If this is the first metadata file to be initialised (metadata files are automatically initialised when uploaded in the dashboard), go to: `<hostname>/api/populate-database`
+> - If this is not the first time, or you are unsure, go to: `<hostname>/api/regenerate-offline-metadata`
+
+If you don't use offline data, you can define Influx database connectors in the system variables under settings (If you haven't already defined them in the `.env` file).
+
+For more users to sign up, they will need email authentication. If your server doesn't support some built-in SMTP and you need to set up a new account, the easiest way to do this is to create a GMail account. Make sure to enable 2FA and then create an app password for logging in. Then enter the Gmail SMTP information again under system variables (If you haven't already defined them in the `.env` file).
 
 ## Funding
 
-The research behind this project was funded by the [UKRI](https://gtr.ukri.org/projects?ref=EP%2FT025964%2F1), grant no EP/T025964/1, and with the official project name "Reducing End Use Energy Demand in Commercial Settings Through Digital Innovation". The informal and commonly used name for this project was Net Zero insights.
+The research behind this project was funded by the [UKRI](https://gtr.ukri.org/projects?ref=EP%2FT025964%2F1), grant no. `EP/T025964/1`, and with the official project name "Reducing End Use Energy Demand in Commercial Settings Through Digital Innovation". The informal and commonly used name for this project was Net Zero insights.
 
 ## License
 

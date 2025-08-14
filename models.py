@@ -2,8 +2,8 @@ from sqlalchemy import CheckConstraint
 
 from datetime import datetime
 
+from api.helpers import data_cleaner
 from database import db
-
 
 class Meter(db.Model):
     # ID is the meter_clean_id from the input data
@@ -237,9 +237,6 @@ class HealthCheck(db.Model):
         self.outliers_ignz_perc = hc_data.get("outliers_ignz_per")
 
     def to_dict(self) -> dict:
-        # Import here to stop circular import issue
-        from api.helpers import data_cleaner
-        
         # Filter out SEED_UUID and invoiced
         keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution",
                 "scaling_factor", "building_id"]
@@ -339,8 +336,9 @@ class UtilityData(db.Model):
         self.update(electricity, gas, heat, water)
     
     def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
+        # Allow empty data
         if len(dictionary) == 0:
-            return True # Allow empty data
+            return True
         
         for meter in dictionary.values():
             if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
@@ -368,8 +366,6 @@ class UtilityData(db.Model):
         self.water = water
 
     def to_dict(self) -> dict:
-        # Import here to stop circular import issue
-        from api.helpers import data_cleaner
         # Filter out building id as the data is indexed with it
         keys = ["building_name", "floor_area", "year_built", "occupancy_type", "maze_map_label"]
         building_dict: dict = data_cleaner(self.building.to_dict(), keys) # type: ignore

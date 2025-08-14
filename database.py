@@ -707,7 +707,7 @@ def initial_database_population() -> bool:
         try:
             data = process_meter_row(row)
             
-            # We don't currently handle Oil meters
+            # Filter out meters with utility types that we don't support
             if data["utility_type"] in ["Oil", "Spare"]:
                 continue
             

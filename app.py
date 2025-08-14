@@ -33,12 +33,12 @@ application = app
 ###########################################################
 ###              Check required files exist             ###
 ###########################################################
-# This is so that the log can be written to if an error occurs when loading constants
 
 cannot_initialise = False
 
+# This is so that the log can be written to if an error occurs when loading constants
 with app.app_context():
-    # Need to get offline mode manually from database as g.settigns hasn't been created as this isn't a request
+    # Need to get offline mode manually from database as g.settings hasn't been created as this isn't a request
     result = database.db.session.execute(
         database.db.Select(models.Settings)
         .where(models.Settings.key == "offline_mode")
@@ -119,7 +119,7 @@ def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, pa
         print(f"Finished scheduled request to: {url}")
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
-# Need to get backgound task timing manually from database as g.settigns hasn't been created as this isn't a request
+# Need to get backgound task timing manually from database as g.settings hasn't been created as this isn't a request
 with app.app_context():
     result = database.db.session.execute(
         database.db.Select(models.Settings)

@@ -63,11 +63,13 @@ def required_user_level(level_config_key):
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/
-@data_api_bp.route('/', methods=["GET"])
+@data_api_bp.route('/')
+@data_api_bp.route('')
 def health():
     return make_response(jsonify( dt.datetime.now(dt.timezone.utc) ), 200)
 
 ## Helper function needed for accessing raw list of all meters in other blueprint
+@data_api_bp.route('/meters/')
 @data_api_bp.route('/meters')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meters():
@@ -91,6 +93,7 @@ def meters():
     return make_response(jsonify(out), 200)
 
 ## Health check cache meta
+@data_api_bp.route('/hc-meta/')
 @data_api_bp.route('/hc-meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
@@ -169,6 +172,7 @@ def hc_meta():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/summary
+@data_api_bp.route('/summary/')
 @data_api_bp.route('/summary')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def summary():
@@ -229,6 +233,7 @@ def summary():
 ## http://127.0.0.1:5000/api/meter-obs?id=AP001_L01_M2
 ## http://127.0.0.1:5000/api/meter-obs?id=AP001_L01_M2;AP080_L01_M5
 ## http://127.0.0.1:5000/api/meter-obs?id=WTHR_0
+@data_api_bp.route('/meter-obs/')
 @data_api_bp.route('/meter-obs')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_obs():
@@ -304,6 +309,7 @@ def meter_obs():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/meter-health?id=AP001_L01_M2&date_range=30
+@data_api_bp.route('/meter-health/')
 @data_api_bp.route('/meter-health')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
@@ -321,7 +327,7 @@ def meter_health():
     # If database hasn't been initialised properly then the frontend enters a loop of retries because a 500 is returned
     # if there isn't any cache available to serve.
     if len(db.session.execute(db.select(models.Meter)).scalars().all()) == 0:
-        response = make_response(jsonify(hc_cache), 200)
+        response = make_response(jsonify([]), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
 
@@ -412,6 +418,7 @@ def meter_health():
 ##     },
 ##     ...
 ## }
+@data_api_bp.route('/meter-hierarchy/')
 @data_api_bp.route('/meter-hierarchy')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_hierarchy():
@@ -466,6 +473,7 @@ def meter_hierarchy():
 ##
 ## Example:
 ## http://127.0.0.1:5000/api/health-score
+@data_api_bp.route('/health-score/')
 @data_api_bp.route('/health-score')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
@@ -477,6 +485,7 @@ def health_score():
     
     return make_response(jsonify(data), 200)
 
+@data_api_bp.route('/offline-meta/')
 @data_api_bp.route('/offline-meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
@@ -488,6 +497,7 @@ def offline_meta():
     
     return make_response(jsonify(out), 200)
 
+@data_api_bp.route("/mazemap-polygons/")
 @data_api_bp.route("/mazemap-polygons")
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def mazemap_polygons():
@@ -498,7 +508,8 @@ def mazemap_polygons():
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
-@data_api_bp.route('/regenerate-cache', methods=["GET"])
+@data_api_bp.route('/regenerate-cache/', methods=["GET", "POST"])
+@data_api_bp.route('/regenerate-cache', methods=["GET", "POST"])
 @required_user_level("USER_LEVEL_ADMIN")
 def regenerate_cache():
     start_time = time.time()
@@ -509,6 +520,7 @@ def regenerate_cache():
     log.write(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
+@data_api_bp.route('/populate-database/')
 @data_api_bp.route('/populate-database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
@@ -543,6 +555,7 @@ def populate_database():
 ## http://127.0.0.1:5000/api/logs - Returns all logs
 ## http://127.0.0.1:5000/api/logs?from_time=1754672345&exact_level=info&count=100&newest_first=False
 ## http://127.0.0.1:5000/api/logs?to_time=1754672345&minimum_level=error
+@data_api_bp.route('/logs/')
 @data_api_bp.route('/logs')
 def logs():
     try:

@@ -108,6 +108,8 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
             else:
                 meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+            
+            # Meter Health Cache
             meter_health_scores = {}
             if os.path.exists(meter_health_score_file):
                 try:

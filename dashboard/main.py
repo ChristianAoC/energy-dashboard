@@ -103,7 +103,6 @@ def clustering():
 def context_view():
     return render_template('context.html')
 
-
 @dashboard_bp.route("/about")
 def about():
     return render_template('about.html')

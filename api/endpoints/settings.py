@@ -21,7 +21,8 @@ settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
 ## Example:
 ## http://127.0.0.1:5000/api/settings/
 ## http://127.0.0.1:5000/api/settings/?key=key
-@settings_api_bp.route("/", methods=["GET"])
+@settings_api_bp.route("/")
+@settings_api_bp.route("")
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def get():
     try:
@@ -86,6 +87,7 @@ def get():
 ## Example:
 ## http://127.0.0.1:5000/api/settings/
 @settings_api_bp.route("/", methods=["POST"])
+@settings_api_bp.route("", methods=["POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def post():
     if request.content_type != "application/json":
@@ -145,6 +147,7 @@ def post():
 #                              json={"str": "test2"}
 #                         ).text
 
+@settings_api_bp.route("/upload/metadata/", methods=["POST"])
 @settings_api_bp.route("/upload/metadata", methods=["POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def upload_metadata():
@@ -176,6 +179,7 @@ def upload_metadata():
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
 
+@settings_api_bp.route("/upload/benchmarks/", methods=["POST"])
 @settings_api_bp.route("/upload/benchmarks", methods=["POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def upload_benchmark():
@@ -206,6 +210,7 @@ def upload_benchmark():
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
 
+@settings_api_bp.route("/upload/polygons/", methods=["POST"])
 @settings_api_bp.route("/upload/polygons", methods=["POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def upload_polygons():
@@ -235,6 +240,7 @@ def upload_polygons():
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
 
+@settings_api_bp.route("/regenerate-offline-metadata/", methods=["GET", "POST"])
 @settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def regenerate_offline_metadata():

@@ -9,6 +9,7 @@ users_api_bp = Blueprint('users_api_bp',
                          template_folder='/dashboard/templates',
                          static_folder='static')
 
+@users_api_bp.route("/logout/", methods=['POST'])
 @users_api_bp.route("/logout", methods=['POST'])
 def logout():
     email = request.args.get('email')
@@ -24,6 +25,7 @@ def logout():
     resp.delete_cookie('Email')
     return resp
 
+@users_api_bp.route("/login/", methods=['POST'])
 @users_api_bp.route("/login", methods=['POST'])
 def login():
     email = request.args.get('email')
@@ -40,6 +42,7 @@ def login():
     
     return users.set_cookies(result[0][0], result[0][1])
 
+@users_api_bp.route("/verify/")
 @users_api_bp.route("/verify")
 def verify():
     email = request.args.get('email')
@@ -63,7 +66,8 @@ def verify():
     resp.set_cookie("Email", email, max_age=60*60*24*365)
     return resp
 
-@users_api_bp.route("/get-level", methods=['GET', 'POST'])
+@users_api_bp.route("/get-level/")
+@users_api_bp.route("/get-level")
 def get_level():
     sessionID = request.args.get('SessionID')
     email = request.args.get('email')
@@ -71,6 +75,7 @@ def get_level():
         return make_response("Couldn't get user level or session", 400)
     return make_response(str(users.get_user_level(email, sessionID)), 200)
 
+@users_api_bp.route("/set-level/", methods=['POST'])
 @users_api_bp.route("/set-level", methods=['POST'])
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
 def set_level():
@@ -92,6 +97,7 @@ def set_level():
     
     return make_response("Successfully updated user", 200)
 
+@users_api_bp.route('/delete/', methods=['POST'])
 @users_api_bp.route('/delete', methods=['POST'])
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
 def delete():
@@ -109,6 +115,7 @@ def delete():
     
     return make_response(f"Successfully removed user {email}", 200)
 
+@users_api_bp.route('/list/')
 @users_api_bp.route('/list')
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
 def list():

@@ -4,16 +4,13 @@ import api.context as context
 import api.endpoints.data as data_api_bp
 import api.users as users
 
-context_api_bp = Blueprint('context_api_bp',
-                         __name__,
-                         static_url_path='/static',
-                         template_folder='/dashboard/templates',
-                         static_folder='static')
+context_api_bp = Blueprint('context_api_bp', __name__, static_url_path='')
 
 ###########################################################
 ###               context functionality                 ###
 ###########################################################
 
+@context_api_bp.route("/add/", methods=['POST'])
 @context_api_bp.route("/add", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def addContext():
@@ -31,6 +28,7 @@ def addContext():
     
     return context.add_context(contextElem)
 
+@context_api_bp.route("/edit/", methods=['POST'])
 @context_api_bp.route("/edit", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def editContext():
@@ -45,6 +43,7 @@ def editContext():
             return make_response("Unauthorised", 401)
     return context.edit_context(contextElem)
 
+@context_api_bp.route("/delete/", methods=['POST'])
 @context_api_bp.route("/delete", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
 def deleteContext():
@@ -61,7 +60,8 @@ def deleteContext():
         return make_response("Unauthorised", 401)
     return context.delete_context(contextID)
 
-@context_api_bp.route("/all", methods=['GET'])
+@context_api_bp.route("/all/")
+@context_api_bp.route("/all")
 @data_api_bp.required_user_level("USER_LEVEL_VIEW_COMMENTS")
 def getContext():
     return jsonify(context.view_all())
