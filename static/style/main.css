@@ -653,3 +653,9 @@ div#muted-div {
   background-color: #d4edda; /* light green */
   transition: background-color 1s ease;
 }
+
+iframe.statstool {
+    border: 0px;
+	width: 98vw;
+	height: 88vh;
+}

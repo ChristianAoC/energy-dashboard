@@ -26,6 +26,12 @@ default_settings = {
     "SMTP_ENABLED": False,
     # Site info
     "SITE_NAME": "Energy Dashboard",
+    "default_start_page": "browser",
+    "default_daterange_benchmark": 365,
+    "default_daterange_browser": 30,
+    "default_daterange_health-check": 30,
+    "capavis_url": "",
+    "clustering_url": "",
     # Influx settings
     "data_interval": 60,
     # Data settings

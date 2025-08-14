@@ -17,7 +17,12 @@
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery.datetimepicker.full.min.js') }}"></script>
 <script type='text/javascript' src="{{ url_for('static', filename='script/ext/plotly-2.32.0.min.js') }}"></script>
 
-<script>const BASE_PATH = "{{ request.script_root }}";</script>
+<script>
+const BASE_PATH = "{{ request.script_root }}";
+const DEFAULT_DATERANGE_BENCHMARK = {{ g.settings["default_daterange_benchmark"] | tojson }};
+const DEFAULT_DATERANGE_BROWSER = {{ g.settings["default_daterange_browser"] | tojson }};
+const DEFAULT_DATERANGE_HEALTHCHECK = {{ g.settings["default_daterange_health-check"] | tojson }};
+</script>
 
 <!-- own JS files -->
 <script type="text/javascript" src="{{ url_for('static', filename='script/dataloader.js') }}"></script>
@@ -32,6 +37,8 @@
     <nav id="nav-top-bar">
     <script>
     const OFFLINE_MODE = {{ g.settings["offline_mode"] | tojson }};
+    const CAPAVIS_URL = {{ g.settings["capavis_url"] | tojson }};
+    const CLUSTERING_URL = {{ g.settings["clustering_url"] | tojson }};
     
     const STATIC_URLS = {
         {% if g.settings["offline_mode"] %}
