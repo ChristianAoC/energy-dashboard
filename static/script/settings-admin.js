@@ -31,7 +31,7 @@ function switchClicked(e) {
     fetch(BASE_PATH + '/api/settings/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: Boolean(newState) })
+        body: JSON.stringify({ [key]: !currentState })
     })
     .then(res => {
         if (!res.ok) {
@@ -134,7 +134,7 @@ function loadSettings() {
                             } else if (row.setting_type === "float") {
                                 return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "bool") {
-                                return `<div role="switch" aria-checked="true" tabindex="0" onclick="switchClicked(this)" data-key="${row.key}">
+                                return `<div role="switch" aria-checked="${data}" tabindex="0" onclick="switchClicked(this)" data-key="${row.key}">
                                         <span class="switch">
                                             <span></span>
                                         </span>
