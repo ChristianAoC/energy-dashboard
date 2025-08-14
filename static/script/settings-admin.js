@@ -121,7 +121,7 @@ function escapeHtmlAttr(str) {
 }
 
 function loadSettings() {
-    fetch(BASE_PATH + '/api/settings')
+    fetch(BASE_PATH + '/api/settings/')
         .then(res => {
             if (!res.ok) throw new Error("Not authorized");
             return res.json();
