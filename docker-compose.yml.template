@@ -1,0 +1,31 @@
+services:
+  web:
+    image: energy-dashboard
+    container_name: energy-dashboard
+    restart: unless-stopped
+    expose:
+      - "5050"
+    volumes:
+      - ./data:/app/data
+    networks:
+      - appnet
+
+  nginx:
+    image: nginx:latest
+    container_name: nginx_proxy
+    restart: unless-stopped
+    ports:
+      - "80:80"
+      - "443:443"
+    volumes:
+      - ./nginx.conf:/etc/nginx/nginx.conf:ro
+      - /etc/letsencrypt/live/<hostname>/fullchain.pem:/etc/letsencrypt/live/fullchain.pem:ro
+      - /etc/letsencrypt/live/<hostname>/privkey.pem:/etc/letsencrypt/live/privkey.pem:ro
+    depends_on:
+      - web
+    networks:
+      - appnet
+
+networks:
+  appnet:
+    driver: bridge
