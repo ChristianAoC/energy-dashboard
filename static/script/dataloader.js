@@ -69,7 +69,7 @@ const apiEndpoints = {
 
     // Simple static list of buildings as JSON hierarchy (formerly "masterlist" without usage)
     // no params
-    hierarchy: BASE_PATH + '/api/meter_hierarchy',
+    hierarchy: BASE_PATH + '/api/meter-hierarchy',
     
     // Summary of usage as pet buildings and their main meters (formerly "masterlist" with usage)
     // params: to_time, from_time
@@ -77,27 +77,27 @@ const apiEndpoints = {
 
     // Mazemap polygons
     // noaparms
-    mazemap_polygons: BASE_PATH + '/api/mazemap_polygons',
+    mazemap_polygons: BASE_PATH + '/api/mazemap-polygons',
 
-    // Provides a list of meters for each health_score per building
+    // Provides a list of meters for each health-score per building
     // params: to_time, from_time
-    healthScore: BASE_PATH + '/api/health_score',
+    healthScore: BASE_PATH + '/api/health-score',
 
     // Health check - detailed stats analysis for each meter (or one if ID given)
     // params: id, to_time, from_time, date_range
-    meterHealth: BASE_PATH + '/api/meter_health',
+    meterHealth: BASE_PATH + '/api/meter-health',
 
     // Health check meta info
     // no params
-    hcMeta: BASE_PATH + '/api/hc_meta',
+    hcMeta: BASE_PATH + '/api/hc-meta',
 
     // Returns first and last date for offline data and interval
     // no params
-    offlineMeta: BASE_PATH + '/api/offline_meta',
+    offlineMeta: BASE_PATH + '/api/offline-meta',
     
     // Return time series data for given meter/time
     // params: id, to_time, from_time, format, aggregate, to_rate
-    obs: BASE_PATH + '/api/meter_obs',
+    obs: BASE_PATH + '/api/meter-obs',
 
     // Gets all context entries
     // noparams

@@ -91,7 +91,7 @@ def meters():
     return make_response(jsonify(out), 200)
 
 ## Health check cache meta
-@data_api_bp.route('/hc_meta')
+@data_api_bp.route('/hc-meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
     hc_meta = db.session.execute(
@@ -226,10 +226,10 @@ def summary():
 ## Return:
 ## json format time series data
 ## Example:
-## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2
-## http://127.0.0.1:5000/api/meter_obs?id=AP001_L01_M2;AP080_L01_M5
-## http://127.0.0.1:5000/api/meter_obs?id=WTHR_0
-@data_api_bp.route('/meter_obs')
+## http://127.0.0.1:5000/api/meter-obs?id=AP001_L01_M2
+## http://127.0.0.1:5000/api/meter-obs?id=AP001_L01_M2;AP080_L01_M5
+## http://127.0.0.1:5000/api/meter-obs?id=WTHR_0
+@data_api_bp.route('/meter-obs')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_obs():
     try:
@@ -303,8 +303,8 @@ def meter_obs():
 ## X-Cache-State: either 'stale' or 'fresh'
 ##
 ## Example:
-## http://127.0.0.1:5000/api/meter_health?id=AP001_L01_M2&date_range=30
-@data_api_bp.route('/meter_health')
+## http://127.0.0.1:5000/api/meter-health?id=AP001_L01_M2&date_range=30
+@data_api_bp.route('/meter-health')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
     # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
@@ -317,6 +317,13 @@ def meter_health():
         statement = (statement.where(models.HealthCheck.meter_id == models.Meter.id)
                      .where(models.Meter.invoiced.is_(False))) # type: ignore
     hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
+    
+    # If database hasn't been initialised properly then the frontend enters a loop of retries because a 500 is returned
+    # if there isn't any cache available to serve.
+    if len(db.session.execute(db.select(models.Meter)).scalars().all()) == 0:
+        response = make_response(jsonify(hc_cache), 200)
+        response.headers['X-Cache-State'] = "fresh"
+        return response
 
     # TODO: What does the last statement do?
     if len(request.args) == 0 or g.settings["offline_mode"] or list(request.args.keys()) == ["hidden"]:
@@ -357,7 +364,7 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()),
+            thread = threading.Thread(target=get_health, args=(request.args, current_app._get_current_object(), False),
                                       name="updateMainHC", daemon=True)
             thread.start()
 
@@ -370,7 +377,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
     else:
-        health_check_data = get_health(request.args, True, current_app.app_context())
+        health_check_data = get_health(request.args, current_app._get_current_object(), True)
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -405,7 +412,7 @@ def meter_health():
 ##     },
 ##     ...
 ## }
-@data_api_bp.route('/meter_hierarchy')
+@data_api_bp.route('/meter-hierarchy')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def meter_hierarchy():
     buildings = db.session.execute(db.select(models.Building)).scalars().all()
@@ -458,8 +465,8 @@ def meter_hierarchy():
 ## ]
 ##
 ## Example:
-## http://127.0.0.1:5000/api/health_score
-@data_api_bp.route('/health_score')
+## http://127.0.0.1:5000/api/health-score
+@data_api_bp.route('/health-score')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
     to_time = request.args.get("to_time")
@@ -470,7 +477,7 @@ def health_score():
     
     return make_response(jsonify(data), 200)
 
-@data_api_bp.route('/offline_meta')
+@data_api_bp.route('/offline-meta')
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     out = {
@@ -481,7 +488,7 @@ def offline_meta():
     
     return make_response(jsonify(out), 200)
 
-@data_api_bp.route("/mazemap_polygons")
+@data_api_bp.route("/mazemap-polygons")
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def mazemap_polygons():
     if not os.path.exists(mazemap_polygons_file):
@@ -491,7 +498,7 @@ def mazemap_polygons():
         data = json.load(f)
     return make_response(jsonify(data), 200)
 
-@data_api_bp.route('/regeneratecache', methods=["GET"])
+@data_api_bp.route('/regenerate-cache', methods=["GET"])
 @required_user_level("USER_LEVEL_ADMIN")
 def regenerate_cache():
     start_time = time.time()
@@ -502,7 +509,7 @@ def regenerate_cache():
     log.write(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
-@data_api_bp.route('/populate_database')
+@data_api_bp.route('/populate-database')
 @required_user_level("USER_LEVEL_ADMIN")
 def populate_database():
     result = initial_database_population()
@@ -580,11 +587,3 @@ def logs():
         return make_response(jsonify([]), 404)
 
     return make_response(jsonify(data), 200)
-
-@data_api_bp.route("/test")
-def test():
-    log.write(msg="Test log info", extra_info="TESTING - INFO", level=log.info)
-    log.write(msg="Test log warning", extra_info="TESTING - WARNING", level=log.warning)
-    log.write(msg="Test log error", extra_info="TESTING - ERROR", level=log.error)
-    log.write(msg="Test log critical", extra_info="TESTING - CRITICAL", level=log.critical)
-    return "OK"

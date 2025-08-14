@@ -1,4 +1,4 @@
-from flask import request, g, current_app
+from flask import request, g, current_app, has_app_context
 from sqlalchemy import not_
 
 import pandas as pd
@@ -95,10 +95,10 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
         db.session.rollback()
         raise e
 
-def get(key: str, app_context = None):
+def get(key: str):
     try:
         statement = db.Select(models.Settings).where(models.Settings.key == key)
-        if app_context is None:
+        if has_app_context():
             existing_setting = db.session.execute(statement).scalar_one_or_none()
         else:
             from app import app
