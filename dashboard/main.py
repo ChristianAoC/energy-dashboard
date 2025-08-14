@@ -21,7 +21,7 @@ def helloworld():
 
 @dashboard_bp.route("/")
 def index():
-    return redirect("/browser")
+    return redirect("/" + g.settings["default_start_page"])
 
 @dashboard_bp.route("/favicon.ico")
 def getFavicon():
@@ -69,14 +69,17 @@ def no_access():
     return render_template('noaccess.html')
 
 @dashboard_bp.route("/map")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def map():
     return render_template('map.html')
 
 @dashboard_bp.route("/benchmark")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def benchmark():
     return render_template('benchmark.html')
 
 @dashboard_bp.route("/browser")
+@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def browser():
     return render_template('browser.html')
 
@@ -85,10 +88,21 @@ def browser():
 def health_check():
     return render_template('health-check.html')
 
+@dashboard_bp.route("/capavis")
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+def capavis():
+    return render_template('capavis.html')
+
+@dashboard_bp.route("/clustering")
+@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+def clustering():
+    return render_template('clustering.html')
+
 @dashboard_bp.route("/context")
 @required_user_level("USER_LEVEL_VIEW_COMMENTS")
 def context_view():
     return render_template('context.html')
+
 
 @dashboard_bp.route("/about")
 def about():

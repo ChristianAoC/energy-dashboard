@@ -10,6 +10,12 @@ function createNavbar() {
 	navItems.push(['Benchmark', 'benchmark']);
 	navItems.push(['Browser', 'browser']);
 	navItems.push(['Health Check', 'health-check?hidden=,3,4,5,6,8,9,10,11,14,15,16,17,18,19,20,21,22,23,24,25,26,29,30,31,32,33,']);
+	if (CAPAVIS_URL != "") {
+		navItems.push(['CAPAVis Tool', 'capavis']);
+	}
+	if (CLUSTERING_URL != "") {
+		navItems.push(['Clustering Tool', 'clustering']);
+	}
 	navItems.push(['Context', 'context']);
 	navItems.push(['About', 'about']);
 

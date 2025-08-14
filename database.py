@@ -338,6 +338,42 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             category="site",
             setting_type="str"
         ))
+        settings.append(models.Settings(
+            key="default_start_page",
+            value=temp_default_settings["default_start_page"],
+            category="site",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="default_daterange_benchmark",
+            value=temp_default_settings["default_daterange_benchmark"],
+            category="site",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="default_daterange_browser",
+            value=temp_default_settings["default_daterange_browser"],
+            category="site",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="default_daterange_health-check",
+            value=temp_default_settings["default_daterange_health-check"],
+            category="site",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="capavis_url",
+            value=temp_default_settings["capavis_url"],
+            category="site",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="clustering_url",
+            value=temp_default_settings["clustering_url"],
+            category="site",
+            setting_type="str"
+        ))
         
         # Influx
         settings.append(models.Settings(

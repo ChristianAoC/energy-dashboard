@@ -1,7 +1,11 @@
 const browserData = {};
 const utilityTypes = ["gas", "electricity", "heat", "water"];
 const utilityUnits = {"gas": "m³", "electricity": "kWh", "heat": "MWh", "water": "m³"};
-const defaultDateRanges = {"benchmark": 365, "browser": 30, "health-check": 30};
+const defaultDateRanges = {
+    "benchmark": DEFAULT_DATERANGE_BENCHMARK,
+    "browser": DEFAULT_DATERANGE_BROWSER,
+    "health-check": DEFAULT_DATERANGE_HEALTHCHECK
+};
 
 let metaLabel = {
 
