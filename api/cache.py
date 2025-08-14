@@ -87,81 +87,72 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 ## m - the meter to generate cache for
 ## data_start_time - The earliest date in the cache (If None, assume that all data that we want to access is available)
 ## data_end_time - The latest date that there is data for (Current time if online)
-def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime, app_context = None) -> None:
-    # Because this function can be run in a separate thread, we need to push the app context
-    if app_context is None:
-        app_context = current_app.app_context()
-    
-    print(f"Started: {m.id}")
-    with app_context:
+def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime, app_obj) -> None:
+    # Because this function can be run in a separate thread, we need to push app context onto the thread
+    with app_obj.app_context():
+        print(f"Started: {m.id}")
         log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
-    try:
-        file_name = clean_file_name(f"{m.id}.csv")
+        try:
+            file_name = clean_file_name(f"{m.id}.csv")
 
-        if has_g_support():
-            offline_mode = g.settings["offline_mode"]
-            cache_time_health_score = g.settings["cache_time_health_score"]
-            cache_time_summary = g.settings["cache_time_summary"]
-        else:
-            with app_context:
+            if has_g_support():
+                offline_mode = g.settings["offline_mode"]
+                cache_time_health_score = g.settings["cache_time_health_score"]
+                cache_time_summary = g.settings["cache_time_summary"]
+            else:
                 offline_mode = current_app.config["offline_mode"]
                 cache_time_health_score = int(settings.get("cache_time_health_score")) # type: ignore
                 cache_time_summary = int(settings.get("cache_time_summary")) # type: ignore
-        
-        if offline_mode:
-            meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
-        else:
-            meter_health_score_file = os.path.join(meter_health_score_files, file_name)
-        meter_health_scores = {}
-        if os.path.exists(meter_health_score_file):
-            try:
-                meter_health_scores = json.load(open(meter_health_score_file, "r"))
-            except:
-                meter_health_scores = {}
-        
-        for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
-            score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_context=app_context)
-            if score is None:
-                # Something happended to the offline data since running cache_validity_checker, quit thread
-                print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
-                log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
-                return
-            meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
+            
+            if offline_mode:
+                meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
+            else:
+                meter_health_score_file = os.path.join(meter_health_score_files, file_name)
+            meter_health_scores = {}
+            if os.path.exists(meter_health_score_file):
+                try:
+                    meter_health_scores = json.load(open(meter_health_score_file, "r"))
+                except:
+                    meter_health_scores = {}
+            
+            for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
+                score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_obj)
+                if score is None:
+                    # Something happended to the offline data since running cache_validity_checker, quit thread
+                    print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                    log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
+                    return
+                meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
 
-        with open(meter_health_score_file, "w") as f:
-            json.dump(meter_health_scores, f)
+            with open(meter_health_score_file, "w") as f:
+                json.dump(meter_health_scores, f)
 
-        # Meter Snapshot Cache
-        meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
-        if offline_mode:
-            meter_snapshots_file = os.path.join(offline_meter_snapshots_files, file_name)
-        else:
+            # Meter Snapshot Cache
             meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
-        
-        meter_snapshots = {}
-        if os.path.exists(meter_snapshots_file):
-            try:
-                meter_snapshots = json.load(open(meter_snapshots_file, "r"))
-            except:
-                meter_snapshots = {}
-        
-        for cache_item in cache_items(cache_time_summary, meter_snapshots, data_start_time, data_end_time):
-            with app_context:
+            if offline_mode:
+                meter_snapshots_file = os.path.join(offline_meter_snapshots_files, file_name)
+            else:
+                meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
+            
+            meter_snapshots = {}
+            if os.path.exists(meter_snapshots_file):
+                try:
+                    meter_snapshots = json.load(open(meter_snapshots_file, "r"))
+                except:
+                    meter_snapshots = {}
+            
+            for cache_item in cache_items(cache_time_summary, meter_snapshots, data_start_time, data_end_time):
                 meter_obs = query_time_series(m, cache_item[1], cache_item[2], "24h")['obs']
+                cache_value = meter_obs[0]['value'] if len(meter_obs) > 0 else None
+                meter_snapshots.update({cache_item[0].isoformat(): cache_value})
 
-            cache_value = meter_obs[0]['value'] if len(meter_obs) > 0 else None
-
-            meter_snapshots.update({cache_item[0].isoformat(): cache_value})
-
-        with open(meter_snapshots_file, "w") as f:
-            json.dump(meter_snapshots, f)
-    except Exception as e:
-        print(f"An error occurred generating cache for meter {m.id}")
-        with app_context:
+            with open(meter_snapshots_file, "w") as f:
+                json.dump(meter_snapshots, f)
+        except Exception as e:
+            print(f"An error occurred generating cache for meter {m.id}")
             log.write(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
-        raise e
-    print(f"Ended: {m.id}")
-    with app_context:
+            raise e
+        print(f"Ended: {m.id}")
         log.write(msg=f"Finished data cache generation for {m.id}", level=log.info)
 
 ## Generates the cache data for meter health scores and meter snapshots

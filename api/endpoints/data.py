@@ -364,7 +364,7 @@ def meter_health():
                 break
         
         if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, False, current_app.app_context()),
+            thread = threading.Thread(target=get_health, args=(request.args, current_app._get_current_object(), False),
                                       name="updateMainHC", daemon=True)
             thread.start()
 
@@ -377,7 +377,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
     else:
-        health_check_data = get_health(request.args, True, current_app.app_context())
+        health_check_data = get_health(request.args, current_app._get_current_object(), True)
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response

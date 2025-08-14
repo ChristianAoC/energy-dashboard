@@ -161,239 +161,227 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, all_outputs: list = [], app_context = None) -> dict|None:
-    # # Because this function can be run in a separate thread, we need to push the app context
-    if app_context is None:
-        app_context = current_app.app_context()
-    
-    if offline_mode:
-        try:
-            if has_g_support():
-                interval = g.settings.get("data_interval", 60) * 60
-            else:
-                interval = settings.get("data_interval") * 60 # type: ignore
-        except:
-            interval = 3600
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, all_outputs: list = []) -> dict|None:
+    # Because this function can be run in a separate thread, we need to push app context onto the thread
+    with app_obj.app_context():
+        if offline_mode:
+            try:
+                if has_g_support():
+                    interval = g.settings.get("data_interval", 60) * 60
+                else:
+                    interval = settings.get("data_interval") * 60 # type: ignore
+            except:
+                interval = 3600
 
-        # Offline data is recorded at 1 hour intervals
-        xcount = int((to_time - from_time).total_seconds()//interval) - 1
-    else:
-        # Live data is recorded at 10 minute intervals
-        xcount = int((to_time - from_time).total_seconds()//600) - 1
+            # Offline data is recorded at 1 hour intervals
+            xcount = int((to_time - from_time).total_seconds()//interval) - 1
+        else:
+            # Live data is recorded at 10 minute intervals
+            xcount = int((to_time - from_time).total_seconds()//600) - 1
 
-    # Bring SQL update output back in line with the original output (instead of just returning calculated values)
-    # Filter out SEED_UUID and invoiced
-    keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
-    with app_context:
+        # Bring SQL update output back in line with the original output (instead of just returning calculated values)
+        # Filter out SEED_UUID and invoiced
+        keys = ["meter_id", "description", "main", "utility_type", "reading_type", "units", "resolution", "scaling_factor", "building_id"]
         out: dict = data_cleaner(m.to_dict(), keys) # type: ignore
 
-    # time series for this meter
-    m_obs = query_influx(m, from_time, to_time, offline_mode)
+        # time series for this meter
+        m_obs = query_influx(m, from_time, to_time, offline_mode)
 
-    # count values. if no values, stop
-    out["HC_count"] = len(m_obs)
-    if out["HC_count"] == 0:
-        out["HC_count_perc"] = "0%"
-        out["HC_score"] = 0
+        # count values. if no values, stop
+        out["HC_count"] = len(m_obs)
+        if out["HC_count"] == 0:
+            out["HC_count_perc"] = "0%"
+            out["HC_score"] = 0
 
-        # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-        all_outputs.append(out)
-        return out
-    
-    m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
-    
-    out["HC_count_perc"] = round(100 * out["HC_count"] / xcount, 2)
-    if out["HC_count_perc"] > 100:
-        out["HC_count_perc"] = 100
-    out["HC_count_score"] = math.floor(out["HC_count_perc"] / 20)
-    out["HC_count_perc"] = str(out["HC_count_perc"]) + "%"
+            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+            all_outputs.append(out)
+            return out
+        
+        m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
+        
+        out["HC_count_perc"] = round(100 * out["HC_count"] / xcount, 2)
+        if out["HC_count_perc"] > 100:
+            out["HC_count_perc"] = 100
+        out["HC_count_score"] = math.floor(out["HC_count_perc"] / 20)
+        out["HC_count_perc"] = str(out["HC_count_perc"]) + "%"
 
-    # count zeroes
-    out["HC_zeroes"] = int(m_obs["value"][m_obs["value"] == 0].count())
-    out["HC_zeroes_perc"] = round(100 * out["HC_zeroes"] / xcount, 2)
-    if out["HC_zeroes_perc"] > 100:
-        out["HC_zeroes_perc"] = 100
-    out["HC_zeroes_score"] = math.floor((100 - out["HC_zeroes_perc"]) / 20)
-    out["HC_zeroes_perc"] = str(out["HC_zeroes_perc"]) + "%"
+        # count zeroes
+        out["HC_zeroes"] = int(m_obs["value"][m_obs["value"] == 0].count())
+        out["HC_zeroes_perc"] = round(100 * out["HC_zeroes"] / xcount, 2)
+        if out["HC_zeroes_perc"] > 100:
+            out["HC_zeroes_perc"] = 100
+        out["HC_zeroes_score"] = math.floor((100 - out["HC_zeroes_perc"]) / 20)
+        out["HC_zeroes_perc"] = str(out["HC_zeroes_perc"]) + "%"
 
-    # create diff (increase for each value) to prep for cumulative check
-    m_obs["diffs"] = m_obs["value"].diff()
-    diffcount = m_obs["diffs"].count().sum()
-    if diffcount == 0:
-        # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-        all_outputs.append(out)
-        return out
+        # create diff (increase for each value) to prep for cumulative check
+        m_obs["diffs"] = m_obs["value"].diff()
+        diffcount = m_obs["diffs"].count().sum()
+        if diffcount == 0:
+            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+            all_outputs.append(out)
+            return out
 
-    # count positive, negative, and no increase
-    out["HC_diff_neg"] = int(m_obs.diffs[m_obs.diffs < 0].count())
-    out["HC_diff_neg_perc"] = round(100 * out["HC_diff_neg"] / diffcount, 2)
-    if out["HC_diff_neg_perc"] > 100:
-        out["HC_diff_neg_perc"] = 100
+        # count positive, negative, and no increase
+        out["HC_diff_neg"] = int(m_obs.diffs[m_obs.diffs < 0].count())
+        out["HC_diff_neg_perc"] = round(100 * out["HC_diff_neg"] / diffcount, 2)
+        if out["HC_diff_neg_perc"] > 100:
+            out["HC_diff_neg_perc"] = 100
 
-    out["HC_diff_pos"] = int(m_obs.diffs[m_obs.diffs > 0].count())
-    out["HC_diff_pos_perc"] = round(100 * out["HC_diff_pos"] / diffcount, 2)
-    if out["HC_diff_pos_perc"] > 100:
-        out["HC_diff_pos_perc"] = 100
-    out["HC_diff_pos_score"] = math.floor(out["HC_diff_pos_perc"] / 20)
+        out["HC_diff_pos"] = int(m_obs.diffs[m_obs.diffs > 0].count())
+        out["HC_diff_pos_perc"] = round(100 * out["HC_diff_pos"] / diffcount, 2)
+        if out["HC_diff_pos_perc"] > 100:
+            out["HC_diff_pos_perc"] = 100
+        out["HC_diff_pos_score"] = math.floor(out["HC_diff_pos_perc"] / 20)
 
-    out["HC_diff_zero"] = int(m_obs.diffs[m_obs.diffs == 0].count())
-    out["HC_diff_zero_perc"] = round(100 * out["HC_diff_zero"] / diffcount, 2)
-    if out["HC_diff_zero_perc"] > 100:
-        out["HC_diff_zero_perc"] = 100
+        out["HC_diff_zero"] = int(m_obs.diffs[m_obs.diffs == 0].count())
+        out["HC_diff_zero_perc"] = round(100 * out["HC_diff_zero"] / diffcount, 2)
+        if out["HC_diff_zero_perc"] > 100:
+            out["HC_diff_zero_perc"] = 100
 
-    # assume that cumulative meters have > 80% of values increase and vice versa
-    out["HC_class"] = m.reading_type
-    if out["HC_diff_zero_perc"] > 80:
-        out["HC_class_check"] = "Too many zero diffs to check"
+        # assume that cumulative meters have > 80% of values increase and vice versa
+        out["HC_class"] = m.reading_type
+        if out["HC_diff_zero_perc"] > 80:
+            out["HC_class_check"] = "Too many zero diffs to check"
 
-    if m.reading_type == "Cumulative":
-        if out["HC_diff_pos_perc"] < 80 and out["HC_diff_neg_perc"] > 20:
-            out["HC_class_check"] = "Check (seems rate)"
-            out["HC_class"] = "Rate"
+        if m.reading_type == "Cumulative":
+            if out["HC_diff_pos_perc"] < 80 and out["HC_diff_neg_perc"] > 20:
+                out["HC_class_check"] = "Check (seems rate)"
+                out["HC_class"] = "Rate"
+            else:
+                out["HC_class_check"] = "Okay (cumulative)"
         else:
-            out["HC_class_check"] = "Okay (cumulative)"
-    else:
-        if out["HC_diff_pos_perc"] > 80:
-            out["HC_class_check"] = "Check (seems cumulative)"
-            out["HC_class"] = "Cumulative"
+            if out["HC_diff_pos_perc"] > 80:
+                out["HC_class_check"] = "Check (seems cumulative)"
+                out["HC_class"] = "Cumulative"
+            else:
+                out["HC_class_check"] = "Okay (rate)"
+
+        out["HC_diff_neg_perc"] = str(out["HC_diff_neg_perc"]) + "%"
+        out["HC_diff_pos_perc"] = str(out["HC_diff_pos_perc"]) + "%"
+        out["HC_diff_zero_perc"] = str(out["HC_diff_zero_perc"]) + "%"
+
+        out["HC_functional_matrix"] = out["HC_count_score"] * out["HC_zeroes_score"]
+
+        # if cumulative (or assumed cumul) run statistics on that data, otherwise on raw
+        if out["HC_class"] == "Cumulative":
+            out["HC_mean"] = int(m_obs["diffs"].mean())
+            out["HC_median"] = int(m_obs["diffs"].median())
+            out["HC_mode"] = int(m_obs["diffs"].mode()[0])
+            out["HC_std"] = int(m_obs["diffs"].std())
+            out["HC_min"] = int(m_obs["diffs"].min())
+            out["HC_max"] = int(m_obs["diffs"].max())
+            out["HC_outliers"] = int(m_obs.diffs[m_obs.diffs > out["HC_mean"] * 5].count())
+            m_obs["HC_ignz"] = m_obs[m_obs["diffs"] != 0]["diffs"]
+            out["HC_cumulative_matrix"] = out["HC_diff_pos_score"] * out["HC_functional_matrix"]
+            out["HC_score"] = math.floor(out["HC_cumulative_matrix"] / 25)
+
         else:
-            out["HC_class_check"] = "Okay (rate)"
+            out["HC_mean"] = int(m_obs["value"].mean())
+            out["HC_median"] = int(m_obs["value"].median())
+            out["HC_mode"] = int(m_obs["value"].mode()[0])
+            out["HC_std"] = int(m_obs["value"].std())
+            out["HC_min"] = int(m_obs["value"].min())
+            out["HC_max"] = int(m_obs["value"].max())
+            out["HC_outliers"] = int(m_obs["value"][m_obs["value"] > out["HC_mean"] * 5].count())
+            m_obs["HC_ignz"] = m_obs[m_obs["value"] != 0]["value"]
+            out["HC_score"] = math.floor(out["HC_functional_matrix"] / 5)
 
-    out["HC_diff_neg_perc"] = str(out["HC_diff_neg_perc"]) + "%"
-    out["HC_diff_pos_perc"] = str(out["HC_diff_pos_perc"]) + "%"
-    out["HC_diff_zero_perc"] = str(out["HC_diff_zero_perc"]) + "%"
+        out["HC_outliers_perc"] = round(100 * out["HC_outliers"] / xcount, 2)
+        if out["HC_outliers_perc"] > 100:
+            out["HC_outliers_perc"] = 100
+        out["HC_outliers_perc"] = str(out["HC_outliers_perc"]) + "%"
 
-    out["HC_functional_matrix"] = out["HC_count_score"] * out["HC_zeroes_score"]
+        ignz_count = m_obs["HC_ignz"].count().sum()
+        out["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
+        if ignz_count == 0:
+            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+            all_outputs.append(out)
+            return out
+        out["HC_outliers_ignz_perc"] = round(100 * out["HC_outliers_ignz"] / ignz_count, 2)
+        if out["HC_outliers_ignz_perc"] > 100:
+            out["HC_outliers_ignz_perc"] = 100
+        out["HC_outliers_ignz_perc"] = str(out["HC_outliers_ignz_perc"]) + "%"
 
-    # if cumulative (or assumed cumul) run statistics on that data, otherwise on raw
-    if out["HC_class"] == "Cumulative":
-        out["HC_mean"] = int(m_obs["diffs"].mean())
-        out["HC_median"] = int(m_obs["diffs"].median())
-        out["HC_mode"] = int(m_obs["diffs"].mode()[0])
-        out["HC_std"] = int(m_obs["diffs"].std())
-        out["HC_min"] = int(m_obs["diffs"].min())
-        out["HC_max"] = int(m_obs["diffs"].max())
-        out["HC_outliers"] = int(m_obs.diffs[m_obs.diffs > out["HC_mean"] * 5].count())
-        m_obs["HC_ignz"] = m_obs[m_obs["diffs"] != 0]["diffs"]
-        out["HC_cumulative_matrix"] = out["HC_diff_pos_score"] * out["HC_functional_matrix"]
-        out["HC_score"] = math.floor(out["HC_cumulative_matrix"] / 25)
-
-    else:
-        out["HC_mean"] = int(m_obs["value"].mean())
-        out["HC_median"] = int(m_obs["value"].median())
-        out["HC_mode"] = int(m_obs["value"].mode()[0])
-        out["HC_std"] = int(m_obs["value"].std())
-        out["HC_min"] = int(m_obs["value"].min())
-        out["HC_max"] = int(m_obs["value"].max())
-        out["HC_outliers"] = int(m_obs["value"][m_obs["value"] > out["HC_mean"] * 5].count())
-        m_obs["HC_ignz"] = m_obs[m_obs["value"] != 0]["value"]
-        out["HC_score"] = math.floor(out["HC_functional_matrix"] / 5)
-
-    out["HC_outliers_perc"] = round(100 * out["HC_outliers"] / xcount, 2)
-    if out["HC_outliers_perc"] > 100:
-        out["HC_outliers_perc"] = 100
-    out["HC_outliers_perc"] = str(out["HC_outliers_perc"]) + "%"
-
-    ignz_count = m_obs["HC_ignz"].count().sum()
-    out["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
-    if ignz_count == 0:
-        # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
         all_outputs.append(out)
         return out
-    out["HC_outliers_ignz_perc"] = round(100 * out["HC_outliers_ignz"] / ignz_count, 2)
-    if out["HC_outliers_ignz_perc"] > 100:
-        out["HC_outliers_ignz_perc"] = 100
-    out["HC_outliers_ignz_perc"] = str(out["HC_outliers_ignz_perc"]) + "%"
 
-    all_outputs.append(out)
-    return out
+def get_health(args, app_obj, returning=False):
+    # Because this function can be run in a separate thread, we need to push app context onto the thread
+    with app_obj.app_context():
+        try:
+            meter_ids = args["id"]
+            meter_ids = meter_ids.split(";")
+        except:
+            statement = db.select(models.Meter.id)
+            if not is_admin():
+                statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+            
+            meter_ids = [x.id for x in db.session.execute(statement)]
 
-def get_health(args, returning=False, app_context=None):
-    # Because this function can be run in a separate thread, we need to push the app context
-    if app_context is None:
-        app_context = current_app.app_context()
+        if has_g_support():
+            offline_mode = g.settings["offline_mode"]
+        else:
+            offline_mode = current_app.config["offline_mode"]
 
-    try:
-        meter_ids = args["id"] # this is url decoded
-        meter_ids = meter_ids.split(";")
-    except:
-        statement = db.select(models.Meter.id)
+        to_time = args.get("to_time")
+        from_time = args.get("from_time")
+        try:
+            date_range = int(args["date_range"])
+        except:
+            date_range = 30
+        from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
+
+        # TODO: Should this be implemented or removed?
+        try:
+            fmt = args["format"]
+        except:
+            fmt = "json"
+        
+        ## load and trim meters
+        statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
-        with app_context:
-            meter_ids = [x.id for x in db.session.execute(statement)]
-
-    if has_g_support():
-        offline_mode = g.settings["offline_mode"]
-    else:
-        with app_context:
-            offline_mode = current_app.config["offline_mode"]
-
-    to_time = args.get("to_time")
-    from_time = args.get("from_time")
-    try:
-        date_range = int(args["date_range"]) # this is url decoded
-    except:
-        date_range = 30
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
-
-    # TODO: Should this be implemented or removed?
-    try:
-        fmt = args["format"] # this is url decoded
-    except:
-        fmt = "json"
-    
-    ## load and trim meters
-    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
-    if not is_admin():
-        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-    
-    with app_context:
         meters = db.session.execute(statement).scalars().all()
 
-    start_time = time.time()
+        start_time = time.time()
 
-    threads = []
-    out = []
-
-    n = 15 # Process 15 meters at a time (15 was a random number I chose)
-    meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
-    for meter_chunk in meter_chunks:
         threads = []
-        for m in meter_chunk:
-            print(m.id)
-            with app_context:
+        out = []
+
+        n = 15 # Process 15 meters at a time (15 was a random number I chose)
+        meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
+        for meter_chunk in meter_chunks:
+            threads = []
+            for m in meter_chunk:
+                print(m.id)
                 log.write(msg=f"Started health check for {m.id}", level=log.info)
-            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, out, app_context), name=f"HC_{m.id}", daemon=True))
-            threads[-1].start()
+                threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, app_obj, out), name=f"HC_{m.id}", daemon=True))
+                threads[-1].start()
 
-        # Wait for all threads in chunk to complete
-        for t in threads:
-            t.join()
+            # Wait for all threads in chunk to complete
+            for t in threads:
+                t.join()
 
-    proc_time = (time.time() - start_time)
-    # print("--- Health check took %s seconds ---" % proc_time)
-    with app_context:
+        proc_time = (time.time() - start_time)
+        # print("--- Health check took %s seconds ---" % proc_time)
         log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
-    # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
-        try:
-            with app_context:
+        # save cache, but only if it's a "default" query
+        if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
+            try:
                 for meter in out:
                     update_health_check(meter)
 
-            try:
-                hc_meta = {
-                    "to_time": to_time.timestamp(),
-                    "from_time": from_time.timestamp(),
-                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
-                    "processing_time": proc_time,
-                    "offline": offline_mode
-                }
-                
-                with app_context:
+                try:
+                    hc_meta = {
+                        "to_time": to_time.timestamp(),
+                        "from_time": from_time.timestamp(),
+                        "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
+                        "processing_time": proc_time,
+                        "offline": offline_mode
+                    }
+                    
                     existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                     if existing_hc_meta is None:
                         new_hc_meta = models.CacheMeta("health_check", hc_meta)
@@ -401,29 +389,25 @@ def get_health(args, returning=False, app_context=None):
                     else:
                         existing_hc_meta.update(hc_meta)
                     db.session.commit()
-            except Exception as e:
-                print("Error trying to save metadata for latest HC cache")
-                print(e)
-                with app_context:
+                except Exception as e:
+                    print("Error trying to save metadata for latest HC cache")
+                    print(e)
                     log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
-        except Exception as e:
-            print("Error trying to save current health check in cache")
-            print(e)
-            with app_context:
+            except Exception as e:
+                print("Error trying to save current health check in cache")
+                print(e)
                 log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
 
-        print("Completed HC update")
-        with app_context:
+            print("Completed HC update")
             log.write(msg="Completed health check update", level=log.info)
-    
-    if returning:
-        exclude_tenants = not is_admin()
-        if not exclude_tenants:
-            return out
         
-        cleaned_out = []
-        for meter_data in out:
-            with app_context:
+        if returning:
+            exclude_tenants = not is_admin()
+            if not exclude_tenants:
+                return out
+            
+            cleaned_out = []
+            for meter_data in out:
                 meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
                 if meter is None:
                     continue
@@ -432,7 +416,7 @@ def get_health(args, returning=False, app_context=None):
                     continue
                 
                 cleaned_out.append(meter_data)
-        return out
+            return out
 
 def update_health_check(values: dict):
     existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
