@@ -35,9 +35,13 @@ If you don't use offline data, you can define Influx database connectors in the 
 
 For more users to sign up, they will need email authentication. If your server doesn't support some built-in SMTP and you need to set up a new account, the easiest way to do this is to create a GMail account. Make sure to enable 2FA and then create an app password for logging in. Then enter the Gmail SMTP information again under system variables (If you haven't already defined them in the `.env` file).
 
+# General Info
+
+The idea, requirements elicitation, data and knowledge gathering, user testing, and initial coding was done by [Christian Remy](https://github.com/ChristianAoC/). While the project started in 2024, coding began in mid-2024. Most of the work was done in Jupyter Notebooks and private Github repositories which is why the codebase doesn't reflect the first few iterations. Since August 2025, the main developer and maintainer is [Luke Needle](https://github.com/LukeNeedle).
+
 ## Funding
 
-The research behind this project was funded by the [UKRI](https://gtr.ukri.org/projects?ref=EP%2FT025964%2F1), grant no. `EP/T025964/1`, and with the official project name "Reducing End Use Energy Demand in Commercial Settings Through Digital Innovation". The informal and commonly used name for this project was Net Zero insights.
+The research behind this project was funded by the [UKRI](https://gtr.ukri.org/projects?ref=EP%2FT025964%2F1), grant no. `EP/T025964/1` awarded to  Prof. Adrian Friday at Lancaster University. The official project name was "Reducing End Use Energy Demand in Commercial Settings Through Digital Innovation", but in academic contexts this project was labeled "Net Zero insights".
 
 ## License
 
