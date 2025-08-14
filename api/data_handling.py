@@ -173,7 +173,7 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             except:
                 interval = 3600
 
-            # Offline data is recorded at 1 hour intervals
+            # Offline data is recorded at intervals set in the settings
             xcount = int((to_time - from_time).total_seconds()//interval) - 1
         else:
             # Live data is recorded at 10 minute intervals

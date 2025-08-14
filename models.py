@@ -339,8 +339,9 @@ class UtilityData(db.Model):
         self.update(electricity, gas, heat, water)
     
     def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
+        # Allow empty data
         if len(dictionary) == 0:
-            return True # Allow empty data
+            return True
         
         for meter in dictionary.values():
             if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
