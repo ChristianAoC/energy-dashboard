@@ -168,11 +168,12 @@ function redrawGraph() {
         const end = new Date(endDate);
 
         for (const e of browserData.context) {
-            if (!meters.includes(e.meter)) continue;
+            if (e.target_type == "meter") if (meters.some(m => m[0] === e.target_id)) continue;
+            if (e.target_type == "building") if (meters.some(m => m[1] === e.target_id)) continue;
 
             // Handle optional start/end
-            const ctxStart = e.startnone ? null : new Date(e.start);
-            const ctxEnd = e.endnone ? null : new Date(e.end);
+            const ctxStart = e.start_timestamp ? null : new Date(e.start_timestamp);
+            const ctxEnd = e.end_timestamp ? null : new Date(e.end_timestamp);
 
             // Determine if there's any overlap
             const overlaps =
@@ -185,9 +186,9 @@ function redrawGraph() {
                 if (e.meter === pData.customdata[d]) {
                     let hover = "<b>Context:</b><br>" + e.comment + ",<br><br>";
 
-                    if (!e.startnone) hover += "  Start: " + e.start + "<br>";
+                    if (!e.start_timestamp) hover += "  Start: " + e.start_timestamp + "<br>";
                     else hover += "  (no start date)<br>";
-                    if (!e.endnone) hover += "  End: " + e.end + "<br>";
+                    if (!e.end_timestamp) hover += "  End: " + e.end_timestamp + "<br>";
                     else hover += "  (no end date)<br>";
 
                     hover += "    (Added by: " + e.author + ")";
@@ -271,8 +272,8 @@ function filterGraph() {
                 entry.target_type === "Building" &&
                 entry.target_id === buildingId &&
                 (
-                    entry.type === "Global-mute" ||
-                    (entry.type === "User-mute" && entry.author === userEmail)
+                    entry.context_type === "Global-mute" ||
+                    (entry.context_type === "User-mute" && entry.author === userEmail)
                 )
             );
 
@@ -288,8 +289,8 @@ function filterGraph() {
                     entry.target_type === "Meter" &&
                     entry.target_id === meterId &&
                     (
-                        entry.type === "Global-mute" ||
-                        (entry.type === "User-mute" && entry.author === userEmail)
+                        entry.context_type === "Global-mute" ||
+                        (entry.context_type === "User-mute" && entry.author === userEmail)
                     )
                 )
             );
@@ -311,8 +312,8 @@ function filterGraph() {
         // If unmuting is on, still check if there *are* any muted to show the checkbox
         const userEmail = getCookie("Email");
         const hasMuted = browserData.context?.some(entry =>
-            (entry.type === "User-mute" && entry.author === userEmail) ||
-            entry.type === "Global-mute"
+            (entry.context_type === "User-mute" && entry.author === userEmail) ||
+            entry.context_type === "Global-mute"
         );
         const mutedDiv = document.getElementById("muted-div");
         if (mutedDiv) mutedDiv.style.display = hasMuted ? "block" : "none";
