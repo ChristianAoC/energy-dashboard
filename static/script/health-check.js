@@ -70,13 +70,7 @@ function initHCTable() {
                 const startInputStr = document.getElementById("sb-start-date").value;
                 const endInputStr = document.getElementById("sb-end-date").value;
 
-                const startDate = c.start?.split(" ")[0] || "";
-                const endDate = c.end?.split(" ")[0] || "";
-
-                if (c.startnone == false && startDate > endInputStr) continue;
-                if (c.endnone == false && endDate < startInputStr) continue;
-
-                if (c.target_type === "Meter" && data[metaLabel["meter_id"]] === c.target_id) {
+                if (c.target_type === "meter" && data[metaLabel["meter_id"]] === c.target_id) {
                     const cell = $('td.lastCol', row);
                     const commentHTML = `<b>${c.author.split('@')[0]}</b>: ${c.comment}`;
 

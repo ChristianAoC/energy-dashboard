@@ -167,6 +167,7 @@ function renderContext() {
     const startDate = document.getElementById("sb-start-date").value;
     const endDate = document.getElementById("sb-end-date").value;
     const selMeter = document.getElementById("select-meter").value;
+    const selBuilding = document.getElementById("select-building").value;
     const contextDiv = document.getElementById("b-context");
     contextDiv.innerHTML = ""; // clear existing content
 
@@ -175,10 +176,11 @@ function renderContext() {
     }
 
     const filtered = browserData.context.filter(c => {
-        if (c.meter !== selMeter) return false;
+        if (c.target_type == "meter") if (c.target_id !== selMeter) return false;
+        if (c.target_type == "building") if (c.target_id !== selBuilding) return false;
 
-        const withinStart = c.startnone || c.start <= endDate;
-        const withinEnd = c.endnone || c.end >= startDate;
+        const withinStart = c.start_timestamp == null || c.start_timestamp <= endDate;
+        const withinEnd = c.end_timestamp == null || c.end_timestamp >= startDate;
         return withinStart || withinEnd;
     });
 
@@ -189,8 +191,8 @@ function renderContext() {
     for (const c of filtered) {
         const author = c.author.split('@')[0];
         const dateInfo = [
-            c.startnone ? "" : `start: ${c.start}`,
-            c.endnone ? "" : `end: ${c.end}`
+            c.start_timestamp == null ? "" : `start: ${c.start_timestamp}`,
+            c.end_timestamp == null ? "" : `end: ${c.end_timestamp}`
         ].filter(Boolean).join(", ");
 
         const line = `<div><strong style="font-size: 1.1em">Comments:</strong><br><b>${author}</b>: ${c.comment}${dateInfo ? " <small>(for " + dateInfo + ")</small>" : ""}</div>`;

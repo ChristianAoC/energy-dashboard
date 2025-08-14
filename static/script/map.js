@@ -96,9 +96,10 @@ $(document).ready( async function () {
 
 function updateMutedCount() {
     if (!browserData.context) return;
+    const userEmail = getCookie("Email");
     const mutedMeterIds = new Set(
     browserData.context
-        .filter(ctx => ctx.target_type === "Meter" && ctx.type.toLowerCase().includes("mute"))
+        .filter(ctx => ctx.context_type === "Global-mute" || (ctx.context_type === "User-mute" && ctx.author === userEmail))
         .map(ctx => ctx.target_id)
     );
 
@@ -128,7 +129,7 @@ function displayContextMarkers() {
     clearContextMarkers();
 
     for (let e of browserData.context) {
-        if (e.target_type === "Meter") {
+        if (e.target_type === "meter") {
             for (let [buildingCode, buildingObj] of Object.entries(browserData.hierarchy)) {
                 for (let t of utilityTypes) {
                     const meterList = buildingObj[t] || [];
@@ -145,7 +146,7 @@ function displayContextMarkers() {
             }
         }
 
-        if (e.target_type === "Building") {
+        if (e.target_type === "building") {
             const buildingObj = browserData.hierarchy[e.target_id];
             if (buildingObj) {
                 const mazeMapId = buildingObj.meta[metaLabel["mazemap_label"]]?.[0];
@@ -169,10 +170,12 @@ function placeContextMarker(building, contextEntry) {
     el.style.fontSize = "20px";
     el.style.cursor = "pointer";
 
+    const start = contextEntry.start_timestamp == null ? "No start date": contextEntry.start_timestamp;
+    const end = contextEntry.end_timestamp == null ? "No end date": contextEntry.end_timestamp;
     const hoverText = "<b>Context:</b><br>" +
-        contextEntry.type + (contextEntry.comment ? ": " + contextEntry.comment : "") + "<br><br>" +
-        "Start: " + contextEntry.start + "<br>" +
-        "End: " + contextEntry.end + "<br>" +
+        contextEntry.context_type + (contextEntry.comment ? ": " + contextEntry.comment : "") + "<br><br>" +
+        "Start: " + start + "<br>" +
+        "End: " + end + "<br>" +
         "(Added by: " + contextEntry.author + ")";
 
     const popup = new Mazemap.mapboxgl.Popup({
@@ -379,11 +382,11 @@ function filterMap() {
 
             // Check if building is muted
             const isBuildingMuted = browserData.context.some(entry =>
-                entry.target_type === "Building" &&
+                entry.target_type === "building" &&
                 entry.target_id === buildingId &&
                 (
-                    entry.type === "Global-mute" ||
-                    (entry.type === "User-mute" && entry.author === userEmail)
+                    entry.context_type === "Global-mute" ||
+                    (entry.context_type === "User-mute" && entry.author === userEmail)
                 )
             );
 
@@ -397,11 +400,11 @@ function filterMap() {
 
             const allMetersMuted = allMeterIds.length > 0 && allMeterIds.every(meterId =>
                 browserData.context.some(entry =>
-                    entry.target_type === "Meter" &&
+                    entry.target_type === "meter" &&
                     entry.target_id === meterId &&
                     (
-                        entry.type === "Global-mute" ||
-                        (entry.type === "User-mute" && entry.author === userEmail)
+                        entry.context_type === "Global-mute" ||
+                        (entry.context_type === "User-mute" && entry.author === userEmail)
                     )
                 )
             );
@@ -430,8 +433,8 @@ function filterMap() {
         if (mutedSpan) mutedSpan.textContent = mutedCount;
     } else {
         const hasMuted = browserData.context.some(entry =>
-            (entry.type === "User-mute" && entry.author === userEmail) ||
-            entry.type === "Global-mute"
+            (entry.context_type === "User-mute" && entry.author === userEmail) ||
+            entry.context_type === "Global-mute"
         );
         if (mutedDiv) mutedDiv.style.display = hasMuted ? "block" : "none";
     }
