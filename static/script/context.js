@@ -93,7 +93,7 @@ function initContextTable(userEmail, userLevel) {
                 render: function (data, type, row) {
                     if (userLevel >= 4 || row.author === userEmail) {
                         return "<button type='button' onclick='showContextEdit("+data+")'>Edit</button> "+
-                            "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) " + BASE_PATH + "/api/context/delete("+data+");'>Delete</button>";
+                            "<button type='button' onclick='if(confirm(\"Are you sure you want to delete this context element?\")) deleteContext("+data+");'>Delete</button>";
                     }
                     return "";
                 }
