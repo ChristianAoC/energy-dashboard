@@ -1,3 +1,4 @@
+
 function showContextEdit(id) {
     var data;
     for (c of browserData.context) {
@@ -8,18 +9,47 @@ function showContextEdit(id) {
     
     document.getElementById("context-container").classList.remove("hidden");
 
-    populateDD();
-    document.getElementById("contextDD").value = data["meter"];
-    document.getElementById("con-start-date").value = data["start"];
-    document.getElementById("con-end-date").value = data["end"];
+    fetchMeterListIntoDD()
+        .then(populateDD)
+        .then(() => {
+            if (data["target_type"] == "meter") {
+                document.getElementById("context-building").checked = false;
+                document.getElementById("contextDD").value = data["target_id"];
+            } else {
+                document.getElementById("context-building").checked = true;
+                for (e of browserData.meters) {
+                    if (e.building_id == data["target_id"]) {
+                        document.getElementById("contextDD").value = e.meter_id;
+                        break;
+                    }
+                }
+            }
+        })
+    
+    if (data["start_timestamp"]) {
+        document.getElementById("con-start-date").disabled = false;
+        document.getElementById("none-from").checked = false;
+        document.getElementById("con-start-date").value = data["start_timestamp"];
+    } else {
+        document.getElementById("con-start-date").disabled = true;
+        document.getElementById("none-from").checked = true;
+    }
+    if (data["end_timestamp"]) {
+        document.getElementById("con-end-date").disabled = false;
+        document.getElementById("none-to").checked = false;
+        document.getElementById("con-end-date").value = data["end_timestamp"];
+    } else {
+        document.getElementById("con-end-date").disabled = true;
+        document.getElementById("none-to").checked = true;
+    }
 
-    if (document.querySelector('input[name="context-type"][value="'+data["type"]+'"]') != null) {
-        document.querySelector('input[name="context-type"][value="'+data["type"]+'"]').checked = true;
+    if (document.querySelector('input[name="context-type"][value="'+data["context_type"]+'"]') != null) {
+        document.querySelector('input[name="context-type"][value="'+data["context_type"]+'"]').checked = true;
         document.getElementById("context-other-text").value = "";
         document.getElementById("context-other-text").disabled = true;
     } else {
         document.querySelector('input[name="context-type"][value="Other"]').checked = true;
-        document.getElementById("context-other-text").value = data["type"];
+        document.getElementById("context-other-text").value = data["context_type"];
         document.getElementById("context-other-text").disabled = false;
     }
 
@@ -55,25 +85,9 @@ function initContextTable(userEmail, userLevel) {
             {data: "author", title: "Author"},
             {data: "target_type", title: "Scope"},
             {data: "target_id", title: "Meter or Building ID"},
-            {data: "start", title: "Start",
-                render: function (data, type, row) {
-                    if (row["startnone"] == true) {
-                        return "None";
-                    } else {
-                        return row["start"];
-                    }
-                }
-            },
-            {data: "end", title: "End",
-                render: function (data, type, row) {
-                    if (row["endnone"] == true) {
-                        return "None";
-                    } else {
-                        return row["end"];
-                    }
-                }
-            },
-            {data: "type", title: "Type of Context"},
+            {data: "start_timestamp", title: "Start"},
+            {data: "end_timestamp", title: "End"},
+            {data: "context_type", title: "Type of Context"},
             {data: "comment", title: "Comment"},
             {data: "id", title: "",
                 render: function (data, type, row) {

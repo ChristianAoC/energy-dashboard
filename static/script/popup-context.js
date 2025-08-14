@@ -3,7 +3,19 @@ var commentParent = ""; // the main content div containing info that can be comm
 var contextMeterClicked = "";
 var fullDD = [];
 
-async function commentBubbleClicked() {
+async function fetchMeterListIntoDD() {
+    try {
+        if (!browserData.meters) {
+            const { meters } = await getData({ meters: {} });
+            browserData.meters = meters;
+        }
+        fillDD(browserData.meters);
+    } catch (err) {
+        console.error("Failed to load data", err);
+    }
+}
+
+function commentBubbleClicked() {
     if (commentMode) {
         leaveCommentMode();
     } else {
@@ -16,15 +28,7 @@ async function commentBubbleClicked() {
         commentMode = true;
     }
 
-    try {
-        if (!browserData.meters) {
-            const { meters } = await getData({ meters: {} });
-            browserData.meters = meters;
-        }
-        fillDD(browserData.meters);
-    } catch (err) {
-        console.error("Failed to load data", err);
-    }
+    fetchMeterListIntoDD();
 };
 
 window.addEventListener('keydown', function (event) {
@@ -248,7 +252,7 @@ function saveContext() {
 
     if (applyToBuilding) {
         targetType = "Building";
-        targetId = document.getElementById("current-context-building").textContent.trim();
+        targetId = document.getElementById("current-context-building").getAttribute("data-building-id");
     } else {
         targetType = "Meter";
         targetId = selectedMeter;

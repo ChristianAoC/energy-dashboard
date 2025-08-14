@@ -31,7 +31,7 @@ function switchClicked(e) {
     fetch(BASE_PATH + '/api/settings/', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ [key]: Boolean(newState) })
+        body: JSON.stringify({ [key]: !currentState })
     })
     .then(res => {
         if (!res.ok) {
@@ -46,7 +46,7 @@ function switchClicked(e) {
 
 // Send update when user leaves the input field/switches bool
 function onSettingChange(input) {
-    let value = htmlEscape(input.value);
+    let value = input.value;
     if (input.getAttribute("data-type") == "int") value = parseInt(value);
     if (input.getAttribute("data-type") == "float") value = parseFloat(value);
 
@@ -111,6 +111,15 @@ function loadUsers() {
         });
 }
 
+function escapeHtmlAttr(str) {
+    return String(str)
+        .replace(/&/g, "&amp;")
+        .replace(/"/g, "&quot;")
+        .replace(/'/g, "&#39;")
+        .replace(/</g, "&lt;")
+        .replace(/>/g, "&gt;");
+}
+
 function loadSettings() {
     fetch(BASE_PATH + '/api/settings')
         .then(res => {
@@ -127,14 +136,15 @@ function loadSettings() {
                     { data: "key", title: "Key"},
                     { data: 'value', title: "Value",
                         render: function (data, type, row) {
+                            const safeValue = escapeHtmlAttr(data);
                             if (row.setting_type === "str") {
-                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${data}' data-key='${row.key}' data-type='${row.setting_type}'>`;
+                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${safeValue}' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "int") {
-                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}' data-type='${row.setting_type}'>`;
+                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${safeValue}' step='1' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "float") {
-                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${data}' data-key='${row.key}' data-type='${row.setting_type}'>`;
+                                return `<input type='number' class='dt-input-int' onchange='onSettingChange(this)' value='${safeValue}' data-key='${row.key}' data-type='${row.setting_type}'>`;
                             } else if (row.setting_type === "bool") {
-                                return `<div role="switch" aria-checked="true" tabindex="0" onclick="switchClicked(this)" data-key="${row.key}">
+                                return `<div role="switch" aria-checked="${safeValue}" tabindex="0" onclick="switchClicked(this)" data-key="${row.key}">
                                         <span class="switch">
                                             <span></span>
                                         </span>
@@ -142,9 +152,9 @@ function loadSettings() {
                                         <span class="false" aria-hidden="true">False</span>
                                         </div>`;
                             } else if (row.setting_type === "list") {
-                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${data}' step='1' data-key='${row.key}'>`;
+                                return `<input type='text' class='dt-input-text' onchange='onSettingChange(this)' value='${safeValue}' step='1' data-key='${row.key}'>`;
                             } else {
-                                return data;
+                                return safeValue;
                             }
                         }
                     },

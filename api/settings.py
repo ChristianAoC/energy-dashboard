@@ -11,11 +11,11 @@ import models
 
 default_settings = {
     # User levels
-    "DEFAULT_USER_LEVEL": 3,
-    "USER_LEVEL_VIEW_DASHBOARD": 1,
+    "DEFAULT_USER_LEVEL": 1,
+    "USER_LEVEL_VIEW_DASHBOARD": 0,
     "USER_LEVEL_VIEW_HEALTHCHECK": 1,
     "USER_LEVEL_VIEW_COMMENTS": 1,
-    "USER_LEVEL_SUBMIT_COMMENTS": 3,
+    "USER_LEVEL_SUBMIT_COMMENTS": 1,
     "USER_LEVEL_EDIT_COMMENTS": 4,
     "USER_LEVEL_ADMIN": 5,
     # Mazemap info
@@ -26,11 +26,17 @@ default_settings = {
     "SMTP_ENABLED": False,
     # Site info
     "SITE_NAME": "Energy Dashboard",
+    "default_start_page": "browser",
+    "default_daterange_benchmark": 365,
+    "default_daterange_browser": 30,
+    "default_daterange_health-check": 30,
+    "capavis_url": "",
+    "clustering_url": "",
     # Influx settings
     "data_interval": 60,
     # Data settings
     "offline_mode": True,
-    "hc_update_time": 9,
+    "hc_update_time": 20,
     "cache_time_health_score": 365,
     "cache_time_summary": 30,
     "BACKGROUND_TASK_TIMING": "02:00",
