@@ -186,10 +186,8 @@ def login_request(email: str) -> tuple:
     if len(email) > 254 or len(email.split('@')) < 2:
         return ("Invalid email", 400)
     
-    if not re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email):
-        return ("Email entered doesn't seem to be a valid address!", 400)
-    
     email_domain = email.split('@')[1]
+    demo_user = False
     
     if (raw_demo := g.settings.get("DEMO_EMAIL_DOMAINS")) is not None:
         demo_domains = []
@@ -197,27 +195,25 @@ def login_request(email: str) -> tuple:
             demo_domains = [x.strip() for x in raw_demo.split(",")]
         
         if len(demo_domains) != 0 and email_domain in demo_domains:
-            sessionID = str(uuid.uuid4())
-            timestamp = dt.datetime.now().replace(second=0, microsecond=0)
-            create_user(email, g.settings["DEFAULT_USER_LEVEL"], timestamp)
-            
-            added = update_session(email, sessionID, timestamp)
-            if not added:
-                return ("Could not generate demo user.", 400)
-            return ((email, sessionID), 200)
+            demo_user = True
+    
+    if not re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email) and not demo_user:
+        return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
-    if raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS"):
+    if raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS") and not demo_user:
         required_domains = [x.strip() for x in raw_required.split(",")]
     
-    if len(required_domains) != 0 and email_domain not in required_domains:
+    if len(required_domains) != 0 and email_domain not in required_domains and not demo_user:
         return ("Email needs to have one of those domains: "+", ".join(required_domains), 400)
     
+    first_user = False
     if not user_exists(email):
         level = g.settings["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
             level = 5
+            first_user = True
         
         added = create_user(email, level)
         
@@ -235,6 +231,9 @@ def login_request(email: str) -> tuple:
     codeurl += "api/user/verify?email=" + email
     codeurl += "&code=" + code
 
+    if demo_user:
+        return ("Demo user created. <a href='" + codeurl + "'>Click on this link</a> to activate.", 200)        
+
     if g.settings["SMTP_ENABLED"]:
         mailtext  = "You requested a login token for:\t\n\t\n"
         mailtext += g.settings["SITE_NAME"] + "\t\n\t\n"
@@ -249,6 +248,8 @@ def login_request(email: str) -> tuple:
         mail.send_email(email, f"{g.settings['SITE_NAME']} Access Code", mailtext, mailhtml)
         return ("Login token generated, check your mail.", 200)
 
+    if first_user:
+        return ("First user created. <a href='" + codeurl + "'>Click on this link</a> to activate the admin.", 200)        
     print("Mail sending off until everything else works. Post this URL into the browser:")
     print(codeurl)
     log.write(msg="Mail sending is off", extra_info=f"For user {email}", level=log.info)
