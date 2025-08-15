@@ -37,7 +37,9 @@ For more users to sign up, they will need email authentication. If your server d
 
 # General Info
 
-The idea, requirements elicitation, data and knowledge gathering, user testing, and initial coding was done by [Christian Remy](https://github.com/ChristianAoC/). While the project started in 2024, coding began in mid-2024. Most of the work was done in Jupyter Notebooks and private Github repositories which is why the codebase doesn't reflect the first few iterations. Since August 2025, the main developer and maintainer is [Luke Needle](https://github.com/LukeNeedle).
+The idea, requirements elicitation, data and knowledge gathering, user testing, and initial coding was done by [Christian Remy](https://github.com/ChristianAoC/). While the project started in 2022, coding began in mid-2024. Most of the work was done in Jupyter Notebooks and private Github repositories which is why the codebase doesn't reflect the first few iterations. Since August 2025, the main developer and maintainer is [Luke Needle](https://github.com/LukeNeedle) who initially refactored and reconceptualised the backend and now holds the reins.
+
+Other contributors were [Adrian Friday](https://github.com/adrianfriday) (project's main PI and oversight), [Paul Smith](https://github.com/waternumbers) (initial data API and statistical analysis), [Oliver Bates](https://github.com/oscarechobravo) (qualitative research collaborator), [Christina Bremer](https://github.com/ChristinaBre) (Figma sketches), and [Adam Tyler](https://github.com/adam-tyler-lancaster) (data maintainer at Lancaster University).
 
 ## Funding
 
