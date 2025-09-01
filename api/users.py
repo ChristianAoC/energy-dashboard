@@ -201,7 +201,7 @@ def login_request(email: str) -> tuple:
         return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
-    if raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS") and not demo_user:
+    if (raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS")) and not demo_user:
         required_domains = [x.strip() for x in raw_required.split(",")]
     
     if len(required_domains) != 0 and email_domain not in required_domains and not demo_user:
