@@ -508,6 +508,7 @@ def offline_meta():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def mazemap_polygons():
     if not os.path.exists(mazemap_polygons_file):
+        log.write(msg="Mazemap polygons are missing", level=log.error)
         return make_response(jsonify({}), 404)
     
     with open(mazemap_polygons_file, "r") as f:

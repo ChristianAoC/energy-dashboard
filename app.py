@@ -57,26 +57,6 @@ with app.app_context():
                 extra_info="Place your data in ./data/offline/",
                 level=log.critical)
         cannot_initialise = True
-    
-    if not os.path.exists(constants.benchmark_data_file):
-        print("\n" + "="*20)
-        print("\tERROR: You have removed the included benchmark data!")
-        print("\tPlease place the benchmark data in ./data/benchmarks.json")
-        print("="*20 + "\n")
-        log.write(msg="Can't find benchmark data",
-                extra_info="Place the benchmark data in ./data/benchmarks.json, an example is included in the repo",
-                level=log.critical)
-        cannot_initialise = True
-
-    if not os.path.exists(constants.mazemap_polygons_file):
-        print("\n" + "="*20)
-        print("\tERROR: You don't have any mazemap polygons defined!")
-        print("\tPlease place the data in ./data/mazemap_polygons.json")
-        print("="*20 + "\n")
-        log.write(msg="Can't find any mazemap polygons",
-                extra_info="Place the polygon data in ./data/mazemap_polygons.json",
-                level=log.critical)
-        cannot_initialise = True
 
 # Show all error messages before exiting
 if cannot_initialise:

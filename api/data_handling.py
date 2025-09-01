@@ -442,6 +442,10 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
     units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
     building_meta_keys = ["building_name", "floor_area", "year_built", "occupancy_type", "maze_map_label"]
 
+    if not os.path.exists(benchmark_data_file):
+        log.write(msg="Benchmark file is missing", level=log.error)
+        raise FileNotFoundError("Benchmark file exists")
+    
     with open(benchmark_data_file, "r") as f:
         benchmark_data = json.load(f)
 

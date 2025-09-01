@@ -33,6 +33,7 @@ warning = "warning"
 # - unable to locate offline data
 # - an error occurs generating cache that cannot be recovered from
 # - unable to write/read required information to the DB and we cannot recover
+# - a metadata file is missing (benchmarks/polygons/etc.)
 #
 # An exception to this is when there is a situation where the user has set incompatible settings,
 # e.g: Offline mode has been set to false but one or more Influx credentials haven't been provided
