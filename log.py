@@ -50,6 +50,8 @@ error = "error"
 #
 # Requires direct, immediate intervention from an adminitrator
 # Note: These logs must contain both a message and extra info
+#
+# These errors should also shutdown the service
 critical = "critical"
 
 index = {
