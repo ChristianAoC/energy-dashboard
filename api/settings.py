@@ -126,9 +126,9 @@ def invalidate_summary_cache(commit: bool = True, just_meta: bool = False):
 
 def invalidate_hc_cache(commit: bool = True, just_meta: bool = False):
     # This function invalidates *all* health check caches, usually because benchmark data has been updated
-    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
-    if just_meta:
-        db.session.execute(db.delete(models.UtilityData))
+    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check"))
+    if not just_meta:
+        db.session.execute(db.delete(models.HealthCheck))
     if commit:
         db.session.commit()
 
