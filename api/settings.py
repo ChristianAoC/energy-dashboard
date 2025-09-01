@@ -119,7 +119,7 @@ def get(key: str):
 def invalidate_summary_cache(commit: bool = True, just_meta: bool = False):
     # This function invalidates *all* summary caches, usually because benchmark data has been updated
     db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
-    if just_meta:
+    if not just_meta:
         db.session.execute(db.delete(models.UtilityData))
     if commit:
         db.session.commit()
