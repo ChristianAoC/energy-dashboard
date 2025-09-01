@@ -88,6 +88,9 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
             invalidate_hc_cache()
             invalidate_summary_cache()
         
+        if obj.key == "USER_LEVEL_ADMIN" and value > obj.value:
+            elevate_existing_admins(value)
+        
         obj.value = value
         obj.category = category
         db.session.commit()
@@ -115,6 +118,17 @@ def get(key: str):
     else:
         value = existing_setting.value
     return value
+
+def elevate_existing_admins(new_level: int):
+    if new_level <= g.settings["USER_LEVEL_ADMIN"]:
+        raise ValueError("New level for admins is lower than the current level")
+    existing_admins = db.session.execute(
+        db.select(models.User)
+        .where(models.User.level == g.settings["USER_LEVEL_ADMIN"])
+    ).scalars().all()
+    
+    for admin in existing_admins:
+        admin.level = new_level
 
 def invalidate_summary_cache(commit: bool = True, just_meta: bool = False):
     # This function invalidates *all* summary caches, usually because benchmark data has been updated
