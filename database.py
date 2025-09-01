@@ -15,7 +15,7 @@ db = SQLAlchemy(engine_options={
     "max_overflow": 20
 })
 
-def init(app):
+def init(app) -> bool:
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'data', 'data.sqlite')}"
     db.init_app(app)
 
@@ -41,7 +41,8 @@ def init(app):
                 log.write(msg="Failed to initialise settings table", extra_info=str(e), level=log.critical)
             except:
                 pass
-            sys.exit(1)
+            return False
+    return True
 
 def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
     import api.settings as settings

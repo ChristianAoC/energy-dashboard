@@ -12,6 +12,7 @@ import base64
 from datetime import timezone
 from dotenv import load_dotenv
 import requests
+import psutil
 
 from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
@@ -26,15 +27,13 @@ import models
 
 
 app = Flask(__name__)
-database.init(app)
+successful_initialisation = database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
 
 ###########################################################
 ###              Check required files exist             ###
 ###########################################################
-
-cannot_initialise = False
 
 # This is so that the log can be written to if an error occurs when loading constants
 with app.app_context():
@@ -56,12 +55,19 @@ with app.app_context():
         log.write(msg="You are runnning in offline mode without any offline data",
                 extra_info="Place your data in ./data/offline/",
                 level=log.critical)
-        cannot_initialise = True
+        successful_initialisation = False
 
 # Show all error messages before exiting
-if cannot_initialise:
+if not successful_initialisation:
+    current_pid = os.getpid()
+    for proc in psutil.process_iter(['pid', 'name']):
+        if proc.info['name'] == 'gunicorn' and proc.info['pid'] != current_pid:
+            try:
+                os.kill(proc.info['pid'], 15) # SIGTERM
+            except OSError as e:
+                print(f"Error terminating process {proc.info['pid']}: {e}")
     sys.exit(1)
-del cannot_initialise
+del successful_initialisation
 
 ###########################################################
 ###                      Blueprints                     ###
