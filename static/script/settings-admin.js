@@ -68,7 +68,26 @@ function onSettingChange(input) {
     });
 }
 
-function loadUsers() {
+async function getAdminUserLevel() {
+    try {
+        const response = await fetch(BASE_PATH + '/api/settings/?key=USER_LEVEL_ADMIN');
+        if (!response.ok) {
+            return 5;
+        }
+        const result = await response.json();
+        const max_level = parseInt(result, 10);
+        if (isNaN(max_level)) {
+            return 5;
+        }
+        return max_level;
+    } catch {
+        return 5;
+    }
+}
+
+async function loadUsers() {
+    const admin_level = await getAdminUserLevel();
+    
     fetch(BASE_PATH + '/api/user/list')
         .then(res => {
             if (!res.ok) throw new Error("Not authorized");
@@ -85,9 +104,10 @@ function loadUsers() {
                         data: "level",
                         render: function (level, type, row) {
                             const disabled = (row.email === currentUserEmail) ? "disabled" : "";
+                            let max_level = Math.max(admin_level, level);
                             return `
                                 <select class="user-level" data-email="${row.email}" ${disabled}>
-                                    ${[1, 2, 3, 4, 5].map(val => `
+                                    ${Array.from({ length: max_level }, (_, i) => i + 1).map(val => `
                                         <option value="${val}" ${val == level ? "selected" : ""}>${val}</option>
                                     `).join("")}
                                 </select>
