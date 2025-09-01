@@ -359,8 +359,14 @@ def meter_health():
                         response.headers['X-Cache-State'] = "fresh"
                         return response
             except:
-                print("Error reading cache metadata, skipping HC cache")
-                log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
+                updateOngoing = False
+                for th in threading.enumerate():
+                    if th.name == "updateMainHC":
+                        updateOngoing = True
+                        break
+                if not updateOngoing:
+                    print("Error reading cache metadata, skipping HC cache")
+                    log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
         # TODO: Implement a lock here instead of this
         updateOngoing = False
