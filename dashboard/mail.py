@@ -8,12 +8,12 @@ from email.mime.multipart import MIMEMultipart
 import log
 
 
-def send_email(email_receiver, email_subject, email_body_plain, email_body_html):
+def send_email(email_receiver: str, email_subject: str, email_body_plain: str, email_body_html: str) -> str:
     email_sender = g.settings["SMTP_ADDRESS"]
     email_password = g.settings["SMTP_PASSWORD"]
     smtp_server = g.settings["SMTP_SERVER"]
     smtp_port = g.settings["SMTP_PORT"]
-    if email_sender == None or email_password == None or smtp_server == None or smtp_port == None:
+    if email_sender is None or email_password is None or smtp_server is None or smtp_port is None:
         print("SMTP variables not set in settings, couldn't send email!")
         log.write(msg="SMTP variables not set in settings, couldn't send email", level=log.error)
         return "SMTP variables not set in settings, couldn't send email!"
