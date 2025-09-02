@@ -333,7 +333,7 @@ def get_health(args, app_obj, returning=False):
         try:
             date_range = int(args["date_range"])
         except:
-            date_range = 30
+            date_range = g.settings("default_daterange_health-check")
         from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
 
         # TODO: Should this be implemented or removed?
@@ -351,7 +351,6 @@ def get_health(args, app_obj, returning=False):
 
         start_time = time.time()
 
-        threads = []
         out = []
 
         n = 15 # Process 15 meters at a time (15 was a random number I chose)
