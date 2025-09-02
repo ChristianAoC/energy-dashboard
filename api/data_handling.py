@@ -339,7 +339,10 @@ def get_health(args, app_obj, returning=False):
         try:
             date_range = int(args["date_range"])
         except:
-            date_range = g.settings("default_daterange_health-check")
+            if has_g_support():
+                date_range = g.settings["default_daterange_health-check"]
+            else:
+                date_range = settings.get("default_daterange_health-check")
         from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
 
         # TODO: Should this be implemented or removed?
