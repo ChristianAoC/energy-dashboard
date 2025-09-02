@@ -30,11 +30,11 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
             from_time = to_time - dt.timedelta(days=desired_time_range, seconds=1)
     else:
         if has_g_support():
-            offline_to_time_raw = g.settings["data_end_time"]
-            offline_from_time_raw = g.settings["data_start_time"]
+            offline_to_time_raw = g.settings["offline_data_end_time"]
+            offline_from_time_raw = g.settings["offline_data_start_time"]
         else:
-            offline_to_time_raw = settings.get("data_end_time")
-            offline_from_time_raw = settings.get("data_start_time")
+            offline_to_time_raw = settings.get("offline_data_end_time")
+            offline_from_time_raw = settings.get("offline_data_start_time")
         offline_to_time = dt.datetime.strptime(offline_to_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         offline_from_time = dt.datetime.strptime(offline_from_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         

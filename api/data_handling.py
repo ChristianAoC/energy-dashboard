@@ -165,19 +165,25 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
     # Because this function can be run in a separate thread, we need to push app context onto the thread
     with app_obj.app_context():
         if offline_mode:
+            # Offline data is recorded at intervals set in the settings (default: 60 mins)
             try:
                 if has_g_support():
-                    interval = g.settings.get("data_interval", 60) * 60
+                    interval = g.settings["offline_data_interval"]
                 else:
-                    interval = settings.get("data_interval") * 60 # type: ignore
+                    interval = settings.get("offline_data_interval")
             except:
-                interval = 3600
-
-            # Offline data is recorded at intervals set in the settings
-            xcount = int((to_time - from_time).total_seconds()//interval) - 1
+                interval = 60
         else:
-            # Live data is recorded at 10 minute intervals
-            xcount = int((to_time - from_time).total_seconds()//600) - 1
+            # Live data is recorded at intervals set in the settings (default: 10 mins)
+            try:
+                if has_g_support():
+                    interval = g.settings["data_interval"]
+                else:
+                    interval = settings.get("data_interval")
+            except:
+                interval = 10
+
+        xcount = int((to_time - from_time).total_seconds()//(interval * 60)) - 1
 
         # Bring SQL update output back in line with the original output (instead of just returning calculated values)
         # Filter out SEED_UUID and invoiced

@@ -136,6 +136,7 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         result["InfluxUser"] = InfluxUser
         result["InfluxPass"] = InfluxPass
         result["InfluxTable"] = InfluxTable
+        result["data_interval"] = int(os.getenv("data_interval", default_settings["data_interval"]))
         
         result["hc_update_time"] = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", default_settings["hc_update_time"]))
         result["cache_time_health_score"] = int(os.getenv("HEALTH_SCORE_CACHE_TIME",
@@ -204,9 +205,9 @@ def load_settings_from_env(from_env: bool = True) -> dict:
             except:
                 raise ValueError("Can't generate required file: offline metadata")
         
-        result["data_start_time"] = start_time
-        result["data_end_time"] = end_time
-        result["data_interval"] = interval
+        result["offline_data_start_time"] = start_time
+        result["offline_data_end_time"] = end_time
+        result["offline_data_interval"] = interval
     return result
 
 def initialise_settings_table(from_env: bool = False) -> bool:
@@ -407,6 +408,12 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             category="influx",
             setting_type="str"
         ))
+        settings.append(models.Settings(
+            key="data_interval",
+            value=temp_default_settings["data_interval"],
+            category="influx",
+            setting_type="int"
+        ))
         
         # Data
         settings.append(models.Settings(
@@ -454,20 +461,20 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             setting_type="str"
         ))
         settings.append(models.Settings(
-            key="data_start_time",
-            value=temp_default_settings["data_start_time"],
+            key="offline_data_start_time",
+            value=temp_default_settings["offline_data_start_time"],
             category="metadata",
             setting_type="str"
         ))
         settings.append(models.Settings(
-            key="data_end_time",
-            value=temp_default_settings["data_end_time"],
+            key="offline_data_end_time",
+            value=temp_default_settings["offline_data_end_time"],
             category="metadata",
             setting_type="str"
         ))
         settings.append(models.Settings(
-            key="data_interval",
-            value=temp_default_settings["data_interval"],
+            key="offline_data_interval",
+            value=temp_default_settings["offline_data_interval"],
             category="metadata",
             setting_type="int"
         ))

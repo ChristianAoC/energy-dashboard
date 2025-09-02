@@ -33,7 +33,7 @@ default_settings = {
     "capavis_url": "",
     "clustering_url": "",
     # Influx settings
-    "data_interval": 60,
+    "data_interval": 10,
     # Data settings
     "offline_mode": True,
     "hc_update_time": 20,
@@ -43,9 +43,9 @@ default_settings = {
     # Metadata settings
     "meter_sheet": "Energie points",
     "building_sheet": "Buildings",
-    "data_start_time": None,
-    "data_end_time": None,
-    "data_interval": None,
+    "offline_data_start_time": None,
+    "offline_data_end_time": None,
+    "offline_data_interval": None,
     # Logging settings
     "log_level": log.warning
 }

@@ -200,7 +200,7 @@ def summary():
     else:
         cache_result = True
         if g.settings["offline_mode"]:
-            latest_data_date = dt.datetime.strptime(g.settings["data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+            latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
         latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -334,7 +334,7 @@ def meter_health():
         if hc_cache:
             try:
                 if g.settings["offline_mode"]:
-                    latest_data_date = dt.datetime.strptime(g.settings["data_end_time"],
+                    latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"],
                                                             "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
@@ -494,9 +494,9 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     out = {
-        "start_time": g.settings["data_start_time"],
-        "end_time": g.settings["data_end_time"],
-        "interval": g.settings["data_interval"]
+        "start_time": g.settings["offline_data_start_time"],
+        "end_time": g.settings["offline_data_end_time"],
+        "interval": g.settings["offline_data_end_time"]
     }
     
     return make_response(jsonify(out), 200)
