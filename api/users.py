@@ -212,7 +212,7 @@ def login_request(email: str) -> tuple:
         level = g.settings["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
-            level = 5
+            level = g.settings["USER_LEVEL_ADMIN"]
             first_user = True
         
         added = create_user(email, level)

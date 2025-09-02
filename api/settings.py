@@ -33,7 +33,7 @@ default_settings = {
     "capavis_url": "",
     "clustering_url": "",
     # Influx settings
-    "data_interval": 60,
+    "data_interval": 10,
     # Data settings
     "offline_mode": True,
     "hc_update_time": 20,
@@ -43,9 +43,9 @@ default_settings = {
     # Metadata settings
     "meter_sheet": "Energie points",
     "building_sheet": "Buildings",
-    "data_start_time": None,
-    "data_end_time": None,
-    "data_interval": None,
+    "offline_data_start_time": None,
+    "offline_data_end_time": None,
+    "offline_data_interval": None,
     # Logging settings
     "log_level": log.warning
 }
@@ -88,6 +88,9 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
             invalidate_hc_cache()
             invalidate_summary_cache()
         
+        if obj.key == "USER_LEVEL_ADMIN" and value > obj.value:
+            elevate_existing_admins(value)
+        
         obj.value = value
         obj.category = category
         db.session.commit()
@@ -116,19 +119,30 @@ def get(key: str):
         value = existing_setting.value
     return value
 
+def elevate_existing_admins(new_level: int):
+    if new_level <= g.settings["USER_LEVEL_ADMIN"]:
+        raise ValueError("New level for admins is lower than the current level")
+    existing_admins = db.session.execute(
+        db.select(models.User)
+        .where(models.User.level == g.settings["USER_LEVEL_ADMIN"])
+    ).scalars().all()
+    
+    for admin in existing_admins:
+        admin.level = new_level
+
 def invalidate_summary_cache(commit: bool = True, just_meta: bool = False):
     # This function invalidates *all* summary caches, usually because benchmark data has been updated
     db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
-    if just_meta:
+    if not just_meta:
         db.session.execute(db.delete(models.UtilityData))
     if commit:
         db.session.commit()
 
 def invalidate_hc_cache(commit: bool = True, just_meta: bool = False):
     # This function invalidates *all* health check caches, usually because benchmark data has been updated
-    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary"))
-    if just_meta:
-        db.session.execute(db.delete(models.UtilityData))
+    db.session.execute(db.delete(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check"))
+    if not just_meta:
+        db.session.execute(db.delete(models.HealthCheck))
     if commit:
         db.session.commit()
 

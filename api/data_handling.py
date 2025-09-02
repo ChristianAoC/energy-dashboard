@@ -161,23 +161,29 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, all_outputs: list = []) -> dict|None:
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, all_outputs: list|None = None) -> dict|None:
     # Because this function can be run in a separate thread, we need to push app context onto the thread
     with app_obj.app_context():
         if offline_mode:
+            # Offline data is recorded at intervals set in the settings (default: 60 mins)
             try:
                 if has_g_support():
-                    interval = g.settings.get("data_interval", 60) * 60
+                    interval = g.settings["offline_data_interval"]
                 else:
-                    interval = settings.get("data_interval") * 60 # type: ignore
+                    interval = settings.get("offline_data_interval")
             except:
-                interval = 3600
-
-            # Offline data is recorded at intervals set in the settings
-            xcount = int((to_time - from_time).total_seconds()//interval) - 1
+                interval = 60
         else:
-            # Live data is recorded at 10 minute intervals
-            xcount = int((to_time - from_time).total_seconds()//600) - 1
+            # Live data is recorded at intervals set in the settings (default: 10 mins)
+            try:
+                if has_g_support():
+                    interval = g.settings["data_interval"]
+                else:
+                    interval = settings.get("data_interval")
+            except:
+                interval = 10
+
+        xcount = int((to_time - from_time).total_seconds()//(interval * 60)) - 1
 
         # Bring SQL update output back in line with the original output (instead of just returning calculated values)
         # Filter out SEED_UUID and invoiced
@@ -193,8 +199,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             out["HC_count_perc"] = "0%"
             out["HC_score"] = 0
 
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
         
         m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
@@ -217,8 +224,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         m_obs["diffs"] = m_obs["value"].diff()
         diffcount = m_obs["diffs"].count().sum()
         if diffcount == 0:
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
 
         # count positive, negative, and no increase
@@ -294,15 +302,18 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         ignz_count = m_obs["HC_ignz"].count().sum()
         out["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
         if ignz_count == 0:
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
         out["HC_outliers_ignz_perc"] = round(100 * out["HC_outliers_ignz"] / ignz_count, 2)
         if out["HC_outliers_ignz_perc"] > 100:
             out["HC_outliers_ignz_perc"] = 100
         out["HC_outliers_ignz_perc"] = str(out["HC_outliers_ignz_perc"]) + "%"
 
-        all_outputs.append(out)
+        if all_outputs is not None:
+            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+            all_outputs.append(out)
         return out
 
 def get_health(args, app_obj, returning=False):
@@ -328,7 +339,10 @@ def get_health(args, app_obj, returning=False):
         try:
             date_range = int(args["date_range"])
         except:
-            date_range = 30
+            if has_g_support():
+                date_range = g.settings["default_daterange_health-check"]
+            else:
+                date_range = settings.get("default_daterange_health-check")
         from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
 
         # TODO: Should this be implemented or removed?
@@ -346,7 +360,6 @@ def get_health(args, app_obj, returning=False):
 
         start_time = time.time()
 
-        threads = []
         out = []
 
         n = 15 # Process 15 meters at a time (15 was a random number I chose)
@@ -442,6 +455,10 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
     units = {'gas': "m3", 'electricity': "kWh", 'heat': "MWh", 'water': "m3"}
     building_meta_keys = ["building_name", "floor_area", "year_built", "occupancy_type", "maze_map_label"]
 
+    if not os.path.exists(benchmark_data_file):
+        log.write(msg="Benchmark file is missing", level=log.error)
+        raise FileNotFoundError("Benchmark file exists")
+    
     with open(benchmark_data_file, "r") as f:
         benchmark_data = json.load(f)
 

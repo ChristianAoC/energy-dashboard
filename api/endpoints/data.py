@@ -179,10 +179,8 @@ def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
     offline_mode = g.settings["offline_mode"]
-    from_time, to_time, days = calculate_time_args(from_time, to_time, 365, offline_mode)
-    
-    valid_cache = set(request.args).isdisjoint({"from_time", "to_time"})
-    
+    from_time, to_time, days = calculate_time_args(from_time, to_time, g.settings["default_daterange_benchmark"], offline_mode)
+
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
         .where(models.CacheMeta.meta_type == "usage_summary")
@@ -202,7 +200,7 @@ def summary():
     else:
         cache_result = True
         if g.settings["offline_mode"]:
-            latest_data_date = dt.datetime.strptime(g.settings["data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+            latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
         latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
@@ -245,7 +243,7 @@ def meter_obs():
 
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, g.settings["default_daterange_browser"], offline_mode=g.settings["offline_mode"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -336,7 +334,7 @@ def meter_health():
         if hc_cache:
             try:
                 if g.settings["offline_mode"]:
-                    latest_data_date = dt.datetime.strptime(g.settings["data_end_time"],
+                    latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"],
                                                             "%Y-%m-%dT%H:%M:%S%z").timestamp()
                 else:
                     latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
@@ -359,8 +357,14 @@ def meter_health():
                         response.headers['X-Cache-State'] = "fresh"
                         return response
             except:
-                print("Error reading cache metadata, skipping HC cache")
-                log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
+                updateOngoing = False
+                for th in threading.enumerate():
+                    if th.name == "updateMainHC":
+                        updateOngoing = True
+                        break
+                if not updateOngoing:
+                    print("Error reading cache metadata, skipping HC cache")
+                    log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
         # TODO: Implement a lock here instead of this
         updateOngoing = False
@@ -479,7 +483,7 @@ def meter_hierarchy():
 def health_score():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time, offline_mode=g.settings["offline_mode"])
+    from_time, to_time, days = calculate_time_args(from_time, to_time, g.settings["default_daterange_health-check"], offline_mode=g.settings["offline_mode"])
 
     data = generate_health_score(from_time, days)
     
@@ -490,9 +494,9 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     out = {
-        "start_time": g.settings["data_start_time"],
-        "end_time": g.settings["data_end_time"],
-        "interval": g.settings["data_interval"]
+        "start_time": g.settings["offline_data_start_time"],
+        "end_time": g.settings["offline_data_end_time"],
+        "interval": g.settings["offline_data_end_time"]
     }
     
     return make_response(jsonify(out), 200)
@@ -502,6 +506,7 @@ def offline_meta():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def mazemap_polygons():
     if not os.path.exists(mazemap_polygons_file):
+        log.write(msg="Mazemap polygons are missing", level=log.error)
         return make_response(jsonify({}), 404)
     
     with open(mazemap_polygons_file, "r") as f:
