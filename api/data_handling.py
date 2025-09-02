@@ -161,7 +161,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
 ## m - a meter object
 ## from_time - time to get data from (datetime)
 ## to_time - time to get data to (datetime)
-def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, all_outputs: list = []) -> dict|None:
+def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, all_outputs: list|None = None) -> dict|None:
     # Because this function can be run in a separate thread, we need to push app context onto the thread
     with app_obj.app_context():
         if offline_mode:
@@ -193,8 +193,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             out["HC_count_perc"] = "0%"
             out["HC_score"] = 0
 
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
         
         m_obs['time'] = pd.to_datetime(m_obs['time'], format="%Y-%m-%dT%H:%M:%S%z", utc=True)
@@ -217,8 +218,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         m_obs["diffs"] = m_obs["value"].diff()
         diffcount = m_obs["diffs"].count().sum()
         if diffcount == 0:
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
 
         # count positive, negative, and no increase
@@ -294,15 +296,18 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         ignz_count = m_obs["HC_ignz"].count().sum()
         out["HC_outliers_ignz"] = int(m_obs.HC_ignz[m_obs.HC_ignz > m_obs["HC_ignz"].mean() * 5].count())
         if ignz_count == 0:
-            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
-            all_outputs.append(out)
+            if all_outputs is not None:
+                # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+                all_outputs.append(out)
             return out
         out["HC_outliers_ignz_perc"] = round(100 * out["HC_outliers_ignz"] / ignz_count, 2)
         if out["HC_outliers_ignz_perc"] > 100:
             out["HC_outliers_ignz_perc"] = 100
         out["HC_outliers_ignz_perc"] = str(out["HC_outliers_ignz_perc"]) + "%"
 
-        all_outputs.append(out)
+        if all_outputs is not None:
+            # Add current output to all_outputs dictionary incase we are threading this - is there a better way to do this?
+            all_outputs.append(out)
         return out
 
 def get_health(args, app_obj, returning=False):
