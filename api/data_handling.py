@@ -116,7 +116,10 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
         rho = 1.0
     
     df['value'] = round(rho * round(df['value'] * kappa), 10)
-    df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+    try:
+        df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+    except:
+        return out
 
     ## uncumulate if required
     if to_rate and (m.reading_type == "cumulative"):
