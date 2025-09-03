@@ -116,7 +116,10 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
         rho = 1.0
     
     df['value'] = round(rho * round(df['value'] * kappa), 10)
-    df['time'] = pd.to_datetime(df['time'],format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+    try:
+        df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
+    except:
+        return out
 
     ## uncumulate if required
     if to_rate and (m.reading_type == "cumulative"):
@@ -317,84 +320,91 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
         return out
 
 def get_health(args, app_obj, returning=False):
-    # Because this function can be run in a separate thread, we need to push app context onto the thread
-    with app_obj.app_context():
-        try:
-            meter_ids = args["id"]
-            meter_ids = meter_ids.split(";")
-        except:
-            statement = db.select(models.Meter.id)
-            if not is_admin():
-                statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-            
-            meter_ids = [x.id for x in db.session.execute(statement)]
+    # Because this function can be run in a separate thread, we need to push app context onto the thread when ever we
+    # want to use app specific functions
 
-        if has_g_support():
-            offline_mode = g.settings["offline_mode"]
-        else:
-            offline_mode = current_app.config["offline_mode"]
-
-        to_time = args.get("to_time")
-        from_time = args.get("from_time")
-        try:
-            date_range = int(args["date_range"])
-        except:
-            if has_g_support():
-                date_range = g.settings["default_daterange_health-check"]
-            else:
-                date_range = settings.get("default_daterange_health-check")
-        from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
-
-        # TODO: Should this be implemented or removed?
-        try:
-            fmt = args["format"]
-        except:
-            fmt = "json"
-        
-        ## load and trim meters
-        statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
+    try:
+        meter_ids = args["id"]
+        meter_ids = meter_ids.split(";")
+    except:
+        statement = db.select(models.Meter.id)
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-        
+
+        with app_obj.app_context():
+            meter_ids = [x.id for x in db.session.execute(statement)]
+
+    if has_g_support():
+        offline_mode = g.settings["offline_mode"]
+    else:
+        with app_obj.app_context():
+            offline_mode = current_app.config["offline_mode"]
+
+    to_time = args.get("to_time")
+    from_time = args.get("from_time")
+    try:
+        date_range = int(args["date_range"])
+    except:
+        if has_g_support():
+            date_range = g.settings["default_daterange_health-check"]
+        else:
+            date_range = settings.get("default_daterange_health-check")
+
+    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
+
+    # TODO: Should this be implemented or removed?
+    try:
+        fmt = args["format"]
+    except:
+        fmt = "json"
+
+    ## load and trim meters
+    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
+    if not is_admin():
+        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+
+    with app_obj.app_context():
         meters = db.session.execute(statement).scalars().all()
 
-        start_time = time.time()
+    start_time = time.time()
 
-        out = []
+    out = []
 
-        n = 15 # Process 15 meters at a time (15 was a random number I chose)
-        meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
-        for meter_chunk in meter_chunks:
-            threads = []
-            for m in meter_chunk:
-                print(m.id)
-                log.write(msg=f"Started health check for {m.id}", level=log.info)
-                threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, app_obj, out), name=f"HC_{m.id}", daemon=True))
-                threads[-1].start()
+    n = 15 # Process 15 meters at a time (15 was a random number I chose)
+    meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
+    for meter_chunk in meter_chunks:
+        threads = []
+        for m in meter_chunk:
+            print(m.id)
+            log.write(msg=f"Started health check for {m.id}", level=log.info)
+            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, app_obj, out), name=f"HC_{m.id}", daemon=True))
+            threads[-1].start()
 
-            # Wait for all threads in chunk to complete
-            for t in threads:
-                t.join()
+        # Wait for all threads in chunk to complete
+        for t in threads:
+            t.join()
 
-        proc_time = (time.time() - start_time)
-        # print("--- Health check took %s seconds ---" % proc_time)
-        log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
+    proc_time = (time.time() - start_time)
+    # print("--- Health check took %s seconds ---" % proc_time)
+    log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
-        # save cache, but only if it's a "default" query
-        if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
-            try:
-                for meter in out:
+    # save cache, but only if it's a "default" query
+    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
+        try:
+            for meter in out:
+                with app_obj.app_context():
                     update_health_check(meter)
 
-                try:
-                    hc_meta = {
-                        "to_time": to_time.timestamp(),
-                        "from_time": from_time.timestamp(),
-                        "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
-                        "processing_time": proc_time,
-                        "offline": offline_mode
-                    }
-                    
+            try:
+                hc_meta = {
+                    "to_time": to_time.timestamp(),
+                    "from_time": from_time.timestamp(),
+                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
+                    "processing_time": proc_time,
+                    "offline": offline_mode
+                }
+
+                with app_obj.app_context():
                     existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
                     if existing_hc_meta is None:
                         new_hc_meta = models.CacheMeta("health_check", hc_meta)
@@ -402,34 +412,35 @@ def get_health(args, app_obj, returning=False):
                     else:
                         existing_hc_meta.update(hc_meta)
                     db.session.commit()
-                except Exception as e:
-                    print("Error trying to save metadata for latest HC cache")
-                    print(e)
-                    log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
             except Exception as e:
-                print("Error trying to save current health check in cache")
+                print("Error trying to save metadata for latest HC cache")
                 print(e)
-                log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
+                log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
+        except Exception as e:
+            print("Error trying to save current health check in cache")
+            print(e)
+            log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
 
-            print("Completed HC update")
-            log.write(msg="Completed health check update", level=log.info)
-        
-        if returning:
-            exclude_tenants = not is_admin()
-            if not exclude_tenants:
-                return out
-            
-            cleaned_out = []
-            for meter_data in out:
-                meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
-                if meter is None:
-                    continue
-                
-                if meter.invoiced:
-                    continue
-                
-                cleaned_out.append(meter_data)
+        print("Completed HC update")
+        log.write(msg="Completed health check update", level=log.info)
+
+    if returning:
+        exclude_tenants = not is_admin()
+        if not exclude_tenants:
             return out
+
+        cleaned_out = []
+        for meter_data in out:
+            with app_obj.app_context():
+                meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
+            if meter is None:
+                continue
+
+            if meter.invoiced:
+                continue
+
+            cleaned_out.append(meter_data)
+        return out
 
 def update_health_check(values: dict):
     existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()

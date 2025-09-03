@@ -51,7 +51,7 @@ error = "error"
 # Requires direct, immediate intervention from an adminitrator
 # Note: These logs must contain both a message and extra info
 #
-# These errors should also shutdown the service
+# These errors should also shut down the service
 critical = "critical"
 
 index = {
@@ -66,7 +66,6 @@ def write(msg: str, level: str, extra_info: str|None = None, commit: bool = True
     from api.settings import get as get_settings
     try:
         minimum_index = index.get(g.settings.get("log_level", info).lower())
-        pass
     except:
         try:
             minimum_level = get_settings("log_level")
