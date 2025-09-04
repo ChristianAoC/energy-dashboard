@@ -188,8 +188,8 @@ def summary():
     
     valid_cache = False
     if (cache_meta is not None
-        and cache_meta.to_time == to_time.timestamp()
-        and cache_meta.from_time == from_time.timestamp()
+        and cache_meta.to_time == to_time
+        and cache_meta.from_time == from_time
         and cache_meta.offline == g.settings["offline_mode"]):
         valid_cache = True
     
@@ -347,7 +347,7 @@ def meter_health():
                     raise Exception
                 
                 if not g.settings["offline_mode"]:
-                    cache_age = latest_data_date - meta.to_time
+                    cache_age = latest_data_date - meta.to_time.timestamp()
                     if cache_age < 3600 * g.settings["hc_update_time"] and meta.offline == g.settings["offline_mode"]:
                         response = make_response(jsonify(hc_cache), 200)
                         response.headers['X-Cache-State'] = "fresh"

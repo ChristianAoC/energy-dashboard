@@ -397,9 +397,9 @@ def get_health(args, app_obj, returning=False):
 
             try:
                 hc_meta = {
-                    "to_time": to_time.timestamp(),
-                    "from_time": from_time.timestamp(),
-                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
+                    "to_time": to_time,
+                    "from_time": from_time,
+                    "timestamp": dt.datetime.now(dt.timezone.utc),
                     "processing_time": proc_time,
                     "offline": offline_mode
                 }
@@ -596,9 +596,9 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
         existing_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
         
         new_meta = {
-            "to_time": to_time.timestamp(),
-            "from_time": from_time.timestamp(),
-            "timestamp": dt.datetime.now(tz=dt.timezone.utc).timestamp(),
+            "to_time": to_time,
+            "from_time": from_time,
+            "timestamp": dt.datetime.now(tz=dt.timezone.utc),
             "processing_time": end_time - start_time,
             "offline": g.settings["offline_mode"]
         }

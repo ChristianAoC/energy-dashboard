@@ -276,10 +276,9 @@ class HealthCheck(db.Model):
 
 class CacheMeta(db.Model):
     meta_type = db.Column(db.String, primary_key=True)
-    # Could these be DateTime objects?
-    to_time = db.Column(db.Float, nullable=False)
-    from_time = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.Float, nullable=False)
+    to_time = db.Column(db.DateTime, nullable=False)
+    from_time = db.Column(db.DateTime, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
     processing_time = db.Column(db.Float, nullable=False)
     offline = db.Column(db.Boolean, nullable=False)
 
