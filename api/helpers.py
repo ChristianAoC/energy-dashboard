@@ -3,6 +3,7 @@ from flask import g, has_request_context
 import datetime as dt
 
 from constants import *
+import log
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30, offline_mode: bool = True) -> tuple[dt.datetime,dt.datetime,int]:
@@ -35,6 +36,18 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
         else:
             offline_to_time_raw = settings.get("offline_data_end_time")
             offline_from_time_raw = settings.get("offline_data_start_time")
+        
+        if offline_to_time_raw is None or offline_from_time_raw is None:
+            msg = "Can't access setting: "
+            if offline_to_time_raw is None and offline_from_time_raw is not None:
+                msg += "offline_data_end_time"
+            elif offline_to_time_raw is not None and offline_from_time_raw is None:
+                msg = "offline_data_start_time"
+            elif offline_to_time_raw is None and offline_from_time_raw is None:
+                msg = "offline_data_start_time & offline_data_end_time"
+            log.write(msg=msg, level=log.error)
+            raise RuntimeError("Can't access settings: offline_data_start_time & offline_data_end_time")
+        
         offline_to_time = dt.datetime.strptime(offline_to_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         offline_from_time = dt.datetime.strptime(offline_from_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         
