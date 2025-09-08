@@ -370,14 +370,21 @@ def get_health(args, app_obj, returning=False):
 
     out = []
 
-    n = 15 # Process 15 meters at a time (15 was a random number I chose)
+    if has_g_support():
+        n = g.settings["meter_batch_size"]
+    else:
+        n = settings.get("meter_batch_size")
+    
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
             print(m.id)
             log.write(msg=f"Started health check for {m.id}", level=log.info)
-            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, app_obj, out), name=f"HC_{m.id}", daemon=True))
+            threads.append(threading.Thread(target=process_meter_health,
+                                            args=(m, from_time, to_time, offline_mode, app_obj, out),
+                                            name=f"HC_{m.id}",
+                                            daemon=True))
             threads[-1].start()
 
         # Wait for all threads in chunk to complete
@@ -405,7 +412,11 @@ def get_health(args, app_obj, returning=False):
                 }
 
                 with app_obj.app_context():
-                    existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+                    existing_hc_meta = db.session.execute(
+                        db.select(models.CacheMeta)
+                        .where(models.CacheMeta.meta_type == "health_check")
+                    ).scalar_one_or_none()
+                    
                     if existing_hc_meta is None:
                         new_hc_meta = models.CacheMeta("health_check", hc_meta)
                         db.session.add(new_hc_meta)
@@ -593,7 +604,10 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
     end_time = time.time()
     
     if cache_result:
-        existing_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+        existing_meta = db.session.execute(
+            db.select(models.CacheMeta)
+            .where(models.CacheMeta.meta_type == "usage_summary")
+        ).scalar_one_or_none()
         
         new_meta = {
             "to_time": to_time,

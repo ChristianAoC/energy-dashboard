@@ -208,6 +208,8 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         result["offline_data_start_time"] = start_time
         result["offline_data_end_time"] = end_time
         result["offline_data_interval"] = interval
+        
+        result["meter_batch_size"] = os.getenv("meter_batch_size", default_settings["meter_batch_size"])
     return result
 
 def initialise_settings_table(from_env: bool = False) -> bool:
@@ -485,6 +487,14 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             value=temp_default_settings["log_level"],
             category="logging",
             setting_type="str"
+        ))
+        
+        # Server settings
+        settings.append(models.Settings(
+            key="meter_batch_size",
+            value=temp_default_settings["meter_batch_size"],
+            category="server",
+            setting_type="int"
         ))
         
         db.session.add_all(settings)

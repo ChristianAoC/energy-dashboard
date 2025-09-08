@@ -192,7 +192,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     # Don't need to filter id by not null as id is primary key and therefore not null
     # We aren't filtering out tenanted meters here so that the cache contains all meters
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
-    n = 35 # Process 25 meters at a time (25 was a random number I chose)
+    n = g.settings["meter_batch_size"]
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []

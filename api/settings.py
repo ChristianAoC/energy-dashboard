@@ -47,7 +47,9 @@ default_settings = {
     "offline_data_end_time": None,
     "offline_data_interval": None,
     # Logging settings
-    "log_level": log.warning
+    "log_level": log.warning,
+    # Server settings
+    "meter_batch_size": 16
 }
 
 def load_settings():
