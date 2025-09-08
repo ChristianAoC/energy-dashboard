@@ -340,8 +340,8 @@ async function fetchAndUpdateHealthCheck({ startDateStr, endDateStr, showStatus 
         browserData.context = getcontext || [];
 
         if (hcMeta?.from_time && hcMeta?.to_time) {
-            document.getElementById("sb-start-date").value = new Date(hcMeta.from_time * 1000).toISOString().split("T")[0];
-            document.getElementById("sb-end-date").value = new Date(hcMeta.to_time * 1000).toISOString().split("T")[0];
+            document.getElementById("sb-start-date").value = new Date(hcMeta.from_time).toISOString().split("T")[0];
+            document.getElementById("sb-end-date").value = new Date(hcMeta.to_time).toISOString().split("T")[0];
         }
 
         updateHCTable();
