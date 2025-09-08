@@ -116,7 +116,7 @@ def get(key: str):
         value = default_settings.get(key)
         if value is None:
             log.write(msg="Error retrieving setting", extra_info=f"Key {key}", level=log.error)
-            return None
+            raise Exception(f"Unable to retrieve settings with key {key}")
     else:
         value = existing_setting.value
     return value
