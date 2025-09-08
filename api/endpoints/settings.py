@@ -5,11 +5,11 @@ import os
 # import openpyxl
 
 import api.endpoints.data as data_api_bp
-import api.settings as settings
 from constants import *
 from database import db, generate_offine_meta
 import log
 import models
+import settings
 
 settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
 

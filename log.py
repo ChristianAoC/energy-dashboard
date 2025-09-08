@@ -63,7 +63,7 @@ index = {
 
 def write(msg: str, level: str, extra_info: str|None = None, commit: bool = True):
     level_index = index.get(level.lower(), 1)
-    from api.settings import get as get_settings
+    from settings import get as get_settings
     try:
         minimum_index = index.get(g.settings.get("log_level", info).lower())
     except:

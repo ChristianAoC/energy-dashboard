@@ -11,12 +11,12 @@ import threading
 import time
 
 from api.helpers import calculate_time_args, data_cleaner, clean_file_name, has_g_support
-import api.settings as settings
 from api.users import is_admin
 from constants import *
 from database import db
 import log
 import models
+import settings
 
 
 ## Minimal/efficient call - get time series as Pandas

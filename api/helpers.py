@@ -8,7 +8,7 @@ import log
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, desired_time_range: int = 30, offline_mode: bool = True) -> tuple[dt.datetime,dt.datetime,int]:
     # Import here to stop circular import issue
-    import api.settings as settings
+    import settings
     
     from_time: dt.datetime = None # type: ignore
     if type(from_time_requested) is dt.datetime:

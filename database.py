@@ -45,9 +45,9 @@ def init(app) -> bool:
     return True
 
 def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
-    import api.settings as settings
     from database import db
     import models
+    import settings
     start_time = None
     end_time = None
     interval = None
@@ -113,7 +113,7 @@ def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
     return True
 
 def load_settings_from_env(from_env: bool = True) -> dict:
-    from api.settings import default_settings
+    from settings import default_settings
     result = {**default_settings}
     
     if from_env:
@@ -700,7 +700,7 @@ def initial_database_population() -> bool:
     
     if (len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0
             or len(db.session.execute(db.select(models.Building)).scalars().all()) > 0):
-        from api.settings import process_metadata_update
+        from settings import process_metadata_update
         return process_metadata_update()
     
     buildings = pd.read_excel(metadata_file, sheet_name=g.settings["building_sheet"])

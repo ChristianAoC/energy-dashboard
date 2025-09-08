@@ -18,12 +18,12 @@ from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.settings import settings_api_bp
 from api.endpoints.user import users_api_bp
-from api.settings import load_settings, default_settings
 import constants
 from dashboard.main import dashboard_bp
 import database
 import log
 import models
+from settings import load_settings, default_settings
 
 
 app = Flask(__name__)
