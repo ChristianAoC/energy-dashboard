@@ -319,44 +319,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             all_outputs.append(out)
         return out
 
-def get_health(args, app_obj, returning=False):
+def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None= None, returning=False):
     # Because this function can be run in a separate thread, we need to push app context onto the thread when ever we
     # want to use app specific functions
-
-    try:
-        meter_ids = args["id"]
-        meter_ids = meter_ids.split(";")
-    except:
-        statement = db.select(models.Meter.id)
-        if not is_admin():
-            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-
-        with app_obj.app_context():
-            meter_ids = [x.id for x in db.session.execute(statement)]
-
-    if has_g_support():
-        offline_mode = g.settings["offline_mode"]
-    else:
-        with app_obj.app_context():
-            offline_mode = current_app.config["offline_mode"]
-
-    to_time = args.get("to_time")
-    from_time = args.get("from_time")
-    try:
-        date_range = int(args["date_range"])
-    except:
-        if has_g_support():
-            date_range = g.settings["default_daterange_health-check"]
-        else:
-            date_range = settings.get("default_daterange_health-check")
-
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
-
-    # TODO: Should this be implemented or removed?
-    try:
-        fmt = args["format"]
-    except:
-        fmt = "json"
 
     ## load and trim meters
     statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
@@ -396,7 +361,7 @@ def get_health(args, app_obj, returning=False):
     log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
+    if cache_result:
         try:
             for meter in out:
                 with app_obj.app_context():
