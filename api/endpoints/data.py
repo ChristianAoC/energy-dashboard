@@ -516,7 +516,7 @@ def offline_meta():
     out = {
         "start_time": g.settings["offline_data_start_time"],
         "end_time": g.settings["offline_data_end_time"],
-        "interval": g.settings["offline_data_end_time"]
+        "interval": g.settings["offline_data_interval"]
     }
     
     return make_response(jsonify(out), 200)
