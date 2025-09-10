@@ -204,7 +204,7 @@ def summary():
             latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
-        latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        latest_data_date = dt.datetime.combine(latest_data_date, dt.datetime.min.time(), tzinfo=latest_data_date.tzinfo)
         
         if to_time < latest_data_date:
             cache_result = False

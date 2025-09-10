@@ -24,7 +24,7 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     
     if not g.settings["offline_mode"]:
         if to_time_requested is None:
-            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time())
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
 
         if from_time_requested is None:
             from_time = to_time - dt.timedelta(days=time_range, seconds=1)
