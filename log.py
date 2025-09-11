@@ -7,7 +7,7 @@ from database import db
 import models
 
 
-# Levels were loosly based on https://stackoverflow.com/a/2031209 (and other anwers for that question),
+# Levels were loosely based on https://stackoverflow.com/a/2031209 (and other answers for that question),
 # along with past experience.
 
 # Any general useful information, e.g:
@@ -16,13 +16,13 @@ import models
 # - bypassing authentication (in a normal case)
 # - skipping something (a meter/building in a health check / summary)
 #
-# Useful for debugging and must not require direct intervention, it should be safe to ignore/disgard
+# Useful for debugging and must not require direct intervention, it should be safe to ignore/discard
 info = "info"
 
 # An error that doesn't stop the operation from continuing, e.g:
 # - an error while reading an individual record from a json/csv/xlsx file
 # - an error while reading a cache, but we can just recalculate the information
-# - an error saving a cache but we can still return the information
+# - an error saving a cache, but we can still return the information
 # - an external call is sent to a user level protected endpoint without being logged it
 #
 # May require direct intervention from an administrator
@@ -32,7 +32,7 @@ warning = "warning"
 # - an internal api call fails
 # - unable to locate offline data
 # - an error occurs generating cache that cannot be recovered from
-# - unable to write/read required information to the DB and we cannot recover
+# - unable to write/read required information to the DB, and we cannot recover
 # - a metadata file is missing (benchmarks/polygons/etc.)
 #
 # An exception to this is when there is a situation where the user has set incompatible settings,
@@ -48,7 +48,7 @@ error = "error"
 # - can't generate a required file on the fly (offline meta)
 # - can't recover from a condition
 #
-# Requires direct, immediate intervention from an adminitrator
+# Requires direct, immediate intervention from an administrator
 # Note: These logs must contain both a message and extra info
 #
 # These errors should also shut down the service

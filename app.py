@@ -49,10 +49,10 @@ with app.app_context():
     
     if offline_mode and not os.path.exists(os.path.join(constants.DATA_DIR, "offline")):
         print("\n" + "="*20)
-        print("\tERROR: You are runnning in offline mode without any offline data!")
+        print("\tERROR: You are running in offline mode without any offline data!")
         print("\tPlease place your data in ./data/offline/")
         print("="*20 + "\n")
-        log.write(msg="You are runnning in offline mode without any offline data",
+        log.write(msg="You are running in offline mode without any offline data",
                 extra_info="Place your data in ./data/offline/",
                 level=log.critical)
         successful_initialisation = False
@@ -105,7 +105,7 @@ def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, pa
         print(f"Finished scheduled request to: {url}")
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
-# Need to get backgound task timing manually from database as g.settings hasn't been created as this isn't a request
+# Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request
 with app.app_context():
     result = database.db.session.execute(
         database.db.Select(models.Settings)

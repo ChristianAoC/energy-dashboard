@@ -40,34 +40,34 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFr
         return pd.DataFrame()
 
     if has_g_support():
-        InfluxURL = g.settings["InfluxURL"]
-        InfluxPort = g.settings["InfluxPort"]
-        InfluxUser = g.settings["InfluxUser"]
-        InfluxPass = g.settings["InfluxPass"]
-        InfluxTable = g.settings["InfluxTable"]
+        influx_url = g.settings["InfluxURL"]
+        influx_port = g.settings["InfluxPort"]
+        influx_user = g.settings["InfluxUser"]
+        influx_pass = g.settings["InfluxPass"]
+        influx_table = g.settings["InfluxTable"]
     else:
-        InfluxURL = settings.get("InfluxURL")
-        InfluxPort = settings.get("InfluxPort")
-        InfluxUser = settings.get("InfluxUser")
-        InfluxPass = settings.get("InfluxPass")
-        InfluxTable = settings.get("InfluxTable")
+        influx_url = settings.get("InfluxURL")
+        influx_port = settings.get("InfluxPort")
+        influx_user = settings.get("InfluxUser")
+        influx_pass = settings.get("InfluxPass")
+        influx_table = settings.get("InfluxTable")
     
-    if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
-        log.write(msg="Tried to talk to Influx with no credentials",
+    if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
+        log.write(msg="Tried to talk to Influx with missing credentials",
                   extra_info="To use online mode the Influx credentials need to be filled in",
                   level=log.error)
         return pd.DataFrame()
     
     # format query
-    qry = f'SELECT * as value FROM "{InfluxTable}"."autogen"."' + m.SEED_uuid + \
+    qry = f'SELECT * as value FROM "{influx_table}"."autogen"."' + m.SEED_uuid + \
         '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
         ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
     
     # create client for influx
-    client = InfluxDBClient(host = InfluxURL,
-                            port = InfluxPort,
-                            username = InfluxUser,
-                            password = InfluxPass)
+    client = InfluxDBClient(host = influx_url,
+                            port = influx_port,
+                            username = influx_user,
+                            password = influx_pass)
     result = client.query(qry)
 
     return pd.DataFrame(result.get_points())
@@ -417,6 +417,7 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
 
             cleaned_out.append(meter_data)
         return out
+    return None
 
 def update_health_check(values: dict):
     existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
@@ -506,6 +507,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
                 df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
                 df.set_index('time', inplace=True)
                 df = df.resample(agg, origin='end').sum()
+                # TODO: Double check if this should use x['obs'] or the newly created df
                 usage = x['obs'][0]['value']
             
             if usage is None:

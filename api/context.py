@@ -5,9 +5,9 @@ import log
 import models
 
 
-def add_context(contextElem):
+def add_context(context_elem):
     try:
-        new_context = models.Context(contextElem)
+        new_context = models.Context(context_elem)
         db.session.add(new_context)
         db.session.commit()
     except Exception as e:
@@ -16,28 +16,28 @@ def add_context(contextElem):
         return make_response("Failed to add context", 400)
     return make_response("success", 200)
 
-def edit_context(contextElem):
+def edit_context(context_elem):
     existing_context = db.session.execute(
         db.Select(models.Context)
-        .where(models.Context.id == contextElem["id"])
+        .where(models.Context.id == context_elem["id"])
     ).scalar_one_or_none()
     if existing_context is None:
-        log.write(msg=f"Context {contextElem['id']} doesn't exist",
-                  extra_info=f"User {contextElem['author']} tried to edit context {contextElem['id']} but it doesn't exist",
+        log.write(msg=f"Context {context_elem['id']} doesn't exist",
+                  extra_info=f"User {context_elem['author']} tried to edit context {context_elem['id']} but it doesn't exist",
                   level=log.info)
         return make_response("Context doesn't exist", 404)
     
-    existing_context.update(contextElem)
+    existing_context.update(context_elem)
     return make_response("success", 200)
 
-def delete_context(contextID):
+def delete_context(context_id):
     existing_context = db.session.execute(
         db.Select(models.Context)
-        .where(models.Context.id == contextID)
+        .where(models.Context.id == context_id)
     ).scalar_one_or_none()
     if existing_context is None:
-        log.write(msg=f"Context {contextID} doesn't exist",
-                  extra_info=f"Context {contextID} doesn't exist but someone is trying to delete it",
+        log.write(msg=f"Context {context_id} doesn't exist",
+                  extra_info=f"Context {context_id} doesn't exist but someone is trying to delete it",
                   level=log.info)
         return make_response("Context doesn't exist", 404)
     

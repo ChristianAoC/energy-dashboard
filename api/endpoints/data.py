@@ -38,9 +38,9 @@ def required_user_level(level_config_key):
                 if level != 0:
                     cookies = request.cookies
                     email = cookies.get("Email", None)
-                    sessionID = cookies.get("SessionID", None)
+                    session_id = cookies.get("SessionID", None)
                     
-                    if get_user_level(email, sessionID) < level:
+                    if get_user_level(email, session_id) < level:
                         return make_response("Access Denied", 401)
             except Exception as e:
                 print("No or wrong cookie")
@@ -97,14 +97,14 @@ def meters():
 @data_api_bp.route('/hc-meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
-    hc_meta = db.session.execute(
+    meta = db.session.execute(
         db.select(models.CacheMeta)
         .where(models.CacheMeta.meta_type == "health_check")
     ).scalar_one_or_none()
-    if hc_meta is None:
+    if meta is None:
         return make_response(jsonify({}), 404)
 
-    return make_response(jsonify(hc_meta.to_dict()), 200)
+    return make_response(jsonify(meta.to_dict()), 200)
 
 ## Create usage summary of meters
 ##
@@ -269,11 +269,11 @@ def meter_obs():
     if not is_admin():
         statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
     
-    meters = db.session.execute(statement).scalars().all()
+    meter_objs = db.session.execute(statement).scalars().all()
 
     out = dict.fromkeys(meter_ids)
 
-    for m in meters:
+    for m in meter_objs:
         out[m.id] = query_time_series(m, from_time, to_time, agg=agg, to_rate=to_rate)
 
     if fmt == "csv":
@@ -456,12 +456,12 @@ def meter_hierarchy():
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
-        meters = db.session.execute(statement).scalars().all()
+        meter_objs = db.session.execute(statement).scalars().all()
         
-        if len(meters) == 0:
+        if len(meter_objs) == 0:
             continue
         
-        for m in meters:
+        for m in meter_objs:
             meter_type = m.utility_type
             if meter_type not in ['gas', 'electricity', 'heat', 'water']:
                 continue
@@ -541,8 +541,8 @@ def regenerate_cache():
     cache.generate_meter_data_cache()
     end_time = time.time()
     total_time = end_time - start_time
-    print(f"Cache regeneratation took {total_time} seconds")
-    log.write(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
+    print(f"Cache regeneration took {total_time} seconds")
+    log.write(msg=f"Cache regeneration took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
 @data_api_bp.route('/populate-database/')

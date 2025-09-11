@@ -153,7 +153,7 @@ class Building(db.Model):
 class HealthCheck(db.Model):
     meter_id = db.Column(db.String, db.ForeignKey("meter.id"), primary_key=True)
 
-    # All of the following columns can be null
+    # All of the following columns are optional
     count = db.Column(db.Integer)
     count_perc = db.Column(db.String(6))
     count_score = db.Column(db.Integer)
@@ -333,12 +333,12 @@ class UtilityData(db.Model):
     def __init__(self, building_id: str, electricity: dict, gas: dict, heat: dict, water: dict):
         self.building_id = building_id
         self.update(electricity, gas, heat, water)
-    
+
     def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
         # Allow empty data
         if len(dictionary) == 0:
             return True
-        
+
         for meter in dictionary.values():
             if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
                 return False
@@ -346,9 +346,9 @@ class UtilityData(db.Model):
             if require_benchmark:
                 if bool(meter["benchmark"].keys() - {"good", "typical"}):
                     return False
-        
+
         return True
-    
+
     def update(self, electricity: dict, gas: dict, heat: dict, water: dict):
         if not self._check_dict(electricity):
             raise ValueError("Invalid electricity data")
@@ -514,28 +514,28 @@ class Context(db.Model):
     comment = db.Column(db.String, nullable=False)
     deleted = db.Column(db.Boolean, nullable=False)
     
-    def __init__(self, contextElem: dict):
-        self.update(contextElem)
+    def __init__(self, context_elem: dict):
+        self.update(context_elem)
     
-    def update(self, contextElem):
+    def update(self, context_elem):
         try:
-            self.author = contextElem["author"]
-            self.target_type = contextElem["target_type"].lower()
-            self.target_id = contextElem["target_id"]
+            self.author = context_elem["author"]
+            self.target_type = context_elem["target_type"].lower()
+            self.target_id = context_elem["target_id"]
 
-            start_time = contextElem.get("start")
+            start_time = context_elem.get("start")
             if start_time is not None:
                 start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M")
             self.start_timestamp = start_time
 
-            end_time = contextElem.get("end")
+            end_time = context_elem.get("end")
             if end_time is not None:
                 end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M")
             self.end_timestamp = end_time
 
-            self.context_type = contextElem["type"]
-            self.comment = contextElem.get("comment", "")
-            self.deleted = contextElem.get("deleted", False)
+            self.context_type = context_elem["type"]
+            self.comment = context_elem.get("comment", "")
+            self.deleted = context_elem.get("deleted", False)
         except:
             raise ValueError
     

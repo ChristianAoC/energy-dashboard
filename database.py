@@ -23,7 +23,7 @@ def init(app) -> bool:
                 try:
                     import log
                     log.write(msg="Skipped initialising settings table",
-                              extra_info="Most likey already populated",
+                              extra_info="Most likely already populated",
                               level=log.info)
                 except:
                     pass
@@ -40,8 +40,7 @@ def init(app) -> bool:
             return False
     return True
 
-def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
-    from database import db
+def generate_offline_meta(write_to_db: bool = True) -> bool|dict:
     import models
     import settings
     start_time = None
@@ -115,23 +114,23 @@ def load_settings_from_env(from_env: bool = True) -> dict:
     if from_env:
         load_dotenv()
         val = os.getenv("OFFLINE_MODE", "True")
-        offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
+        offline_mode = val.strip().lower() in ("1", "true", "yes", "on")
 
-        InfluxURL = os.getenv("INFLUX_URL")
-        InfluxPort = os.getenv("INFLUX_PORT")
-        InfluxUser = os.getenv("INFLUX_USER")
-        InfluxPass = os.getenv("INFLUX_PASS")
-        InfluxTable = os.getenv("INFLUX_TABLE")
+        influx_url = os.getenv("INFLUX_URL")
+        influx_port = os.getenv("INFLUX_PORT")
+        influx_user = os.getenv("INFLUX_USER")
+        influx_pass = os.getenv("INFLUX_PASS")
+        influx_table = os.getenv("INFLUX_TABLE")
 
-        if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
-            offlineMode = True
+        if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
+            offline_mode = True
         
-        result["offline_mode"] = offlineMode
-        result["InfluxURL"] = InfluxURL
-        result["InfluxPort"] = InfluxPort
-        result["InfluxUser"] = InfluxUser
-        result["InfluxPass"] = InfluxPass
-        result["InfluxTable"] = InfluxTable
+        result["offline_mode"] = offline_mode
+        result["InfluxURL"] = influx_url
+        result["InfluxPort"] = influx_port
+        result["InfluxUser"] = influx_user
+        result["InfluxPass"] = influx_pass
+        result["InfluxTable"] = influx_table
         result["data_interval"] = int(os.getenv("data_interval", default_settings["data_interval"]))
         
         result["hc_update_time"] = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", default_settings["hc_update_time"]))
@@ -147,21 +146,21 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         result["MAZEMAP_LNG"] = os.getenv("MAZEMAP_LNG", default_settings["MAZEMAP_LNG"])
         result["MAZEMAP_LAT"] = os.getenv("MAZEMAP_LAT", default_settings["MAZEMAP_LAT"])
         
-        SMTP_ADDRESS = os.getenv("SMTP_ADDRESS")
-        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-        SMTP_SERVER = os.getenv("SMTP_SERVER")
-        SMTP_PORT = os.getenv("SMTP_PORT")
+        smtp_address = os.getenv("SMTP_ADDRESS")
+        smtp_password = os.getenv("SMTP_PASSWORD")
+        smtp_server = os.getenv("SMTP_SERVER")
+        smtp_port = os.getenv("SMTP_PORT")
         
         val = os.getenv("SMTP_ENABLED", "False")
-        SMTP_ENABLED = val.strip().lower() in ("1", "true", "yes", "on")
+        smtp_enabled = val.strip().lower() in ("1", "true", "yes", "on")
         
-        if SMTP_ADDRESS is None or SMTP_PASSWORD is None or SMTP_SERVER is None or SMTP_PORT is None:
-            SMTP_ENABLED = False
-        result["SMTP_ENABLED"] = SMTP_ENABLED
-        result["SMTP_ADDRESS"] = SMTP_ADDRESS
-        result["SMTP_PASSWORD"] = SMTP_PASSWORD
-        result["SMTP_SERVER"] = SMTP_SERVER
-        result["SMTP_PORT"] = SMTP_PORT
+        if smtp_address is None or smtp_password is None or smtp_server is None or smtp_port is None:
+            smtp_enabled = False
+        result["SMTP_ENABLED"] = smtp_enabled
+        result["SMTP_ADDRESS"] = smtp_address
+        result["SMTP_PASSWORD"] = smtp_password
+        result["SMTP_SERVER"] = smtp_server
+        result["SMTP_PORT"] = smtp_port
         
         result["REQUIRED_EMAIL_DOMAINS"] = os.getenv("REQUIRED_EMAIL_DOMAINS", "")
         result["DEMO_EMAIL_DOMAINS"] = os.getenv("DEMO_EMAIL_DOMAINS", "")
@@ -182,7 +181,7 @@ def load_settings_from_env(from_env: bool = True) -> dict:
         result["BACKGROUND_TASK_TIMING"] = os.getenv("BACKGROUND_TASK_TIMING",
                                                      default_settings["BACKGROUND_TASK_TIMING"])
         
-        val = generate_offine_meta(write_to_db=False)
+        val = generate_offline_meta(write_to_db=False)
         
         start_time = None
         end_time = None
@@ -191,7 +190,7 @@ def load_settings_from_env(from_env: bool = True) -> dict:
             start_time = val["start_time"]
             end_time = val["end_time"]
             interval = val["interval"]
-        elif type(val) is bool and offlineMode:
+        elif type(val) is bool and offline_mode:
             try:
                 with open(offline_meta_file, "r") as f:
                     anon_data_meta = json.load(f)
@@ -501,10 +500,10 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         db.session.rollback()
         if str(e) == "Can't generate required file: offline metadata":
             print("\n" + "="*20)
-            print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
+            print("\tERROR: You are running in offline mode with no offline metadata (and it couldn't be generated)!")
             print("\tPlease either place it in ./data/offline_data.json or add the data directly to the database")
             print("="*20 + "\n")
-            log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
+            log.write(msg="You are running in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
                         extra_info="Note: there may be other critical errors that are being masked by this one.",
                         level=log.critical)
             sys.exit(1)

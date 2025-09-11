@@ -24,7 +24,7 @@ def index():
     return redirect("/" + g.settings["default_start_page"])
 
 @dashboard_bp.route("/favicon.ico")
-def getFavicon():
+def get_favicon():
     return send_file('static/gfx/favicon.ico')
 
 ###########################################################
@@ -43,9 +43,9 @@ def required_user_level(level_config_key):
                 if required_level != 0:
                     cookies = request.cookies
                     email = cookies.get("Email", None)
-                    sessionID = cookies.get("SessionID", None)
+                    session_id = cookies.get("SessionID", None)
 
-                    if users.get_user_level(email, sessionID) < required_level:
+                    if users.get_user_level(email, session_id) < required_level:
                         if request.method == "POST":
                             return make_response("Access Denied", 401)
                         return no_access()
@@ -64,13 +64,13 @@ def required_user_level(level_config_key):
 ###                 main web templates                  ###
 ###########################################################
 
-@dashboard_bp.route("/no-acess")
+@dashboard_bp.route("/no-access")
 def no_access():
     return render_template('noaccess.html')
 
 @dashboard_bp.route("/map")
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
-def map():
+def campus_map():
     return render_template('map.html')
 
 @dashboard_bp.route("/benchmark")

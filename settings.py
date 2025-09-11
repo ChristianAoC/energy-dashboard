@@ -101,6 +101,7 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
         raise e
 
 def get(key: str):
+    existing_setting = None
     try:
         statement = db.Select(models.Settings).where(models.Settings.key == key)
         if has_app_context():

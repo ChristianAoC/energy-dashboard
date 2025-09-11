@@ -61,7 +61,7 @@ function deleteContext(id) {
     fetch(BASE_PATH + "/api/context/delete?contextID="+id, {method: 'POST'})
     .then(response => response.text())
     .then(data => {
-        // does't really return anything
+        // doesn't really return anything
         location.reload();
     });
 };

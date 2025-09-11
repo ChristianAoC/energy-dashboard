@@ -24,7 +24,7 @@ As the first action, you will have to create the admin user before continuing th
 
 After registration, you will need to upload some files. Go to Settings > Upload Files and upload a metadata and a polygon file. The benchmark file is already included in the release, so don't worry about that for now. You will also need to either provide offline files or to set up the database endpoint to feed the dashboard (If you haven't done so already).
 
-You can find an example dataset along with the metadata and a polygon file [under releases in the sidebar of the GitHub repository](https://github.com/ChristianAoC/energy-dashboard/releases/latest). The offline files need to be uploaded onto your server into the `./data/offline/` folder, metadata and polygons can uploaded via the dashboard (or upload along with the offline files into the data folder).
+You can find an example dataset along with the metadata and a polygon file [under releases in the sidebar of the GitHub repository](https://github.com/ChristianAoC/energy-dashboard/releases/latest). The offline files need to be uploaded onto your server into the `./data/offline/` folder, metadata and polygons can be uploaded via the dashboard (or upload along with the offline files into the data folder).
 
 > [!IMPORTANT]
 > If you manually upload a metadata (.xlsx) file, you need to go to one of these endpoints to initialise them. You need to log into an account with admin level permissions to access the endpoints.
@@ -37,7 +37,7 @@ For more users to sign up, they will need email authentication. If your server d
 
 # General Info
 
-The idea, requirements elicitation, data and knowledge gathering, user testing, and initial coding was done by [Christian Remy](https://github.com/ChristianAoC/). While the project started in 2022, coding began in mid-2024. Most of the work was done in Jupyter Notebooks and private Github repositories which is why the codebase doesn't reflect the first few iterations. Since August 2025, the main developer and maintainer is [Luke Needle](https://github.com/LukeNeedle) who initially refactored and reconceptualised the backend and now holds the reins.
+The idea, requirements elicitation, data and knowledge gathering, user testing, and initial coding was done by [Christian Remy](https://github.com/ChristianAoC/). While the project started in 2022, coding began in mid-2024. Most of the work was done in Jupyter Notebooks and private GitHub repositories which is why the codebase doesn't reflect the first few iterations. Since August 2025, the main developer and maintainer is [Luke Needle](https://github.com/LukeNeedle) who initially refactored and reconceptualised the backend and now holds the reins.
 
 Other contributors were [Adrian Friday](https://github.com/adrianfriday) (project's main PI and oversight), [Paul Smith](https://github.com/waternumbers) (initial data API and statistical analysis), [Oliver Bates](https://github.com/oscarechobravo) (qualitative research collaborator), [Christina Bremer](https://github.com/ChristinaBre) (Figma sketches), and [Adam Tyler](https://github.com/adam-tyler-lancaster) (data maintainer at Lancaster University).
 

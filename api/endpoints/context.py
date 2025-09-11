@@ -13,55 +13,55 @@ context_api_bp = Blueprint('context_api_bp', __name__, static_url_path='')
 @context_api_bp.route("/add/", methods=['POST'])
 @context_api_bp.route("/add", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
-def addContext():
-    contextElem = request.json
-    if contextElem is None:
+def add_context():
+    context_elem = request.json
+    if context_elem is None:
         return make_response("Invalid context", 400)
     
     # for global mute run user level check just to be sure
-    if contextElem["type"] == "Global-mute":
+    if context_elem["type"] == "Global-mute":
         cookies = request.cookies
         email = cookies.get("Email", None)
-        sessionID = cookies.get("SessionID", None)
-        if users.get_user_level(email, sessionID) < g.settings["USER_LEVEL_EDIT_COMMENTS"]:
+        session_id = cookies.get("SessionID", None)
+        if users.get_user_level(email, session_id) < g.settings["USER_LEVEL_EDIT_COMMENTS"]:
             return make_response("Unauthorised", 401)
     
-    return context.add_context(contextElem)
+    return context.add_context(context_elem)
 
 @context_api_bp.route("/edit/", methods=['POST'])
 @context_api_bp.route("/edit", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
-def editContext():
-    contextElem = request.json
-    if not contextElem:
+def edit_context():
+    context_elem = request.json
+    if not context_elem:
         return make_response("Missing context element", 400)
-    if contextElem["type"] == "Global-mute":
+    if context_elem["type"] == "Global-mute":
         cookies = request.cookies
         email = cookies.get("Email", None)
-        sessionID = cookies.get("SessionID", None)
-        if users.get_user_level(email, sessionID) < 4:
+        session_id = cookies.get("SessionID", None)
+        if users.get_user_level(email, session_id) < 4:
             return make_response("Unauthorised", 401)
-    return context.edit_context(contextElem)
+    return context.edit_context(context_elem)
 
 @context_api_bp.route("/delete/", methods=['POST'])
 @context_api_bp.route("/delete", methods=['POST'])
 @data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
-def deleteContext():
-    contextID = request.args.get('contextID')
-    if not contextID:
+def delete_context():
+    context_id = request.args.get('contextID')
+    if not context_id:
         return make_response("Missing contextID", 400)
     cookies = request.cookies
     email = cookies.get("Email", None)
-    sessionID = cookies.get("SessionID", None)
-    if email is None or sessionID is None:
+    session_id = cookies.get("SessionID", None)
+    if email is None or session_id is None:
         return make_response("Unauthorised", 401)
-    user_level = users.get_user_level(email, sessionID)
+    user_level = users.get_user_level(email, session_id)
     if user_level < 4:
         return make_response("Unauthorised", 401)
-    return context.delete_context(contextID)
+    return context.delete_context(context_id)
 
 @context_api_bp.route("/all/")
 @context_api_bp.route("/all")
 @data_api_bp.required_user_level("USER_LEVEL_VIEW_COMMENTS")
-def getContext():
-    return jsonify(context.view_all())
+def get_context():
+    return make_response(jsonify(context.view_all()), 200)

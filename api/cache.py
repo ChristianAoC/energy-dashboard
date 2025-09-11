@@ -2,7 +2,6 @@ from flask import g, current_app
 
 import datetime as dt
 import json
-import os
 import threading
 
 from api.data_handling import process_meter_health, query_time_series
@@ -120,8 +119,8 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
                 score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_obj)
                 if score is None:
-                    # Something happended to the offline data since running cache_validity_checker, quit thread
-                    print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                    # Something happened to the offline data since running cache_validity_checker, quit thread
+                    print(f"Ended: {m.id} - An Error occurred accessing the offline data for this meter")
                     log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
                     return
                 meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
@@ -130,7 +129,6 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 json.dump(meter_health_scores, f)
 
             # Meter Snapshot Cache
-            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
             if offline_mode:
                 meter_snapshots_file = os.path.join(offline_meter_snapshots_files, file_name)
             else:
@@ -232,7 +230,6 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         # Wait for all threads in chunk to complete
         for t in threads:
             t.join()
-        threads = []
 
     # Clean up non-existent meters
     existing_cache_files = os.listdir(current_meter_health_score_files)

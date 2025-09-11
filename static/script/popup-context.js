@@ -180,7 +180,7 @@ function clickCheck(e) {
                     buildingCheckbox.checked = true;
 
                     const curBuilding = document.getElementById("current-context-building");
-                    curBuilding.textContent = buildingName; // overwritten anyways... fix below once we have that info
+                    curBuilding.textContent = buildingName; // overwritten anyway... fix below once we have that info
                     curBuilding.setAttribute("data-building-id", buildingId);
 
                     document.getElementById("con-start-date").disabled = true;

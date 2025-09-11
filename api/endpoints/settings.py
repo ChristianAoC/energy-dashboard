@@ -6,7 +6,7 @@ import os
 
 import api.endpoints.data as data_api_bp
 from constants import *
-from database import db, generate_offine_meta
+from database import db, generate_offline_meta
 import log
 import models
 import settings
@@ -170,9 +170,9 @@ def upload_metadata():
     
     try:
         os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
-        file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
-        os.replace(tempfile, metadata_file)
+        temp_file = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
+        file.save(temp_file, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
+        os.replace(temp_file, metadata_file)
         settings.process_metadata_update()
     except Exception as e:
         log.write(msg="Failed to save or process new metadata", extra_info=str(e), level=log.error)
@@ -202,9 +202,9 @@ def upload_benchmark():
     
     try:
         os.makedirs(os.path.dirname(benchmark_data_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
-        file.save(tempfile)
-        os.replace(tempfile, benchmark_data_file)
+        temp_file = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
+        file.save(temp_file)
+        os.replace(temp_file, benchmark_data_file)
         settings.invalidate_summary_cache()
     except:
         return make_response("Error saving file", 500)
@@ -233,9 +233,9 @@ def upload_polygons():
     
     try:
         os.makedirs(os.path.dirname(mazemap_polygons_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
-        file.save(tempfile)
-        os.replace(tempfile, mazemap_polygons_file)
+        temp_file = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
+        file.save(temp_file)
+        os.replace(temp_file, mazemap_polygons_file)
     except:
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
@@ -244,7 +244,7 @@ def upload_polygons():
 @settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def regenerate_offline_metadata():
-    if generate_offine_meta():
+    if generate_offline_meta():
         return make_response("OK", 200)
     return make_response("ERROR", 500)
 

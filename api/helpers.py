@@ -63,7 +63,7 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     
     days = (to_time.date() - from_time.date()).days
 
-    return (from_time, to_time, days)
+    return from_time, to_time, days
 
 ## Cleans the provided file name by replacing / with _
 ## file_name - The file name to be cleaned
