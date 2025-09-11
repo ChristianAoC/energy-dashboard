@@ -2,9 +2,6 @@ from flask import g, has_request_context
 
 import datetime as dt
 
-from constants import *
-import log
-
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, date_range_requested: int|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
     time_range = date_range_requested if date_range_requested is not None else desired_time_range

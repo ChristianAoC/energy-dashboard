@@ -5,12 +5,11 @@ import datetime as dt
 from influxdb import InfluxDBClient
 import json
 import math
-import os
 import pandas as pd
 import threading
 import time
 
-from api.helpers import calculate_time_args, data_cleaner, clean_file_name, has_g_support
+from api.helpers import data_cleaner, clean_file_name, has_g_support
 from api.users import is_admin
 from constants import *
 from database import db
@@ -54,7 +53,7 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFr
     
     if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
         log.write(msg="Tried to talk to Influx with missing credentials",
-                  extra_info="To use online mode the Influx credentials need to be filled in",
+                  extra_info="To use online mode the Influx credentials need to be provided",
                   level=log.error)
         return pd.DataFrame()
     

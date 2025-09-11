@@ -91,7 +91,16 @@ app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode
 ###               Set up scheduled tasks                ###
 ###########################################################
 
-def run_scheduled_requests(url: str, method: str = "get", headers: dict = {}, params: dict = {}, send_data: dict = {}):
+def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None):
+    if method is None:
+        method = "get"
+    if headers is None:
+        headers = {}
+    if params is None:
+        params = {}
+    if send_data is None:
+        send_data = {}
+
     request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
     
     if request_response.status_code != 200:

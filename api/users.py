@@ -89,8 +89,6 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
     return user.level
 
 def is_admin(user: models.User|None = None) -> bool:
-    # Import here to stop circular import issue
-    from api.users import get_user_level
     try:
         # Run all internal calls at admin level
         if (request.remote_addr in ['127.0.0.1', '::1'] and
@@ -170,7 +168,7 @@ def set_level(email: str, level: int) -> bool:
 
 # save/update user entry in DB
 # login - update the login counter (when admin changes settings, this is false)
-def create_user(email: str, level: int, timestamp: dt.datetime|None = None) -> bool:
+def create_user(email: str, level: int) -> bool:
     if email is None:
         return False
 

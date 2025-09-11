@@ -183,7 +183,7 @@ class HealthCheck(db.Model):
 
     meter = db.relationship(Meter, back_populates="hc_record")
 
-    def __init__(self, meter_id: str, hc_data: dict = {}):
+    def __init__(self, meter_id: str, hc_data: dict):
         self.meter_id = meter_id
         self.count = hc_data.get("HC_count", None)
         self.count_score = hc_data.get("HC_count_score", None)
@@ -390,15 +390,12 @@ class User(db.Model):
     sessions = db.relationship("Sessions", back_populates="user", cascade="all, delete-orphan")
     login_codes = db.relationship("LoginCode", back_populates="user", cascade="all, delete-orphan")
     
-    def __init__(self, email: str, level: int, login_count: int = 0, last_login: datetime|None = None):
+    def __init__(self, email: str, level: int):
         if len(email.split('@')) < 2:
             raise ValueError("Invalid Email Address")
         
         self.email = email
         self.level = level
-        self.login_count = login_count
-        if last_login is not None:
-            self.last_login = last_login
 
     def login(self, timestamp: datetime):
         self.login_count = self.login_count + 1
