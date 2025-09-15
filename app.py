@@ -8,6 +8,7 @@ sys.path.append(dname)
 from flask import Flask
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
+from apscheduler.triggers.interval import IntervalTrigger
 import base64
 from datetime import timezone
 from dotenv import load_dotenv
@@ -126,22 +127,48 @@ with app.app_context():
     if result is not None:
         val = result.value
     background_task_timing = val.split(":")
+    
+    result = database.db.session.execute(
+        database.db.Select(models.Settings)
+        .where(models.Settings.category == "server")
+        .where(models.Settings.key == "login_code_timeout")
+    ).scalar_one_or_none()
+    login_code_task_timing = default_settings["server"]["login_code_timeout"]
+    if result is not None:
+        login_code_task_timing = result.value
 
 scheduler = BackgroundScheduler()
-trigger = CronTrigger(
+overnight_trigger = CronTrigger(
     hour = background_task_timing[0],
     minute = background_task_timing[1],
     timezone = timezone.utc,
     jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
 )
+login_code_trigger = IntervalTrigger(
+    minutes = login_code_task_timing,
+    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+)
+
 scheduler.add_job(run_scheduled_requests,
-                  trigger,
+                  overnight_trigger,
                   id="meter_health_cache_generation",
-                  args=("http://127.0.0.1:5000/api/regeneratecache", "get", {"Authorization": app.config["internal_api_key"]}))
+                  args=("http://127.0.0.1:5000/api/regeneratecache", "get",
+                        {"Authorization": app.config["internal_api_key"]}))
 scheduler.add_job(run_scheduled_requests,
-                  trigger,
+                  overnight_trigger,
                   id="usage_summary_cache_generation",
                   args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": app.config["internal_api_key"]}))
+scheduler.add_job(run_scheduled_requests,
+                  overnight_trigger,
+                  id="clean_database_all",
+                  args=("http://127.0.0.1:5000/api/settings/clean-database", "post",
+                        {"Authorization": app.config["internal_api_key"]}))
+
+scheduler.add_job(run_scheduled_requests,
+                  overnight_trigger,
+                  id="clean_database_login_codes",
+                  args=("http://127.0.0.1:5000/api/settings/clean-database?type=login_codes","post",
+                        {"Authorization": app.config["internal_api_key"]}))
 
 scheduler.start()
 

@@ -478,8 +478,7 @@ class Log(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     message = db.Column(db.String, nullable=False)
     info = db.Column(db.String)
-    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"),
-                      nullable=False)
+    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"), nullable=False)
     
     def __init__(self, timestamp: datetime, message: str, level: str, info: str|None = None):
         self.timestamp = timestamp

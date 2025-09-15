@@ -247,6 +247,36 @@ def regenerate_offline_metadata():
         return make_response("OK", 200)
     return make_response("ERROR", 500)
 
+# Can set which type to clear.
+#  sessions - Clears expired sessions (default: 1 year)
+#  login_codes - Clears expired login codes (default: 1 hour)
+#  logs - Clears old logs (defaults:
+#                           info - 1 week
+#                           warning - 2 weeks
+#                           error - 1 month
+#                           critical - 6 months)
+# Example:
+# /api/settings?type=sessions
+@settings_api_bp.route("/clean-database/", methods=["POST"])
+@settings_api_bp.route("/clean-database", methods=["POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def clean_database():
+    to_clean_raw = request.args.get("type")
+    to_clean = []
+    if to_clean_raw is not None:
+        to_clean = [x.strip() for x in to_clean_raw.lower().split(";")]
+    
+    if to_clean == [] or "sessions" in to_clean:
+        settings.clean_database_sessions()
+    
+    if to_clean == [] or "login_codes" in to_clean:
+        settings.clean_database_login_codes()
+    
+    if to_clean == [] or "logs" in to_clean:
+        settings.clean_database_logs()
+    
+    return make_response("OK", 200)
+
 ## This is the start of a more guided upload for metadata
 # @settings_api_bp.route("/upload/new", methods=["POST"])
 # @data_api_bp.required_user_level("USER_LEVEL_ADMIN")

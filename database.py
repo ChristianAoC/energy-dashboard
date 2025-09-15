@@ -601,6 +601,42 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             category="server",
             setting_type="int"
         ))
+        settings.append(models.Settings(
+            key="session_timeout",
+            value=temp_default_settings["server"]["session_timeout"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="login_code_timeout",
+            value=temp_default_settings["server"]["login_code_timeout"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_info_expiry",
+            value=temp_default_settings["server"]["log_info_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_warning_expiry",
+            value=temp_default_settings["server"]["log_warning_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_error_expiry",
+            value=temp_default_settings["server"]["log_error_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_critical_expiry",
+            value=temp_default_settings["server"]["log_critical_expiry"],
+            category="server",
+            setting_type="int"
+        ))
         
         db.session.add_all(settings)
         

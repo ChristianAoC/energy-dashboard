@@ -1,10 +1,11 @@
 from flask import request, g, current_app, has_app_context
 from sqlalchemy import not_
 
+import copy
+import datetime as dt
 import pandas as pd
 
 from constants import metadata_file
-import copy
 from database import db, process_building_row, process_meter_row, create_building_record, create_meter_record, delete_building_record, delete_meter_record
 import log
 import models
@@ -91,7 +92,13 @@ default_settings = {
     },
     "server": {
         "BACKGROUND_TASK_TIMING": "02:00",
-        "meter_batch_size": 16
+        "meter_batch_size": 16,
+        "session_timeout": 365,
+        "login_code_timeout": 60,
+        "log_info_expiry": 7,
+        "log_warning_expiry": 14,
+        "log_error_expiry": 30,
+        "log_critical_expiry": 180
     }
 }
 
@@ -295,3 +302,44 @@ def process_metadata_update() -> bool:
                     level=log.error)
             return False
         return True
+
+def clean_database_sessions():
+    # Sessions are deleted after g.settings["server"]["session_timeout"] days
+    
+    expiry = dt.datetime.now() - dt.timedelta(days=g.settings["server"]["session_timeout"])
+    
+    db.session.execute(
+        db.delete(models.Sessions)
+        .where(models.Sessions.last_seen <= expiry)
+    )
+    db.session.commit()
+
+def clean_database_login_codes():
+    # Login codes are deleted after g.settings["server"]["login_code_timeout"] minutes
+    
+    expiry = dt.datetime.now() - dt.timedelta(minutes=g.settings["server"]["login_code_timeout"])
+    
+    db.session.execute(
+        db.delete(models.LoginCode)
+        .where(models.LoginCode.timestamp <= expiry)
+    )
+    db.session.commit()
+
+def clean_database_logs():
+    # Logs are deleted after:
+    #  info - g.settings["server"]["log_info_expiry"] days
+    #  warning - g.settings["server"]["log_warning_expiry"] days
+    #  error - g.settings["server"]["log_error_expiry"] days
+    #  critical - g.settings["server"]["log_critical_expiry"] days
+    
+    log_types = ["info", "warning", "error", "critical"]
+    
+    for log_type in log_types:
+        expiry = dt.datetime.now() - dt.timedelta(days=g.settings["server"][f"log_{log_type}_expiry"])
+        
+        db.session.execute(
+            db.delete(models.Log)
+            .where(models.Log.level == log_type)
+            .where(models.Log.timestamp <= expiry)
+        )
+    db.session.commit()
