@@ -44,25 +44,25 @@ COMMIT;
 BEGIN TRANSACTION;
 
 INSERT INTO settings (key, category, value, setting_type) VALUES
-    ('meter_id', 'metadata.meter_sheet', 'meter_id_clean2', 'str'),
-    ('raw_uuid', 'metadata.meter_sheet', 'SEED_uuid', 'str'),
-    ('description', 'metadata.meter_sheet', 'description', 'str'),
-    ('building_level_meter', 'metadata.meter_sheet', 'Building Level Meter', 'str'),
-    ('meter_type', 'metadata.meter_sheet', 'Meter Type', 'str'),
-    ('reading_type', 'metadata.meter_sheet', 'class', 'str'),
-    ('units', 'metadata.meter_sheet', 'units_after_conversion', 'str'),
-    ('resolution', 'metadata.meter_sheet', 'Resolution', 'str'),
-    ('unit_conversion_factor', 'metadata.meter_sheet', 'unit_conversion_factor', 'str'),
-    ('tenant', 'metadata.meter_sheet', 'tenant', 'str'),
-    ('meter_building', 'metadata.meter_sheet', 'Building code', 'str');
+    ('meter_id', 'metadata.meter_sheet', '"meter_id_clean2"', 'str'),
+    ('raw_uuid', 'metadata.meter_sheet', '"SEED_uuid"', 'str'),
+    ('description', 'metadata.meter_sheet', '"description"', 'str'),
+    ('building_level_meter', 'metadata.meter_sheet', '"Building Level Meter"', 'str'),
+    ('meter_type', 'metadata.meter_sheet', '"Meter Type"', 'str'),
+    ('reading_type', 'metadata.meter_sheet', '"class"', 'str'),
+    ('units', 'metadata.meter_sheet', '"units_after_conversion"', 'str'),
+    ('resolution', 'metadata.meter_sheet', '"Resolution"', 'str'),
+    ('unit_conversion_factor', 'metadata.meter_sheet', '"unit_conversion_factor"', 'str'),
+    ('tenant', 'metadata.meter_sheet', '"tenant"', 'str'),
+    ('meter_building', 'metadata.meter_sheet', '"Building code"', 'str');
 
 INSERT INTO settings (key, category, value, setting_type) VALUES
-    ('building_code', 'metadata.building_sheet', 'Property code', 'str'),
-    ('building_name', 'metadata.building_sheet', 'Building Name', 'str'),
-    ('floor_area', 'metadata.building_sheet', 'floor_area', 'str'),
-    ('year_built', 'metadata.building_sheet', 'Year', 'str'),
-    ('usage', 'metadata.building_sheet', 'Function', 'str'),
-    ('maze_map_label', 'metadata.building_sheet', 'mazemap_ids', 'str');
+    ('building_code', 'metadata.building_sheet', '"Property code"', 'str'),
+    ('building_name', 'metadata.building_sheet', '"Building Name"', 'str'),
+    ('floor_area', 'metadata.building_sheet', '"floor_area"', 'str'),
+    ('year_built', 'metadata.building_sheet', '"Year"', 'str'),
+    ('usage', 'metadata.building_sheet', '"Function"', 'str'),
+    ('maze_map_label', 'metadata.building_sheet', '"mazemap_ids"', 'str');
 
 COMMIT;
 ```
