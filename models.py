@@ -396,9 +396,10 @@ class User(db.Model):
         
         self.email = email
         self.level = level
+        self.login_count = 0
 
     def login(self, timestamp: datetime):
-        self.login_count = self.login_count + 1
+        self.login_count += 1
         self.last_login = timestamp
     
     def to_dict(self) -> dict:
