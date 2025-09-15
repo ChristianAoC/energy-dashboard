@@ -41,11 +41,30 @@ default_settings = {
     "cache_time_summary": 30,
     "BACKGROUND_TASK_TIMING": "02:00",
     # Metadata settings
-    "meter_sheet": "Energie points",
-    "building_sheet": "Buildings",
     "offline_data_start_time": None,
     "offline_data_end_time": None,
     "offline_data_interval": None,
+    ## Meter table (category is metadata.meter_sheet)
+    "meter_sheet": "Energie points",
+    "meter_id": "meter_id_clean2",
+    "raw_uuid": "SEED_uuid",
+    "description": "description",
+    "building_level_meter": "Building Level Meter",
+    "meter_type": "Meter Type",
+    "reading_type": "class",
+    "units": "units_after_conversion",
+    "resolution": "Resolution",
+    "unit_conversion_factor": "unit_conversion_factor",
+    "tenant": "tenant",
+    "meter_building": "Building code",
+    ## Building table (category is metadata.building_sheet)
+    "building_sheet": "Buildings",
+    "building_code": "Property code",
+    "building_name": "Building Name",
+    "floor_area": "floor_area",
+    "year_built": "Year",
+    "usage": "Function",
+    "maze_map_label": "mazemap_ids",
     # Logging settings
     "log_level": log.warning,
     # Server settings

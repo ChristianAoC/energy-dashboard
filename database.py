@@ -7,7 +7,7 @@ import pandas as pd
 import json
 import sys
 
-from constants import metadata_file, building_mappings, meter_mappings, offline_data_files, offline_meta_file
+from constants import metadata_file, offline_data_files, offline_meta_file
 
 db = SQLAlchemy()
 
@@ -446,18 +446,6 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         
         # Metadata
         settings.append(models.Settings(
-            key="meter_sheet",
-            value=temp_default_settings["meter_sheet"],
-            category="metadata",
-            setting_type="str"
-        ))
-        settings.append(models.Settings(
-            key="building_sheet",
-            value=temp_default_settings["building_sheet"],
-            category="metadata",
-            setting_type="str"
-        ))
-        settings.append(models.Settings(
             key="offline_data_start_time",
             value=temp_default_settings["offline_data_start_time"],
             category="metadata",
@@ -475,7 +463,125 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             category="metadata",
             setting_type="int"
         ))
-        
+
+        ## Meter table
+        settings.append(models.Settings(
+            key="meter_sheet",
+            value=temp_default_settings["meter_sheet"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_id",
+            value=temp_default_settings["meter_id"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="raw_uuid",
+            value=temp_default_settings["raw_uuid"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="description",
+            value=temp_default_settings["description"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_level_meter",
+            value=temp_default_settings["building_level_meter"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_type",
+            value=temp_default_settings["meter_type"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="reading_type",
+            value=temp_default_settings["reading_type"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="units",
+            value=temp_default_settings["units"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="resolution",
+            value=temp_default_settings["resolution"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="unit_conversion_factor",
+            value=temp_default_settings["unit_conversion_factor"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="tenant",
+            value=temp_default_settings["tenant"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_building",
+            value=temp_default_settings["meter_building"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+
+        ## Building table
+        settings.append(models.Settings(
+            key="building_sheet",
+            value=temp_default_settings["building_sheet"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_code",
+            value=temp_default_settings["building_code"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_name",
+            value=temp_default_settings["building_name"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="floor_area",
+            value=temp_default_settings["floor_area"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="year_built",
+            value=temp_default_settings["year_built"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="usage",
+            value=temp_default_settings["usage"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="maze_map_label",
+            value=temp_default_settings["maze_map_label"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+
         # Logging
         settings.append(models.Settings(
             key="log_level",
@@ -521,27 +627,27 @@ def initialise_settings_table(from_env: bool = False) -> bool:
 #       If you use them somewhere else then you need to commit the database.
 
 def process_building_row(row) -> dict:
-    building_id_raw = row[building_mappings["building_code"]]
+    building_id_raw = row[g.settings["building_code"]]
     if pd.isna(building_id_raw) or building_id_raw is None:
-        raise ValueError(f"Invalid {building_mappings['building_code']}")
+        raise ValueError(f"Invalid {g.settings['building_code']}")
     building_id = str(building_id_raw).strip()
     
-    floor_area_raw = row[building_mappings["floor_area"]]
+    floor_area_raw = row[g.settings["floor_area"]]
     floor_area = None
     if not pd.isna(floor_area_raw) and floor_area_raw is not None:
         floor_area = int(floor_area_raw)
     
-    year_built_raw = row[building_mappings["year_built"]]
+    year_built_raw = row[g.settings["year_built"]]
     year_built = None
     if not pd.isna(year_built_raw) and year_built_raw is not None:
         year_built = int(year_built_raw)
     
-    usage_raw = row[building_mappings["usage"]]
+    usage_raw = row[g.settings["usage"]]
     if pd.isna(usage_raw) or usage_raw is None:
-        raise ValueError(f"Invalid {building_mappings['usage']}")
+        raise ValueError(f"Invalid {g.settings['usage']}")
     usage = str(usage_raw).strip()
     
-    maze_map_label_raw = row[building_mappings["maze_map_label"]]
+    maze_map_label_raw = row[g.settings["maze_map_label"]]
     maze_map_label = []
     if not pd.isna(maze_map_label_raw) and maze_map_label_raw is not None:
         values = str(maze_map_label_raw).split(';')
@@ -550,7 +656,7 @@ def process_building_row(row) -> dict:
     
     return {
         "building_id": building_id.strip(),
-        "building_name": row[building_mappings["building_name"]].strip(),
+        "building_name": row[g.settings["building_name"]].strip(),
         "floor_area": floor_area,
         "year_built": year_built,
         "occupancy_type": usage,
@@ -558,57 +664,57 @@ def process_building_row(row) -> dict:
     }
 
 def process_meter_row(row) -> dict:
-    meter_id_clean_raw = row[meter_mappings["meter_id_clean"]]
+    meter_id_clean_raw = row[g.settings["meter_id"]]
     if pd.isna(meter_id_clean_raw) or meter_id_clean_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['meter_id_clean']}")
+        raise ValueError(f"Invalid {g.settings['meter_id_clean']}")
     meter_id_clean = str(meter_id_clean_raw).strip()
     
-    raw_uuid_raw = row[meter_mappings["raw_uuid"]]
+    raw_uuid_raw = row[g.settings["raw_uuid"]]
     raw_uuid = None
     if not pd.isna(raw_uuid_raw) and raw_uuid_raw is not None:
         raw_uuid = str(raw_uuid_raw).strip()
     
-    building_level_meter_raw = row[meter_mappings["building_level_meter"]]
+    building_level_meter_raw = row[g.settings["building_level_meter"]]
     building_level_meter = False
     if not pd.isna(building_level_meter_raw) and building_level_meter_raw is not None:
         if str(building_level_meter_raw).strip().lower() in ["yes", "1", "y", "true"]:
             building_level_meter = True
     
-    tenant_raw = row[meter_mappings["tenant"]]
+    tenant_raw = row[g.settings["tenant"]]
     tenant = False
     if not pd.isna(tenant_raw) and tenant_raw is not None:
         if str(tenant_raw).strip().lower() in ["yes", "1", "y", "true"]:
             tenant = True
     
-    reading_type_raw = row[meter_mappings["reading_type"]]
+    reading_type_raw = row[g.settings["reading_type"]]
     if pd.isna(reading_type_raw) or reading_type_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['reading_type']}")
+        raise ValueError(f"Invalid {g.settings['reading_type']}")
     reading_type = str(reading_type_raw).strip().lower()
     if reading_type not in ["cumulative", "rate"]:
-        raise ValueError(f"Invalid {meter_mappings['reading_type']}, needs to be either 'cumulative' or 'rate'")
+        raise ValueError(f"Invalid {g.settings['reading_type']}, needs to be either 'cumulative' or 'rate'")
     
-    resolution_raw = row[meter_mappings["resolution"]]
+    resolution_raw = row[g.settings["resolution"]]
     if pd.isna(resolution_raw) or resolution_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['resolution']}")
+        raise ValueError(f"Invalid {g.settings['resolution']}")
     resolution = float(resolution_raw)
     
-    unit_conversion_factor_raw = row[meter_mappings["unit_conversion_factor"]]
+    unit_conversion_factor_raw = row[g.settings["unit_conversion_factor"]]
     if pd.isna(unit_conversion_factor_raw) or unit_conversion_factor_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['unit_conversion_factor']}")
+        raise ValueError(f"Invalid {g.settings['unit_conversion_factor']}")
     unit_conversion_factor = float(unit_conversion_factor_raw)
     
     return {
         "meter_id": meter_id_clean,
         "raw_uuid": raw_uuid,
-        "description": row[meter_mappings["description"]].strip(),
+        "description": row[g.settings["description"]].strip(),
         "building_level_meter": building_level_meter,
-        "utility_type": row[meter_mappings["meter_type"]].strip(),
+        "utility_type": row[g.settings["meter_type"]].strip(),
         "reading_type": reading_type,
-        "units": row[meter_mappings["units_after_conversion"]].strip(),
+        "units": row[g.settings["units"]].strip(),
         "resolution": resolution,
         "unit_conversion_factor": unit_conversion_factor,
         "tenant": tenant,
-        "building": row[meter_mappings["building"]]
+        "building": row[g.settings["meter_building"]]
     }
 
 def create_building_record(building_data: dict):
