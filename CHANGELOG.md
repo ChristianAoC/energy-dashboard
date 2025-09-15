@@ -2,6 +2,29 @@
 ## Pre-Release
 This list contains the breaking changes for individual commits (anything that needs to be manually changed on the server).
 
+### Commit [7871ff3884b5f9de7e6b193c9fc3aaf604134ea7](https://github.com/ChristianAoC/energy-dashboard/commit/7871ff3884b5f9de7e6b193c9fc3aaf604134ea7)
+### Created settings:
+- server.session_timeout
+- server.login_code_timeout
+- server.log_info_expiry
+- server.log_warning_expiry
+- server.log_error_expiry
+- server.log_critical_expiry
+
+```sql
+BEGIN TRANSACTION;
+
+INSERT INTO settings (key, category, value, setting_type) VALUES
+    ('session_timeout', 'server', '365', 'int'),
+    ('login_code_timeout', 'server', '60', 'int'),
+    ('log_info_expiry', 'server', '7', 'int'),
+    ('log_warning_expiry', 'server', '14', 'int'),
+    ('log_error_expiry', 'server', '30', 'int'),
+    ('log_critical_expiry', 'server', '180', 'int');
+
+COMMIT;
+```
+
 ### Commit [91eef74579f72a6eeca6e6938c9c5db5b0aedaa6](https://github.com/ChristianAoC/energy-dashboard/commit/91eef74579f72a6eeca6e6938c9c5db5b0aedaa6)
 #### Recategorised settings:
 - data.BACKGROUND_TASK_TIMING => server.BACKGROUND_TASK_TIMING
