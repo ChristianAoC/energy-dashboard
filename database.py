@@ -831,7 +831,7 @@ def initial_database_population() -> bool:
             data = process_meter_row(row)
             
             # Filter out meters with utility types that we don't support
-            if data["utility_type"] in ["Oil", "Spare"]:
+            if data["utility_type"] not in ["electricity", "gas", "heat", "water"]:
                 continue
             
             create_meter_record(data)
