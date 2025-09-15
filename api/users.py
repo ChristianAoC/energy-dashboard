@@ -97,7 +97,7 @@ def is_admin(user: models.User|None = None) -> bool:
             log.write(msg="Bypassed user level authorization for internal call", level=log.info)
             return True
         
-        required_level = g.settings["USER_LEVEL_ADMIN"]
+        required_level = g.settings["users"]["USER_LEVEL_ADMIN"]
         
         cookies = request.cookies
         email = cookies.get("Email", None)
@@ -188,7 +188,7 @@ def login_request(email: str) -> tuple:
     email_domain = email.split('@')[1]
     demo_user = False
     
-    if (raw_demo := g.settings.get("DEMO_EMAIL_DOMAINS")) is not None:
+    if (raw_demo := g.settings["users"].get("DEMO_EMAIL_DOMAINS")) is not None:
         demo_domains = []
         if raw_demo:
             demo_domains = [x.strip() for x in raw_demo.split(",")]
@@ -200,7 +200,7 @@ def login_request(email: str) -> tuple:
         return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
-    if (raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS")) and not demo_user:
+    if (raw_required := g.settings["users"].get("REQUIRED_EMAIL_DOMAINS")) and not demo_user:
         required_domains = [x.strip() for x in raw_required.split(",")]
     
     if len(required_domains) != 0 and email_domain not in required_domains and not demo_user:
@@ -208,10 +208,10 @@ def login_request(email: str) -> tuple:
     
     first_user = False
     if not user_exists(email):
-        level = g.settings["DEFAULT_USER_LEVEL"]
+        level = g.settings["users"]["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
-            level = g.settings["USER_LEVEL_ADMIN"]
+            level = g.settings["users"]["USER_LEVEL_ADMIN"]
             first_user = True
         
         added = create_user(email, level)
@@ -233,9 +233,9 @@ def login_request(email: str) -> tuple:
     if demo_user:
         return (f"Demo user created. <a href='{code_url}'>Click on this link</a> to activate.", 200)
 
-    if g.settings["SMTP_ENABLED"]:
+    if g.settings["smtp"]["SMTP_ENABLED"]:
         mail_text  = "You requested a login token for:\t\n\t\n"
-        mail_text += g.settings["SITE_NAME"] + "\t\n\t\n"
+        mail_text += g.settings["site"]["SITE_NAME"] + "\t\n\t\n"
         mail_text += "Copy/paste the following URL into your browser:\t\n\t\n"
         mail_text += code_url + "\t\n\t\n"
         mail_text += "This code is valid for one hour."
@@ -244,7 +244,7 @@ def login_request(email: str) -> tuple:
         mail_html = mail_html.replace("Copy/paste", "<a href='"+code_url+"' target='_blank'>Click here</a> or copy/paste", )
         mail_html = mail_html.replace("\n", "<br>", )
         
-        mail.send_email(email, f"{g.settings['SITE_NAME']} Access Code", mail_text, mail_html)
+        mail.send_email(email, f"{g.settings['site']['SITE_NAME']} Access Code", mail_text, mail_html)
         return ("Login token generated, check your mail.", 200)
 
     if first_user:

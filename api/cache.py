@@ -95,13 +95,13 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             file_name = clean_file_name(f"{m.id}.csv")
 
             if has_g_support():
-                offline_mode = g.settings["offline_mode"]
-                cache_time_health_score = g.settings["cache_time_health_score"]
-                cache_time_summary = g.settings["cache_time_summary"]
+                offline_mode = g.settings["data"]["offline_mode"]
+                cache_time_health_score = g.settings["data"]["cache_time_health_score"]
+                cache_time_summary = g.settings["data"]["cache_time_summary"]
             else:
                 offline_mode = current_app.config["offline_mode"]
-                cache_time_health_score = int(settings.get("cache_time_health_score")) # type: ignore
-                cache_time_summary = int(settings.get("cache_time_summary")) # type: ignore
+                cache_time_health_score = int(settings.get("cache_time_health_score", "data")) # type: ignore
+                cache_time_summary = int(settings.get("cache_time_summary", "data")) # type: ignore
             
             if offline_mode:
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
@@ -176,9 +176,9 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
-    if g.settings["offline_mode"]:
-        data_start_time = dt.datetime.strptime(g.settings["offline_data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
-        data_end_time = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+    if g.settings["data"]["offline_mode"]:
+        data_start_time = dt.datetime.strptime(g.settings["metadata"]["offline_data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         current_meter_health_score_files = offline_meter_health_score_files
         current_meter_snapshots_files = offline_meter_snapshots_files
     else:
@@ -190,7 +190,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     # Don't need to filter id by not null as id is primary key and therefore not null
     # We aren't filtering out tenanted meters here so that the cache contains all meters
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
-    n = g.settings["meter_batch_size"]
+    n = g.settings["server"]["meter_batch_size"]
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -202,7 +202,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
             file_name = f"{clean_meter_name}.csv"
 
-            if g.settings["offline_mode"]:
+            if g.settings["data"]["offline_mode"]:
                 if not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
                     print(f"Skipping: {m.id}")
                     continue
@@ -212,11 +212,11 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
             seen_meters.append(file_name)
             
-            if (cache_validity_checker(g.settings["cache_time_health_score"],
+            if (cache_validity_checker(g.settings["data"]["cache_time_health_score"],
                                        meter_health_score_file,
                                        data_start_time,
                                        data_end_time)
-                and cache_validity_checker(g.settings["cache_time_summary"],
+                and cache_validity_checker(g.settings["data"]["cache_time_summary"],
                                            meter_snapshots_file,
                                            data_start_time,
                                            data_end_time)):

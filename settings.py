@@ -4,86 +4,116 @@ from sqlalchemy import not_
 import pandas as pd
 
 from constants import metadata_file
+import copy
 from database import db, process_building_row, process_meter_row, create_building_record, create_meter_record, delete_building_record, delete_meter_record
 import log
 import models
 
 
 default_settings = {
-    # User levels
-    "DEFAULT_USER_LEVEL": 1,
-    "USER_LEVEL_VIEW_DASHBOARD": 0,
-    "USER_LEVEL_VIEW_HEALTHCHECK": 1,
-    "USER_LEVEL_VIEW_COMMENTS": 1,
-    "USER_LEVEL_SUBMIT_COMMENTS": 1,
-    "USER_LEVEL_EDIT_COMMENTS": 4,
-    "USER_LEVEL_ADMIN": 5,
-    # Mazemap info
-    "MAZEMAP_CAMPUS_ID": 341,
-    "MAZEMAP_LNG": "-2.780372",
-    "MAZEMAP_LAT": "54.008809",
-    # SMTP settings
-    "SMTP_ENABLED": False,
-    # Site info
-    "SITE_NAME": "Energy Dashboard",
-    "default_start_page": "browser",
-    "default_daterange_benchmark": 365,
-    "default_daterange_browser": 30,
-    "default_daterange_health-check": 30,
-    "capavis_url": "",
-    "clustering_url": "",
-    # Influx settings
-    "data_interval": 10,
+    "users": {
+        "DEFAULT_USER_LEVEL": 1,
+        "USER_LEVEL_VIEW_DASHBOARD": 0,
+        "USER_LEVEL_VIEW_HEALTHCHECK": 1,
+        "USER_LEVEL_VIEW_COMMENTS": 1,
+        "USER_LEVEL_SUBMIT_COMMENTS": 1,
+        "USER_LEVEL_EDIT_COMMENTS": 4,
+        "USER_LEVEL_ADMIN": 5,
+        "REQUIRED_EMAIL_DOMAINS": None,
+        "DEMO_EMAIL_DOMAINS": None
+    },
+    "mazemap": {
+        "MAZEMAP_CAMPUS_ID": 341,
+        "MAZEMAP_LNG": "-2.780372",
+        "MAZEMAP_LAT": "54.008809"
+    },
+    "smtp": {
+        "SMTP_ENABLED": False,
+        "SMTP_ADDRESS": None,
+        "SMTP_PASSWORD": None,
+        "SMTP_SERVER": None,
+        "SMTP_PORT": None
+    },
+    "site": {
+        "SITE_NAME": "Energy Dashboard",
+        "default_start_page": "browser",
+        "default_daterange_benchmark": 365,
+        "default_daterange_browser": 30,
+        "default_daterange_health-check": 30,
+        "capavis_url": "",
+        "clustering_url": ""
+    },
+    "influx": {
+        "data_interval": 10,
+        "InfluxURL": None,
+        "InfluxPort": None,
+        "InfluxUser": None,
+        "InfluxPass": None,
+        "InfluxTable": None
+    },
     # Data settings
-    "offline_mode": True,
-    "hc_update_time": 20,
-    "cache_time_health_score": 365,
-    "cache_time_summary": 30,
-    "BACKGROUND_TASK_TIMING": "02:00",
-    # Metadata settings
-    "offline_data_start_time": None,
-    "offline_data_end_time": None,
-    "offline_data_interval": None,
-    ## Meter table (category is metadata.meter_sheet)
-    "meter_sheet": "Energie points",
-    "meter_id": "meter_id_clean2",
-    "raw_uuid": "SEED_uuid",
-    "description": "description",
-    "building_level_meter": "Building Level Meter",
-    "meter_type": "Meter Type",
-    "reading_type": "class",
-    "units": "units_after_conversion",
-    "resolution": "Resolution",
-    "unit_conversion_factor": "unit_conversion_factor",
-    "tenant": "tenant",
-    "meter_building": "Building code",
-    ## Building table (category is metadata.building_sheet)
-    "building_sheet": "Buildings",
-    "building_code": "Property code",
-    "building_name": "Building Name",
-    "floor_area": "floor_area",
-    "year_built": "Year",
-    "usage": "Function",
-    "maze_map_label": "mazemap_ids",
-    # Logging settings
-    "log_level": log.warning,
-    # Server settings
-    "meter_batch_size": 16
+    "data": {
+        "offline_mode": True,
+        "hc_update_time": 20,
+        "cache_time_health_score": 365,
+        "cache_time_summary": 30
+    },
+    "metadata": {
+        "offline_data_start_time": None,
+        "offline_data_end_time": None,
+        "offline_data_interval": None,
+        "meter_sheet": {
+            "meter_sheet": "Energie points",
+            "meter_id": "meter_id_clean2",
+            "raw_uuid": "SEED_uuid",
+            "description": "description",
+            "building_level_meter": "Building Level Meter",
+            "meter_type": "Meter Type",
+            "reading_type": "class",
+            "units": "units_after_conversion",
+            "resolution": "Resolution",
+            "unit_conversion_factor": "unit_conversion_factor",
+            "tenant": "tenant",
+            "meter_building": "Building code"
+        },
+        "building_sheet": {
+            "building_sheet": "Buildings",
+            "building_code": "Property code",
+            "building_name": "Building Name",
+            "floor_area": "floor_area",
+            "year_built": "Year",
+            "usage": "Function",
+            "maze_map_label": "mazemap_ids"
+        }
+    },
+    "logging": {
+        "log_level": log.warning
+    },
+    "server": {
+        "BACKGROUND_TASK_TIMING": "02:00",
+        "meter_batch_size": 16
+    }
 }
 
 def load_settings():
     # I had an idea to implement a "lazy loading" system here but for now there isn't enough settings to require it.
-    # May be worth looking into if the DB gets locked up
+    # May be worth looking into if the DB gets locked up frequently
     
-    # NOTE: When accessing g settings you should use `g.settings[key]` to raise an Exception (unless you can handle it locally)
+    # NOTE: When accessing g settings you should use `g.settings[category][key]` to raise an Exception
+    #       (unless you can handle it locally)
     if request.path.startswith('/static'):
         return
     
     if 'settings' not in g:
-        g.settings = {
-            **default_settings,
-            **{setting.key: setting.value for setting in db.session.execute(db.select(models.Settings)).scalars().all()}
-        }
+        g.settings = copy.deepcopy(default_settings)
+        
+        for setting in db.session.execute(db.select(models.Settings)).scalars().all():
+            parts = setting.category.split('.')
+            temp = g.settings
+            for part in parts[:-1]:
+                temp = temp.setdefault(part, {})
+            
+            temp[parts[-1]][setting.key] = setting.value
 
 def create_record(key: str, value, setting_type: str, category: str|None = None):
     try:
@@ -119,10 +149,10 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
         db.session.rollback()
         raise e
 
-def get(key: str):
+def get(key: str, category: str):
     existing_setting = None
     try:
-        statement = db.Select(models.Settings).where(models.Settings.key == key)
+        statement = db.Select(models.Settings).where(models.Settings.key == key).where(models.Settings.category == category)
         if has_app_context():
             existing_setting = db.session.execute(statement).scalar_one_or_none()
         else:
@@ -142,11 +172,11 @@ def get(key: str):
     return value
 
 def elevate_existing_admins(new_level: int):
-    if new_level <= g.settings["USER_LEVEL_ADMIN"]:
+    if new_level <= g.settings["users"]["USER_LEVEL_ADMIN"]:
         raise ValueError("New level for admins is lower than the current level")
     existing_admins = db.session.execute(
         db.select(models.User)
-        .where(models.User.level == g.settings["USER_LEVEL_ADMIN"])
+        .where(models.User.level == g.settings["users"]["USER_LEVEL_ADMIN"])
     ).scalars().all()
     
     for admin in existing_admins:
@@ -172,7 +202,7 @@ def process_metadata_update() -> bool:
     last_seen_id = "UNKNOWN BUILDING"
     with db.session.no_autoflush:
         try:
-            buildings = pd.read_excel(metadata_file, sheet_name=g.settings["building_sheet"])
+            buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["building_sheet"]["building_sheet"])
             seen_building_ids = []
             for _, row in buildings.iterrows():
                 try:
@@ -207,7 +237,7 @@ def process_metadata_update() -> bool:
                 for building in missing_buildings:
                     delete_building_record(building)
 
-            meters = pd.read_excel(metadata_file, sheet_name=g.settings["meter_sheet"])
+            meters = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["meter_sheet"]["meter_sheet"])
             seen_meter_ids = []
             for _, row in meters.iterrows():
                 try:

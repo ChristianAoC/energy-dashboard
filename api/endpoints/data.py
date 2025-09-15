@@ -31,7 +31,7 @@ def required_user_level(level_config_key):
                 return function(*args, **kwargs)
             
             try:
-                level = g.settings[level_config_key]
+                level = g.settings["users"][level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if level != 0:
@@ -179,7 +179,7 @@ def summary():
     from_time = request.args.get("from_time")
     from_time, to_time, days = calculate_time_args(from_time_requested=from_time,
                                                    to_time_requested=to_time,
-                                                   date_range_requested=g.settings["default_daterange_benchmark"])
+                                                   date_range_requested=g.settings["site"]["default_daterange_benchmark"])
 
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -190,7 +190,7 @@ def summary():
     if (cache_meta is not None
         and cache_meta.to_time == to_time
         and cache_meta.from_time == from_time
-        and cache_meta.offline == g.settings["offline_mode"]):
+        and cache_meta.offline == g.settings["data"]["offline_mode"]):
         valid_cache = True
     
     data = {}
@@ -199,8 +199,8 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if g.settings["offline_mode"]:
-            latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+        if g.settings["data"]["offline_mode"]:
+            latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
         latest_data_date = dt.datetime.combine(latest_data_date, dt.datetime.min.time(), tzinfo=latest_data_date.tzinfo)
@@ -245,7 +245,7 @@ def meter_obs():
     from_time = request.args.get("from_time")
     from_time, to_time, _ = calculate_time_args(from_time_requested=from_time,
                                                 to_time_requested=to_time,
-                                                date_range_requested=g.settings["default_daterange_browser"])
+                                                date_range_requested=g.settings["site"]["default_daterange_browser"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -326,11 +326,11 @@ def meter_health():
 
     from_time, to_time, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
-                                                   date_range_requested=request.args.get("date_range"),
-                                                   desired_time_range=g.settings["default_daterange_health-check"])
+                                                   date_range_requested=request.args.get("date_range", type=int),
+                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
 
-    if g.settings["offline_mode"]:
-        latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+    if g.settings["data"]["offline_mode"]:
+        latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
     else:
         latest_data_date = dt.datetime.combine(dt.datetime.now(dt.timezone.utc),
                                                dt.datetime.max.time(),
@@ -344,7 +344,7 @@ def meter_health():
             default_args_selected = False
 
         selected_range = to_time - from_time
-        if selected_range.days != g.settings["default_daterange_health-check"]:
+        if selected_range.days != g.settings["site"]["default_daterange_health-check"]:
             default_args_selected = False
 
     # Load existing cache
@@ -372,7 +372,7 @@ def meter_health():
     if not default_args_selected:
         health_check_data = get_health(from_time=from_time,
                                        to_time=to_time,
-                                       offline_mode=g.settings["offline_mode"],
+                                       offline_mode=g.settings["data"]["offline_mode"],
                                        app_obj=current_app._get_current_object(),
                                        cache_result=default_args_selected,
                                        meter_ids=meter_ids,
@@ -381,11 +381,12 @@ def meter_health():
         response.headers['X-Cache-State'] = "fresh"
         return response
 
-    if hc_cache and meta is not None and meta.offline == g.settings["offline_mode"]:
+    if hc_cache and meta is not None and meta.offline == g.settings["data"]["offline_mode"]:
         try:
             cache_age = latest_data_date.timestamp() - meta.to_time.timestamp()
 
-            if g.settings["offline_mode"] or (not g.settings["offline_mode"] and cache_age < 3600 * g.settings["hc_update_time"]):
+            if (g.settings["data"]["offline_mode"]
+                or (not g.settings["data"]["offline_mode"] and cache_age < 3600 * g.settings["data"]["hc_update_time"])):
                 response = make_response(jsonify(hc_cache), 200)
                 response.headers['X-Cache-State'] = "fresh"
                 return response
@@ -396,7 +397,7 @@ def meter_health():
 
     if not any(th.name == "updateMainHC" for th in threading.enumerate()):
         thread = threading.Thread(target=get_health,
-                                  args=(from_time, to_time, g.settings["offline_mode"],
+                                  args=(from_time, to_time, g.settings["data"]["offline_mode"],
                                         current_app._get_current_object(), default_args_selected, meter_ids, False),
                                   name="updateMainHC",
                                   daemon=True)
@@ -502,7 +503,7 @@ def meter_hierarchy():
 def health_score():
     from_time, _, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
-                                                   desired_time_range=g.settings["default_daterange_health-check"])
+                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
 
     data = generate_health_score(from_time, days)
 
@@ -513,9 +514,9 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     out = {
-        "start_time": g.settings["offline_data_start_time"],
-        "end_time": g.settings["offline_data_end_time"],
-        "interval": g.settings["offline_data_interval"]
+        "start_time": g.settings["metadata"]["offline_data_start_time"],
+        "end_time": g.settings["metadata"]["offline_data_end_time"],
+        "interval": g.settings["metadata"]["offline_data_interval"]
     }
     
     return make_response(jsonify(out), 200)

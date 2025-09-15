@@ -39,17 +39,17 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFr
         return pd.DataFrame()
 
     if has_g_support():
-        influx_url = g.settings["InfluxURL"]
-        influx_port = g.settings["InfluxPort"]
-        influx_user = g.settings["InfluxUser"]
-        influx_pass = g.settings["InfluxPass"]
-        influx_table = g.settings["InfluxTable"]
+        influx_url = g.settings["influx"]["InfluxURL"]
+        influx_port = g.settings["influx"]["InfluxPort"]
+        influx_user = g.settings["influx"]["InfluxUser"]
+        influx_pass = g.settings["influx"]["InfluxPass"]
+        influx_table = g.settings["influx"]["InfluxTable"]
     else:
-        influx_url = settings.get("InfluxURL")
-        influx_port = settings.get("InfluxPort")
-        influx_user = settings.get("InfluxUser")
-        influx_pass = settings.get("InfluxPass")
-        influx_table = settings.get("InfluxTable")
+        influx_url = settings.get("InfluxURL", "influx")
+        influx_port = settings.get("InfluxPort", "influx")
+        influx_user = settings.get("InfluxUser", "influx")
+        influx_pass = settings.get("InfluxPass", "influx")
+        influx_table = settings.get("InfluxTable", "influx")
     
     if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
         log.write(msg="Tried to talk to Influx with missing credentials",
@@ -98,7 +98,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     }
 
     if has_g_support():
-        offline_mode = g.settings["offline_mode"]
+        offline_mode = g.settings["data"]["offline_mode"]
     else:
         offline_mode = current_app.config["offline_mode"]
     
@@ -170,18 +170,18 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             # Offline data is recorded at intervals set in the settings (default: 60 mins)
             try:
                 if has_g_support():
-                    interval = g.settings["offline_data_interval"]
+                    interval = g.settings["metadata"]["offline_data_interval"]
                 else:
-                    interval = settings.get("offline_data_interval")
+                    interval = settings.get("offline_data_interval", "metadata")
             except:
                 interval = 60
         else:
             # Live data is recorded at intervals set in the settings (default: 10 mins)
             try:
                 if has_g_support():
-                    interval = g.settings["data_interval"]
+                    interval = g.settings["influx"]["data_interval"]
                 else:
-                    interval = settings.get("data_interval")
+                    interval = settings.get("data_interval", "influx")
             except:
                 interval = 10
 
@@ -335,9 +335,9 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
     out = []
 
     if has_g_support():
-        n = g.settings["meter_batch_size"]
+        n = g.settings["server"]["meter_batch_size"]
     else:
-        n = settings.get("meter_batch_size")
+        n = settings.get("meter_batch_size", "server")
     
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
     for meter_chunk in meter_chunks:
@@ -580,7 +580,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
             "from_time": from_time,
             "timestamp": dt.datetime.now(tz=dt.timezone.utc),
             "processing_time": end_time - start_time,
-            "offline": g.settings["offline_mode"]
+            "offline": g.settings["data"]["offline_mode"]
         }
         
         if existing_meta is None:
@@ -621,7 +621,7 @@ def generate_health_score(from_time: dt.datetime, days: int) -> dict:
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
-            if g.settings["offline_mode"]:
+            if g.settings["data"]["offline_mode"]:
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, f"{clean_meter_name}.json")
             else:
                 meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")

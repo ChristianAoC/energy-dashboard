@@ -17,11 +17,11 @@ dashboard_bp = Blueprint('dashboard_bp'
 
 @dashboard_bp.route("/helloworld")
 def helloworld():
-    return g.settings["SITE_NAME"]
+    return g.settings["site"]["SITE_NAME"]
 
 @dashboard_bp.route("/")
 def index():
-    return redirect("/" + g.settings["default_start_page"])
+    return redirect("/" + g.settings["site"]["default_start_page"])
 
 @dashboard_bp.route("/favicon.ico")
 def get_favicon():
@@ -37,7 +37,7 @@ def required_user_level(level_config_key):
         @wraps(function)
         def wrapper(*args, **kwargs):
             try:
-                required_level = g.settings[level_config_key]
+                required_level = g.settings["users"][level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if required_level != 0:

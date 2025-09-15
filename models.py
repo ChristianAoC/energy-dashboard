@@ -452,7 +452,7 @@ class LoginCode(db.Model):
 
 class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
-    category = db.Column(db.String)
+    category = db.Column(db.String, primary_key=True)
     value = db.Column(db.JSON)
     setting_type = db.Column(db.String, nullable=False)
     

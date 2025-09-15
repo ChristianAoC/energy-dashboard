@@ -19,15 +19,15 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     if type(to_time_requested) is str:
         to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
     
-    if not g.settings["offline_mode"]:
+    if not g.settings["data"]["offline_mode"]:
         if to_time_requested is None:
             to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
 
         if from_time_requested is None:
             from_time = to_time - dt.timedelta(days=time_range, seconds=1)
     else:
-        offline_to_time_raw = g.settings["offline_data_end_time"]
-        offline_from_time_raw = g.settings["offline_data_start_time"]
+        offline_to_time_raw = g.settings["metadata"]["offline_data_end_time"]
+        offline_from_time_raw = g.settings["metadata"]["offline_data_start_time"]
         
         offline_to_time = dt.datetime.strptime(offline_to_time_raw, "%Y-%m-%dT%H:%M:%S%z")
         offline_from_time = dt.datetime.strptime(offline_from_time_raw, "%Y-%m-%dT%H:%M:%S%z")
