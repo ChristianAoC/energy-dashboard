@@ -2,8 +2,34 @@
 ## Pre-Release
 This list contains the breaking changes for individual commits (anything that needs to be manually changed on the server).
 
+### Commit [91eef74579f72a6eeca6e6938c9c5db5b0aedaa6](https://github.com/ChristianAoC/energy-dashboard/commit/91eef74579f72a6eeca6e6938c9c5db5b0aedaa6)
+#### Recategorised settings:
+- data.BACKGROUND_TASK_TIMING => server.BACKGROUND_TASK_TIMING
+
+```sql
+BEGIN TRANSACTION;
+
+UPDATE settings
+SET category = 'server'
+WHERE key = 'BACKGROUND_TASK_TIMING' AND category = 'data';
+
+COMMIT;
+```
+
+#### Altered table:
+Settings table primary key changed "key" to "key and category".
+
+```sql
+BEGIN TRANSACTION;
+
+ALTER TABLE settings DROP PRIMARY KEY;
+ALTER TABLE settings ADD PRIMARY KEY (key, category);
+
+COMMIT;
+```
+
 ### Commit [06d24ab648df237aed04d566d084b091cc28d4e7](https://github.com/ChristianAoC/energy-dashboard/commit/06d24ab648df237aed04d566d084b091cc28d4e7)
-#### Renamed settings:
+#### Recategorised settings:
 - metadata.meter_sheet => metadata.meter_sheet.meter_sheet
 - metadata.building_sheet => metadata.building_sheet.building_sheet
 
