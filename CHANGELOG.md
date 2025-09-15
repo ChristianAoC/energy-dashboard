@@ -10,11 +10,11 @@ This list contains the breaking changes for individual commits (anything that ne
 ```sql
 BEGIN TRANSACTION;
 
-UPDATE settings 
+UPDATE settings
 SET category = 'metadata.meter_sheet'
 WHERE key = 'meter_sheet' AND category = 'metadata';
 
-UPDATE settings 
+UPDATE settings
 SET category = 'metadata.building_sheet'
 WHERE key = 'building_sheet' AND category = 'metadata';
 
@@ -43,7 +43,7 @@ COMMIT;
 ```sql
 BEGIN TRANSACTION;
 
-INSERT INTO settings (key, category, value, setting_type) VALUES 
+INSERT INTO settings (key, category, value, setting_type) VALUES
     ('meter_id', 'metadata.meter_sheet', 'meter_id_clean2', 'str'),
     ('raw_uuid', 'metadata.meter_sheet', 'SEED_uuid', 'str'),
     ('description', 'metadata.meter_sheet', 'description', 'str'),
@@ -56,7 +56,7 @@ INSERT INTO settings (key, category, value, setting_type) VALUES
     ('tenant', 'metadata.meter_sheet', 'tenant', 'str'),
     ('meter_building', 'metadata.meter_sheet', 'Building code', 'str');
 
-INSERT INTO settings (key, category, value, setting_type) VALUES 
+INSERT INTO settings (key, category, value, setting_type) VALUES
     ('building_code', 'metadata.building_sheet', 'Property code', 'str'),
     ('building_name', 'metadata.building_sheet', 'Building Name', 'str'),
     ('floor_area', 'metadata.building_sheet', 'floor_area', 'str'),
@@ -71,11 +71,47 @@ COMMIT;
 #### Created settings:
 - server.meter_batch_size
 
+```sql
+BEGIN TRANSACTION;
+
+INSERT INTO settings (key, category, value, setting_type) VALUES
+    ('meter_batch_size', 'server', 16, 'int');
+
+COMMIT;
+```
+
 ### Commit [e0cc995](https://github.com/ChristianAoC/energy-dashboard/commit/e0cc9956cdc2f143cc84fed77334df30352e08c4)
 #### Renamed settings:
 - metadata.data_start_time => metadata.offline_data_start_time
 - metadata.data_end_time => metadata.offline_data_end_time
 - metadata.data_interval => metadata.offline_data_interval
 
+```sql
+BEGIN TRANSACTION;
+
+UPDATE settings
+SET key = 'offline_data_start_time'
+WHERE key = 'data_start_time' AND category = 'metadata';
+
+UPDATE settings
+SET key = 'offline_data_end_time'
+WHERE key = 'data_end_time' AND category = 'metadata';
+
+UPDATE settings
+SET key = 'offline_data_interval'
+WHERE key = 'data_interval' AND category = 'metadata';
+
+COMMIT;
+```
+
 #### Created settings:
 - influx.data_interval
+
+```sql
+BEGIN TRANSACTION;
+
+INSERT INTO settings (key, category, value, setting_type) VALUES
+    ('data_interval', 'influx', 10, 'int');
+
+COMMIT;
+```
