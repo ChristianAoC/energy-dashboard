@@ -17,13 +17,26 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
-# Copy application code
-COPY . .
+# Copy files
+COPY api/*.py .
+COPY dashboard/*.py .
+COPY app.py .
+COPY settings.py .
+COPY constants.py .
+COPY database.py .
+COPY log.py .
+COPY models.py .
+
+COPY LICENSE .
+
+COPY static/ ./static/
+COPY dashboard/templates/ ./dashboard/templates/
 
 # Expose Flask/gunicorn port
 EXPOSE 5050
 
 # Make sure the data folder is readable
+RUN mkdir /app/data
 RUN chmod -R 777 /app/data
 
 # Run app with gunicorn (production-grade WSGI)
