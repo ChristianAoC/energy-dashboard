@@ -32,18 +32,19 @@ def get_user_info(email: str|None = None) -> dict|None:
             "email": user.email,
             "level": user.level
         }
+    return None
 
 def get_logged_in_user() -> dict | None:
     """Get currently logged-in user from session cookies if valid, else None."""
     cookies = request.cookies
     email = cookies.get("Email")
-    sessionID = cookies.get("SessionID")
+    session_id = cookies.get("SessionID")
 
-    if not email or not sessionID:
+    if not email or not session_id:
         return None
 
     # Assuming users.get_user_level(email, sessionID) returns 0 or None if invalid
-    user_level = get_user_level(email, sessionID)
+    user_level = get_user_level(email, session_id)
     if not user_level or user_level == 0:
         return None
 
@@ -88,8 +89,6 @@ def get_user_level(email: str|None, session_id: str|None) -> int:
     return user.level
 
 def is_admin(user: models.User|None = None) -> bool:
-    # Import here to stop circular import issue
-    from api.users import get_user_level
     try:
         # Run all internal calls at admin level
         if (request.remote_addr in ['127.0.0.1', '::1'] and
@@ -98,14 +97,14 @@ def is_admin(user: models.User|None = None) -> bool:
             log.write(msg="Bypassed user level authorization for internal call", level=log.info)
             return True
         
-        required_level = g.settings["USER_LEVEL_ADMIN"]
+        required_level = g.settings["users"]["USER_LEVEL_ADMIN"]
         
         cookies = request.cookies
         email = cookies.get("Email", None)
-        sessionID = cookies.get("SessionID", None)
+        session_id = cookies.get("SessionID", None)
         
         if user is None:
-            user_level = get_user_level(email, sessionID)
+            user_level = get_user_level(email, session_id)
         else:
             user_level = user.level
         
@@ -115,10 +114,10 @@ def is_admin(user: models.User|None = None) -> bool:
         return False
     return True
 
-def set_cookies(email: str, sessionID: str, message: str|None = None, status: str = "info") -> Response:
+def set_cookies(email: str, session_id: str, message: str|None = None, status: str = "info") -> Response:
     user = get_logged_in_user()
     resp = make_response(render_template('settings.html', user=user, message=message, status=status))
-    resp.set_cookie("SessionID", sessionID, 60*60*24*365)
+    resp.set_cookie("SessionID", session_id, 60 * 60 * 24 * 365)
     resp.set_cookie("Email", email, 60*60*24*365)
     resp.status_code = 200
     return resp
@@ -169,7 +168,7 @@ def set_level(email: str, level: int) -> bool:
 
 # save/update user entry in DB
 # login - update the login counter (when admin changes settings, this is false)
-def create_user(email: str, level: int, timestamp: dt.datetime|None = None) -> bool:
+def create_user(email: str, level: int) -> bool:
     if email is None:
         return False
 
@@ -189,7 +188,7 @@ def login_request(email: str) -> tuple:
     email_domain = email.split('@')[1]
     demo_user = False
     
-    if (raw_demo := g.settings.get("DEMO_EMAIL_DOMAINS")) is not None:
+    if (raw_demo := g.settings["users"].get("DEMO_EMAIL_DOMAINS")) is not None:
         demo_domains = []
         if raw_demo:
             demo_domains = [x.strip() for x in raw_demo.split(",")]
@@ -201,7 +200,7 @@ def login_request(email: str) -> tuple:
         return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
-    if (raw_required := g.settings.get("REQUIRED_EMAIL_DOMAINS")) and not demo_user:
+    if (raw_required := g.settings["users"].get("REQUIRED_EMAIL_DOMAINS")) and not demo_user:
         required_domains = [x.strip() for x in raw_required.split(",")]
     
     if len(required_domains) != 0 and email_domain not in required_domains and not demo_user:
@@ -209,10 +208,10 @@ def login_request(email: str) -> tuple:
     
     first_user = False
     if not user_exists(email):
-        level = g.settings["DEFAULT_USER_LEVEL"]
+        level = g.settings["users"]["DEFAULT_USER_LEVEL"]
         # first user becomes admin!
         if len(list_users()) == 0:
-            level = g.settings["USER_LEVEL_ADMIN"]
+            level = g.settings["users"]["USER_LEVEL_ADMIN"]
             first_user = True
         
         added = create_user(email, level)
@@ -227,31 +226,31 @@ def login_request(email: str) -> tuple:
     db.session.add(login_code)
     db.session.commit()
     
-    codeurl  = str(request.url_root)
-    codeurl += "api/user/verify?email=" + email
-    codeurl += "&code=" + code
+    code_url  = str(request.url_root)
+    code_url += "api/user/verify?email=" + email
+    code_url += "&code=" + code
 
     if demo_user:
-        return ("Demo user created. <a href='" + codeurl + "'>Click on this link</a> to activate.", 200)        
+        return (f"Demo user created. <a href='{code_url}'>Click on this link</a> to activate.", 200)
 
-    if g.settings["SMTP_ENABLED"]:
-        mailtext  = "You requested a login token for:\t\n\t\n"
-        mailtext += g.settings["SITE_NAME"] + "\t\n\t\n"
-        mailtext += "Copy/paste the following URL into your browser:\t\n\t\n"
-        mailtext += codeurl + "\t\n\t\n"
-        mailtext += "This code is valid for one hour."
+    if g.settings["smtp"]["SMTP_ENABLED"]:
+        mail_text  = "You requested a login token for:\t\n\t\n"
+        mail_text += g.settings["site"]["SITE_NAME"] + "\t\n\t\n"
+        mail_text += "Copy/paste the following URL into your browser:\t\n\t\n"
+        mail_text += code_url + "\t\n\t\n"
+        mail_text += "This code is valid for one hour."
 
-        mailhtml = "<html><head></head><body>" + mailtext + "</body></html>"
-        mailhtml = mailhtml.replace("Copy/paste", "<a href='"+codeurl+"' target='_blank'>Click here</a> or copy/paste", )
-        mailhtml = mailhtml.replace("\n", "<br>", )
+        mail_html = "<html><head></head><body>" + mail_text + "</body></html>"
+        mail_html = mail_html.replace("Copy/paste", "<a href='"+code_url+"' target='_blank'>Click here</a> or copy/paste", )
+        mail_html = mail_html.replace("\n", "<br>", )
         
-        mail.send_email(email, f"{g.settings['SITE_NAME']} Access Code", mailtext, mailhtml)
+        mail.send_email(email, f"{g.settings['site']['SITE_NAME']} Access Code", mail_text, mail_html)
         return ("Login token generated, check your mail.", 200)
 
     if first_user:
-        return ("First user created. <a href='" + codeurl + "'>Click on this link</a> to activate the admin.", 200)        
+        return ("First user created. <a href='" + code_url + "'>Click on this link</a> to become an administrator.", 200)
     print("Mail sending off until everything else works. Post this URL into the browser:")
-    print(codeurl)
+    print(code_url)
     log.write(msg="Mail sending is off", extra_info=f"For user {email}", level=log.info)
     return ("Email module is currently turned off, ask an admin to manually activate your account.<br><br>For admins: You need to set the SMTP .env variables to enable confirmation emails.", 200)
 
@@ -273,9 +272,9 @@ def check_code(email: str, code: str) -> tuple:
         db.session.commit()
         return (False, "Code outdated. Generate a new login token!")
 
-    sessionid = str(uuid.uuid4())
+    session_id = str(uuid.uuid4())
     timestamp = dt.datetime.now().replace(second=0, microsecond=0)
-    update_session(email, sessionid, timestamp)
+    update_session(email, session_id, timestamp)
     
     code_record.user.login(timestamp)
     
@@ -283,7 +282,7 @@ def check_code(email: str, code: str) -> tuple:
     db.session.execute(db.delete(models.LoginCode).where(models.LoginCode.email == email))
     db.session.commit()
     
-    return (True, sessionid)
+    return (True, session_id)
 
 def delete_user(email: str) -> bool:
     if not email:

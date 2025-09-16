@@ -2,16 +2,15 @@ from flask import g, current_app
 
 import datetime as dt
 import json
-import os
 import threading
 
 from api.data_handling import process_meter_health, query_time_series
 from api.helpers import clean_file_name, has_g_support
-import api.settings as settings
 from constants import *
 from database import db
 import log
 import models
+import settings
 
 
 cache_generation_lock = threading.Lock()
@@ -96,13 +95,13 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             file_name = clean_file_name(f"{m.id}.csv")
 
             if has_g_support():
-                offline_mode = g.settings["offline_mode"]
-                cache_time_health_score = g.settings["cache_time_health_score"]
-                cache_time_summary = g.settings["cache_time_summary"]
+                offline_mode = g.settings["data"]["offline_mode"]
+                cache_time_health_score = g.settings["data"]["cache_time_health_score"]
+                cache_time_summary = g.settings["data"]["cache_time_summary"]
             else:
                 offline_mode = current_app.config["offline_mode"]
-                cache_time_health_score = int(settings.get("cache_time_health_score")) # type: ignore
-                cache_time_summary = int(settings.get("cache_time_summary")) # type: ignore
+                cache_time_health_score = int(settings.get("cache_time_health_score", "data")) # type: ignore
+                cache_time_summary = int(settings.get("cache_time_summary", "data")) # type: ignore
             
             if offline_mode:
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, file_name)
@@ -120,8 +119,8 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             for cache_item in cache_items(cache_time_health_score, meter_health_scores, data_start_time, data_end_time):
                 score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_obj)
                 if score is None:
-                    # Something happended to the offline data since running cache_validity_checker, quit thread
-                    print(f"Ended: {m.id} - An Error occured accessing the offline data for this meter")
+                    # Something happened to the offline data since running cache_validity_checker, quit thread
+                    print(f"Ended: {m.id} - An Error occurred accessing the offline data for this meter")
                     log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
                     return
                 meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
@@ -130,7 +129,6 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 json.dump(meter_health_scores, f)
 
             # Meter Snapshot Cache
-            meter_snapshots_file = os.path.join(meter_snapshots_files, file_name)
             if offline_mode:
                 meter_snapshots_file = os.path.join(offline_meter_snapshots_files, file_name)
             else:
@@ -178,9 +176,9 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         cache_generation_lock.release()
         return
 
-    if g.settings["offline_mode"]:
-        data_start_time = dt.datetime.strptime(g.settings["offline_data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
-        data_end_time = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+    if g.settings["data"]["offline_mode"]:
+        data_start_time = dt.datetime.strptime(g.settings["metadata"]["offline_data_start_time"], "%Y-%m-%dT%H:%M:%S%z")
+        data_end_time = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         current_meter_health_score_files = offline_meter_health_score_files
         current_meter_snapshots_files = offline_meter_snapshots_files
     else:
@@ -192,7 +190,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
     # Don't need to filter id by not null as id is primary key and therefore not null
     # We aren't filtering out tenanted meters here so that the cache contains all meters
     meters = db.session.execute(db.select(models.Meter)).scalars().all()
-    n = 35 # Process 25 meters at a time (25 was a random number I chose)
+    n = g.settings["server"]["meter_batch_size"]
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
 
     seen_meters = []
@@ -204,7 +202,7 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
             thread_name = f"Mtr_Cache_Gen_{clean_meter_name}"
             file_name = f"{clean_meter_name}.csv"
 
-            if g.settings["offline_mode"]:
+            if g.settings["data"]["offline_mode"]:
                 if not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
                     print(f"Skipping: {m.id}")
                     continue
@@ -214,11 +212,11 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
             seen_meters.append(file_name)
             
-            if (cache_validity_checker(g.settings["cache_time_health_score"],
+            if (cache_validity_checker(g.settings["data"]["cache_time_health_score"],
                                        meter_health_score_file,
                                        data_start_time,
                                        data_end_time)
-                and cache_validity_checker(g.settings["cache_time_summary"],
+                and cache_validity_checker(g.settings["data"]["cache_time_summary"],
                                            meter_snapshots_file,
                                            data_start_time,
                                            data_end_time)):
@@ -232,7 +230,6 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
         # Wait for all threads in chunk to complete
         for t in threads:
             t.join()
-        threads = []
 
     # Clean up non-existent meters
     existing_cache_files = os.listdir(current_meter_health_score_files)

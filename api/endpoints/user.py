@@ -13,7 +13,7 @@ users_api_bp = Blueprint('users_api_bp',
 @users_api_bp.route("/logout", methods=['POST'])
 def logout():
     email = request.args.get('email')
-    if email == None or email == "":
+    if email is None or email == "":
         return "No email provided."
     
     session_id = request.cookies.get('SessionID')
@@ -69,11 +69,11 @@ def verify():
 @users_api_bp.route("/get-level/")
 @users_api_bp.route("/get-level")
 def get_level():
-    sessionID = request.args.get('SessionID')
+    session_id = request.args.get('SessionID')
     email = request.args.get('email')
-    if email == None or email == "" or sessionID == None or sessionID == "":
+    if email is None or email == "" or session_id is None or session_id == "":
         return make_response("Couldn't get user level or session", 400)
-    return make_response(str(users.get_user_level(email, sessionID)), 200)
+    return make_response(str(users.get_user_level(email, session_id)), 200)
 
 @users_api_bp.route("/set-level/", methods=['POST'])
 @users_api_bp.route("/set-level", methods=['POST'])
@@ -84,11 +84,11 @@ def set_level():
         return make_response("No JSON data received", 400)
     
     email = data.get('email')
-    if email == None:
+    if email is None:
         return make_response("No email specified", 400)
     
     level = data.get('level')
-    if level == None:
+    if level is None:
         return make_response("No level specified", 400)
     
     success = users.set_level(email, level)
@@ -106,7 +106,7 @@ def delete():
         return make_response("No JSON data received", 400)
     
     email = data.get('email')
-    if email == None:
+    if email is None:
         return make_response("No email specified", 400)
     
     result = users.delete_user(email)
@@ -118,5 +118,5 @@ def delete():
 @users_api_bp.route('/list/')
 @users_api_bp.route('/list')
 @dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
-def list():
+def user_list():
     return users.list_users()

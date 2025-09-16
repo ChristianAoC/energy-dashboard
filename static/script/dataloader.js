@@ -111,13 +111,13 @@ const apiEndpoints = {
 // need this frequently, strangely JS has no native function for this
 function capFirst(str) {
     return str.charAt(0).toUpperCase() + str.slice(1);
-};
+}
 
 function uncapFirst(str) {
     return str.charAt(0).toLowerCase() + str.slice(1);
-};
+}
 
-// sometimes i need only the raw list of meters from hierarchy
+// sometimes I need only the raw list of meters from hierarchy
 function getMeterListFromHierarchy(hierarchy, buildingFilter = null) {
     const meterIds = [];
     for (const buildingId in hierarchy) {
@@ -134,7 +134,7 @@ function getMeterListFromHierarchy(hierarchy, buildingFilter = null) {
     return meterIds;
 }
 
-// sometimes i need only the raw list of meters from summary
+// sometimes I need only the raw list of meters from summary
 function getMeterListFromSummary(summary, buildingFilter = null) {
     let meters = [];
     for (const buildingKey in summary) {
@@ -171,7 +171,7 @@ async function callApiJSON(uri) {
         console.error('Failed fetching ${uri}:', err);
         return null;
     }
-};
+}
 
 /**
  * Build a URL with query parameters from a base endpoint.
@@ -219,4 +219,4 @@ async function getData(requests = {}, forceReload = false) {
         console.error('Error in getData', err);
         return {};
     }
-};
+}

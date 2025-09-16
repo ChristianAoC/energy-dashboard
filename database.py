@@ -1,19 +1,16 @@
 from flask import g
 from flask_sqlalchemy import SQLAlchemy
 
+import copy
 from dotenv import load_dotenv
 import os
 import pandas as pd
 import json
 import sys
 
-from constants import metadata_file, building_mappings, meter_mappings, offline_data_files, offline_meta_file
+from constants import metadata_file, offline_data_files, offline_meta_file
 
-# TODO: Test with default settings again to see if we actually need to change these
-db = SQLAlchemy(engine_options={
-    "pool_size": 20,
-    "max_overflow": 20
-})
+db = SQLAlchemy()
 
 def init(app) -> bool:
     app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'data', 'data.sqlite')}"
@@ -27,7 +24,7 @@ def init(app) -> bool:
                 try:
                     import log
                     log.write(msg="Skipped initialising settings table",
-                              extra_info="Most likey already populated",
+                              extra_info="Most likely already populated",
                               level=log.info)
                 except:
                     pass
@@ -44,10 +41,9 @@ def init(app) -> bool:
             return False
     return True
 
-def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
-    import api.settings as settings
-    from database import db
+def generate_offline_meta(write_to_db: bool = True) -> bool|dict:
     import models
+    import settings
     start_time = None
     end_time = None
     interval = None
@@ -113,80 +109,81 @@ def generate_offine_meta(write_to_db: bool = True) -> bool|dict:
     return True
 
 def load_settings_from_env(from_env: bool = True) -> dict:
-    from api.settings import default_settings
-    result = {**default_settings}
+    from settings import default_settings
+    result = copy.deepcopy(default_settings)
     
     if from_env:
         load_dotenv()
         val = os.getenv("OFFLINE_MODE", "True")
-        offlineMode = val.strip().lower() in ("1", "true", "yes", "on")
+        offline_mode = val.strip().lower() in ("1", "true", "yes", "on")
 
-        InfluxURL = os.getenv("INFLUX_URL")
-        InfluxPort = os.getenv("INFLUX_PORT")
-        InfluxUser = os.getenv("INFLUX_USER")
-        InfluxPass = os.getenv("INFLUX_PASS")
-        InfluxTable = os.getenv("INFLUX_TABLE")
+        influx_url = os.getenv("INFLUX_URL")
+        influx_port = os.getenv("INFLUX_PORT")
+        influx_user = os.getenv("INFLUX_USER")
+        influx_pass = os.getenv("INFLUX_PASS")
+        influx_table = os.getenv("INFLUX_TABLE")
 
-        if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
-            offlineMode = True
+        if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
+            offline_mode = True
         
-        result["offline_mode"] = offlineMode
-        result["InfluxURL"] = InfluxURL
-        result["InfluxPort"] = InfluxPort
-        result["InfluxUser"] = InfluxUser
-        result["InfluxPass"] = InfluxPass
-        result["InfluxTable"] = InfluxTable
-        result["data_interval"] = int(os.getenv("data_interval", default_settings["data_interval"]))
+        result["data"]["offline_mode"] = offline_mode
+        result["influx"]["InfluxURL"] = influx_url
+        result["influx"]["InfluxPort"] = influx_port
+        result["influx"]["InfluxUser"] = influx_user
+        result["influx"]["InfluxPass"] = influx_pass
+        result["influx"]["InfluxTable"] = influx_table
+        result["influx"]["data_interval"] = int(os.getenv("data_interval", default_settings["influx"]["data_interval"]))
         
-        result["hc_update_time"] = int(os.getenv("HEALTH_CHECK_UPDATE_TIME", default_settings["hc_update_time"]))
-        result["cache_time_health_score"] = int(os.getenv("HEALTH_SCORE_CACHE_TIME",
-                                                          default_settings["cache_time_health_score"]))
-        result["cache_time_summary"] = int(os.getenv("SUMMARY_CACHE_TIME", default_settings["cache_time_summary"]))
+        result["data"]["hc_update_time"] = int(os.getenv("HEALTH_CHECK_UPDATE_TIME",
+                                                 default_settings["data"]["hc_update_time"]))
+        result["data"]["cache_time_health_score"] = int(os.getenv("HEALTH_SCORE_CACHE_TIME",
+                                                          default_settings["data"]["cache_time_health_score"]))
+        result["data"]["cache_time_summary"] = int(os.getenv("SUMMARY_CACHE_TIME",
+                                                     default_settings["data"]["cache_time_summary"]))
         
-        result["log_level"] = os.getenv("LOG_LEVEL", default_settings["log_level"])
+        result["logging"]["log_level"] = os.getenv("LOG_LEVEL", default_settings["logging"]["log_level"])
         
-        result["SITE_NAME"] = os.getenv("SITE_NAME", default_settings["SITE_NAME"])
+        result["SITE_NAME"] = os.getenv("SITE_NAME", default_settings["site"]["SITE_NAME"])
         
-        result["MAZEMAP_CAMPUS_ID"] = int(os.getenv("MAZEMAP_CAMPUS_ID", default_settings["MAZEMAP_CAMPUS_ID"]))
-        result["MAZEMAP_LNG"] = os.getenv("MAZEMAP_LNG", default_settings["MAZEMAP_LNG"])
-        result["MAZEMAP_LAT"] = os.getenv("MAZEMAP_LAT", default_settings["MAZEMAP_LAT"])
+        result["mazemap"]["MAZEMAP_CAMPUS_ID"] = int(os.getenv("MAZEMAP_CAMPUS_ID",
+                                                    default_settings["mazemap"]["MAZEMAP_CAMPUS_ID"]))
+        result["mazemap"]["MAZEMAP_LNG"] = os.getenv("MAZEMAP_LNG", default_settings["mazemap"]["MAZEMAP_LNG"])
+        result["mazemap"]["MAZEMAP_LAT"] = os.getenv("MAZEMAP_LAT", default_settings["mazemap"]["MAZEMAP_LAT"])
         
-        SMTP_ADDRESS = os.getenv("SMTP_ADDRESS")
-        SMTP_PASSWORD = os.getenv("SMTP_PASSWORD")
-        SMTP_SERVER = os.getenv("SMTP_SERVER")
-        SMTP_PORT = os.getenv("SMTP_PORT")
+        smtp_address = os.getenv("SMTP_ADDRESS")
+        smtp_password = os.getenv("SMTP_PASSWORD")
+        smtp_server = os.getenv("SMTP_SERVER")
+        smtp_port = os.getenv("SMTP_PORT")
         
         val = os.getenv("SMTP_ENABLED", "False")
-        SMTP_ENABLED = val.strip().lower() in ("1", "true", "yes", "on")
+        smtp_enabled = val.strip().lower() in ("1", "true", "yes", "on")
         
-        if SMTP_ADDRESS is None or SMTP_PASSWORD is None or SMTP_SERVER is None or SMTP_PORT is None:
-            SMTP_ENABLED = False
-        result["SMTP_ENABLED"] = SMTP_ENABLED
-        result["SMTP_ADDRESS"] = SMTP_ADDRESS
-        result["SMTP_PASSWORD"] = SMTP_PASSWORD
-        result["SMTP_SERVER"] = SMTP_SERVER
-        result["SMTP_PORT"] = SMTP_PORT
+        if smtp_address is None or smtp_password is None or smtp_server is None or smtp_port is None:
+            smtp_enabled = False
+        result["smtp"]["SMTP_ENABLED"] = smtp_enabled
+        result["smtp"]["SMTP_ADDRESS"] = smtp_address
+        result["smtp"]["SMTP_PASSWORD"] = smtp_password
+        result["smtp"]["SMTP_SERVER"] = smtp_server
+        result["smtp"]["SMTP_PORT"] = smtp_port
         
-        result["REQUIRED_EMAIL_DOMAINS"] = os.getenv("REQUIRED_EMAIL_DOMAINS", "")
-        result["DEMO_EMAIL_DOMAINS"] = os.getenv("DEMO_EMAIL_DOMAINS", "")
+        result["users"]["REQUIRED_EMAIL_DOMAINS"] = os.getenv("REQUIRED_EMAIL_DOMAINS", "")
+        result["users"]["DEMO_EMAIL_DOMAINS"] = os.getenv("DEMO_EMAIL_DOMAINS", "")
         
-        result["DEFAULT_USER_LEVEL"] = int(os.getenv("DEFAULT_USER_LEVEL", default_settings["DEFAULT_USER_LEVEL"]))
-        result["USER_LEVEL_VIEW_DASHBOARD"] = int(os.getenv("USER_LEVEL_VIEW_DASHBOARD",
-                                                            default_settings["USER_LEVEL_VIEW_DASHBOARD"]))
-        result["USER_LEVEL_VIEW_HEALTHCHECK"] = int(os.getenv("USER_LEVEL_VIEW_HEALTHCHECK",
-                                                              default_settings["USER_LEVEL_VIEW_HEALTHCHECK"]))
-        result["USER_LEVEL_VIEW_COMMENTS"] = int(os.getenv("USER_LEVEL_VIEW_COMMENTS",
-                                                           default_settings["USER_LEVEL_VIEW_COMMENTS"]))
-        result["USER_LEVEL_SUBMIT_COMMENTS"] = int(os.getenv("USER_LEVEL_SUBMIT_COMMENTS",
-                                                             default_settings["USER_LEVEL_SUBMIT_COMMENTS"]))
-        result["USER_LEVEL_EDIT_COMMENTS"] = int(os.getenv("USER_LEVEL_EDIT_COMMENTS",
-                                                           default_settings["USER_LEVEL_EDIT_COMMENTS"]))
-        result["USER_LEVEL_ADMIN"] = int(os.getenv("USER_LEVEL_ADMIN", default_settings["USER_LEVEL_ADMIN"]))
+        result["users"]["DEFAULT_USER_LEVEL"] = int(os.getenv("DEFAULT_USER_LEVEL",
+                                                     default_settings["users"]["DEFAULT_USER_LEVEL"]))
+        result["users"]["USER_LEVEL_VIEW_DASHBOARD"] = int(os.getenv("USER_LEVEL_VIEW_DASHBOARD",
+                                                            default_settings["users"]["USER_LEVEL_VIEW_DASHBOARD"]))
+        result["users"]["USER_LEVEL_VIEW_HEALTHCHECK"] = int(os.getenv("USER_LEVEL_VIEW_HEALTHCHECK",
+                                                              default_settings["users"]["USER_LEVEL_VIEW_HEALTHCHECK"]))
+        result["users"]["USER_LEVEL_VIEW_COMMENTS"] = int(os.getenv("USER_LEVEL_VIEW_COMMENTS",
+                                                           default_settings["users"]["USER_LEVEL_VIEW_COMMENTS"]))
+        result["users"]["USER_LEVEL_SUBMIT_COMMENTS"] = int(os.getenv("USER_LEVEL_SUBMIT_COMMENTS",
+                                                             default_settings["users"]["USER_LEVEL_SUBMIT_COMMENTS"]))
+        result["users"]["USER_LEVEL_EDIT_COMMENTS"] = int(os.getenv("USER_LEVEL_EDIT_COMMENTS",
+                                                           default_settings["users"]["USER_LEVEL_EDIT_COMMENTS"]))
+        result["users"]["USER_LEVEL_ADMIN"] = int(os.getenv("USER_LEVEL_ADMIN", default_settings["users"]["USER_LEVEL_ADMIN"]))
         
-        result["BACKGROUND_TASK_TIMING"] = os.getenv("BACKGROUND_TASK_TIMING",
-                                                     default_settings["BACKGROUND_TASK_TIMING"])
-        
-        val = generate_offine_meta(write_to_db=False)
+        val = generate_offline_meta(write_to_db=False)
         
         start_time = None
         end_time = None
@@ -195,7 +192,7 @@ def load_settings_from_env(from_env: bool = True) -> dict:
             start_time = val["start_time"]
             end_time = val["end_time"]
             interval = val["interval"]
-        elif type(val) is bool and offlineMode:
+        elif type(val) is bool and offline_mode:
             try:
                 with open(offline_meta_file, "r") as f:
                     anon_data_meta = json.load(f)
@@ -205,9 +202,13 @@ def load_settings_from_env(from_env: bool = True) -> dict:
             except:
                 raise ValueError("Can't generate required file: offline metadata")
         
-        result["offline_data_start_time"] = start_time
-        result["offline_data_end_time"] = end_time
-        result["offline_data_interval"] = interval
+        result["metadata"]["offline_data_start_time"] = start_time
+        result["metadata"]["offline_data_end_time"] = end_time
+        result["metadata"]["offline_data_interval"] = interval
+        
+        result["server"]["BACKGROUND_TASK_TIMING"] = os.getenv("BACKGROUND_TASK_TIMING",
+                                                     default_settings["server"]["BACKGROUND_TASK_TIMING"])
+        result["server"]["meter_batch_size"] = os.getenv("meter_batch_size", default_settings["server"]["meter_batch_size"])
     return result
 
 def initialise_settings_table(from_env: bool = False) -> bool:
@@ -228,55 +229,55 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # Users
         settings.append(models.Settings(
             key="DEFAULT_USER_LEVEL",
-            value=temp_default_settings["DEFAULT_USER_LEVEL"],
+            value=temp_default_settings["users"]["DEFAULT_USER_LEVEL"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_VIEW_DASHBOARD",
-            value=temp_default_settings["USER_LEVEL_VIEW_DASHBOARD"],
+            value=temp_default_settings["users"]["USER_LEVEL_VIEW_DASHBOARD"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_VIEW_HEALTHCHECK",
-            value=temp_default_settings["USER_LEVEL_VIEW_HEALTHCHECK"],
+            value=temp_default_settings["users"]["USER_LEVEL_VIEW_HEALTHCHECK"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_VIEW_COMMENTS",
-            value=temp_default_settings["USER_LEVEL_VIEW_COMMENTS"],
+            value=temp_default_settings["users"]["USER_LEVEL_VIEW_COMMENTS"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_SUBMIT_COMMENTS",
-            value=temp_default_settings["USER_LEVEL_SUBMIT_COMMENTS"],
+            value=temp_default_settings["users"]["USER_LEVEL_SUBMIT_COMMENTS"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_EDIT_COMMENTS",
-            value=temp_default_settings["USER_LEVEL_EDIT_COMMENTS"],
+            value=temp_default_settings["users"]["USER_LEVEL_EDIT_COMMENTS"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="USER_LEVEL_ADMIN",
-            value=temp_default_settings["USER_LEVEL_ADMIN"],
+            value=temp_default_settings["users"]["USER_LEVEL_ADMIN"],
             category="users",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="REQUIRED_EMAIL_DOMAINS",
-            value=temp_default_settings["REQUIRED_EMAIL_DOMAINS"],
+            value=temp_default_settings["users"]["REQUIRED_EMAIL_DOMAINS"],
             category="users",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="DEMO_EMAIL_DOMAINS",
-            value=temp_default_settings["DEMO_EMAIL_DOMAINS"],
+            value=temp_default_settings["users"]["DEMO_EMAIL_DOMAINS"],
             category="users",
             setting_type="str"
         ))
@@ -284,19 +285,19 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # Mazemap info
         settings.append(models.Settings(
             key="MAZEMAP_CAMPUS_ID",
-            value=temp_default_settings["MAZEMAP_CAMPUS_ID"],
+            value=temp_default_settings["mazemap"]["MAZEMAP_CAMPUS_ID"],
             category="mazemap",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="MAZEMAP_LNG",
-            value=temp_default_settings["MAZEMAP_LNG"],
+            value=temp_default_settings["mazemap"]["MAZEMAP_LNG"],
             category="mazemap",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="MAZEMAP_LAT",
-            value=temp_default_settings["MAZEMAP_LAT"],
+            value=temp_default_settings["mazemap"]["MAZEMAP_LAT"],
             category="mazemap",
             setting_type="str"
         ))
@@ -304,31 +305,31 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # SMTP
         settings.append(models.Settings(
             key="SMTP_ENABLED",
-            value=temp_default_settings["SMTP_ENABLED"],
+            value=temp_default_settings["smtp"]["SMTP_ENABLED"],
             category="smtp",
             setting_type="bool"
         ))
         settings.append(models.Settings(
             key="SMTP_ADDRESS",
-            value=temp_default_settings["SMTP_ADDRESS"],
+            value=temp_default_settings["smtp"]["SMTP_ADDRESS"],
             category="smtp",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="SMTP_PASSWORD",
-            value=temp_default_settings["SMTP_PASSWORD"],
+            value=temp_default_settings["smtp"]["SMTP_PASSWORD"],
             category="smtp",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="SMTP_SERVER",
-            value=temp_default_settings["SMTP_SERVER"],
+            value=temp_default_settings["smtp"]["SMTP_SERVER"],
             category="smtp",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="SMTP_PORT",
-            value=temp_default_settings["SMTP_PORT"],
+            value=temp_default_settings["smtp"]["SMTP_PORT"],
             category="smtp",
             setting_type="str"
         ))
@@ -336,43 +337,43 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # Site info
         settings.append(models.Settings(
             key="SITE_NAME",
-            value=temp_default_settings["SITE_NAME"],
+            value=temp_default_settings["site"]["SITE_NAME"],
             category="site",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="default_start_page",
-            value=temp_default_settings["default_start_page"],
+            value=temp_default_settings["site"]["default_start_page"],
             category="site",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="default_daterange_benchmark",
-            value=temp_default_settings["default_daterange_benchmark"],
+            value=temp_default_settings["site"]["default_daterange_benchmark"],
             category="site",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="default_daterange_browser",
-            value=temp_default_settings["default_daterange_browser"],
+            value=temp_default_settings["site"]["default_daterange_browser"],
             category="site",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="default_daterange_health-check",
-            value=temp_default_settings["default_daterange_health-check"],
+            value=temp_default_settings["site"]["default_daterange_health-check"],
             category="site",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="capavis_url",
-            value=temp_default_settings["capavis_url"],
+            value=temp_default_settings["site"]["capavis_url"],
             category="site",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="clustering_url",
-            value=temp_default_settings["clustering_url"],
+            value=temp_default_settings["site"]["clustering_url"],
             category="site",
             setting_type="str"
         ))
@@ -380,37 +381,37 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # Influx
         settings.append(models.Settings(
             key="InfluxURL",
-            value=temp_default_settings["InfluxURL"],
+            value=temp_default_settings["influx"]["InfluxURL"],
             category="influx",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="InfluxPort",
-            value=temp_default_settings["InfluxPort"],
+            value=temp_default_settings["influx"]["InfluxPort"],
             category="influx",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="InfluxUser",
-            value=temp_default_settings["InfluxUser"],
+            value=temp_default_settings["influx"]["InfluxUser"],
             category="influx",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="InfluxPass",
-            value=temp_default_settings["InfluxPass"],
+            value=temp_default_settings["influx"]["InfluxPass"],
             category="influx",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="InfluxTable",
-            value=temp_default_settings["InfluxTable"],
+            value=temp_default_settings["influx"]["InfluxTable"],
             category="influx",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="data_interval",
-            value=temp_default_settings["data_interval"],
+            value=temp_default_settings["influx"]["data_interval"],
             category="influx",
             setting_type="int"
         ))
@@ -418,73 +419,223 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         # Data
         settings.append(models.Settings(
             key="offline_mode",
-            value=temp_default_settings["offline_mode"],
+            value=temp_default_settings["data"]["offline_mode"],
             category="data",
             setting_type="bool"
         ))
         settings.append(models.Settings(
             key="hc_update_time",
-            value=temp_default_settings["hc_update_time"],
+            value=temp_default_settings["data"]["hc_update_time"],
             category="data",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="cache_time_health_score",
-            value=temp_default_settings["cache_time_health_score"],
+            value=temp_default_settings["data"]["cache_time_health_score"],
             category="data",
             setting_type="int"
         ))
         settings.append(models.Settings(
             key="cache_time_summary",
-            value=temp_default_settings["cache_time_summary"],
+            value=temp_default_settings["data"]["cache_time_summary"],
             category="data",
             setting_type="int"
-        ))
-        settings.append(models.Settings(
-            key="BACKGROUND_TASK_TIMING",
-            value=temp_default_settings["BACKGROUND_TASK_TIMING"],
-            category="data",
-            setting_type="str"
         ))
         
         # Metadata
         settings.append(models.Settings(
-            key="meter_sheet",
-            value=temp_default_settings["meter_sheet"],
-            category="metadata",
-            setting_type="str"
-        ))
-        settings.append(models.Settings(
-            key="building_sheet",
-            value=temp_default_settings["building_sheet"],
-            category="metadata",
-            setting_type="str"
-        ))
-        settings.append(models.Settings(
             key="offline_data_start_time",
-            value=temp_default_settings["offline_data_start_time"],
+            value=temp_default_settings["metadata"]["offline_data_start_time"],
             category="metadata",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="offline_data_end_time",
-            value=temp_default_settings["offline_data_end_time"],
+            value=temp_default_settings["metadata"]["offline_data_end_time"],
             category="metadata",
             setting_type="str"
         ))
         settings.append(models.Settings(
             key="offline_data_interval",
-            value=temp_default_settings["offline_data_interval"],
+            value=temp_default_settings["metadata"]["offline_data_interval"],
             category="metadata",
             setting_type="int"
         ))
-        
+
+        ## Meter table
+        settings.append(models.Settings(
+            key="meter_sheet",
+            value=temp_default_settings["metadata"]["meter_sheet"]["meter_sheet"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_id",
+            value=temp_default_settings["metadata"]["meter_sheet"]["meter_id"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="raw_uuid",
+            value=temp_default_settings["metadata"]["meter_sheet"]["raw_uuid"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="description",
+            value=temp_default_settings["metadata"]["meter_sheet"]["description"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_level_meter",
+            value=temp_default_settings["metadata"]["meter_sheet"]["building_level_meter"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_type",
+            value=temp_default_settings["metadata"]["meter_sheet"]["meter_type"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="reading_type",
+            value=temp_default_settings["metadata"]["meter_sheet"]["reading_type"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="units",
+            value=temp_default_settings["metadata"]["meter_sheet"]["units"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="resolution",
+            value=temp_default_settings["metadata"]["meter_sheet"]["resolution"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="unit_conversion_factor",
+            value=temp_default_settings["metadata"]["meter_sheet"]["unit_conversion_factor"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="tenant",
+            value=temp_default_settings["metadata"]["meter_sheet"]["tenant"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_building",
+            value=temp_default_settings["metadata"]["meter_sheet"]["meter_building"],
+            category="metadata.meter_sheet",
+            setting_type="str"
+        ))
+
+        ## Building table
+        settings.append(models.Settings(
+            key="building_sheet",
+            value=temp_default_settings["metadata"]["building_sheet"]["building_sheet"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_code",
+            value=temp_default_settings["metadata"]["building_sheet"]["building_code"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="building_name",
+            value=temp_default_settings["metadata"]["building_sheet"]["building_name"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="floor_area",
+            value=temp_default_settings["metadata"]["building_sheet"]["floor_area"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="year_built",
+            value=temp_default_settings["metadata"]["building_sheet"]["year_built"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="usage",
+            value=temp_default_settings["metadata"]["building_sheet"]["usage"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="maze_map_label",
+            value=temp_default_settings["metadata"]["building_sheet"]["maze_map_label"],
+            category="metadata.building_sheet",
+            setting_type="str"
+        ))
+
         # Logging
         settings.append(models.Settings(
             key="log_level",
-            value=temp_default_settings["log_level"],
+            value=temp_default_settings["logging"]["log_level"],
             category="logging",
             setting_type="str"
+        ))
+        
+        # Server settings
+        settings.append(models.Settings(
+            key="BACKGROUND_TASK_TIMING",
+            value=temp_default_settings["server"]["BACKGROUND_TASK_TIMING"],
+            category="server",
+            setting_type="str"
+        ))
+        settings.append(models.Settings(
+            key="meter_batch_size",
+            value=temp_default_settings["server"]["meter_batch_size"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="session_timeout",
+            value=temp_default_settings["server"]["session_timeout"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="login_code_timeout",
+            value=temp_default_settings["server"]["login_code_timeout"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_info_expiry",
+            value=temp_default_settings["server"]["log_info_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_warning_expiry",
+            value=temp_default_settings["server"]["log_warning_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_error_expiry",
+            value=temp_default_settings["server"]["log_error_expiry"],
+            category="server",
+            setting_type="int"
+        ))
+        settings.append(models.Settings(
+            key="log_critical_expiry",
+            value=temp_default_settings["server"]["log_critical_expiry"],
+            category="server",
+            setting_type="int"
         ))
         
         db.session.add_all(settings)
@@ -495,10 +646,10 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         db.session.rollback()
         if str(e) == "Can't generate required file: offline metadata":
             print("\n" + "="*20)
-            print("\tERROR: You are runnning in offline mode with no offline metadata (and it couldn't be generated)!")
+            print("\tERROR: You are running in offline mode with no offline metadata (and it couldn't be generated)!")
             print("\tPlease either place it in ./data/offline_data.json or add the data directly to the database")
             print("="*20 + "\n")
-            log.write(msg="You are runnning in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
+            log.write(msg="You are running in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
                         extra_info="Note: there may be other critical errors that are being masked by this one.",
                         level=log.critical)
             sys.exit(1)
@@ -516,27 +667,27 @@ def initialise_settings_table(from_env: bool = False) -> bool:
 #       If you use them somewhere else then you need to commit the database.
 
 def process_building_row(row) -> dict:
-    building_id_raw = row[building_mappings["building_code"]]
-    if pd.isna(building_id_raw) or building_id_raw is None:
-        raise ValueError(f"Invalid {building_mappings['building_code']}")
-    building_id = str(building_id_raw).strip()
+    building_code_raw = row[g.settings["metadata"]["building_sheet"]["building_code"]]
+    if pd.isna(building_code_raw) or building_code_raw is None:
+        raise ValueError(f"Invalid {g.settings['metadata']['building_sheet']['building_code']}")
+    building_code = str(building_code_raw).strip()
     
-    floor_area_raw = row[building_mappings["floor_area"]]
+    floor_area_raw = row[g.settings["metadata"]["building_sheet"]["floor_area"]]
     floor_area = None
     if not pd.isna(floor_area_raw) and floor_area_raw is not None:
         floor_area = int(floor_area_raw)
     
-    year_built_raw = row[building_mappings["year_built"]]
+    year_built_raw = row[g.settings["metadata"]["building_sheet"]["year_built"]]
     year_built = None
     if not pd.isna(year_built_raw) and year_built_raw is not None:
         year_built = int(year_built_raw)
     
-    usage_raw = row[building_mappings["usage"]]
+    usage_raw = row[g.settings["metadata"]["building_sheet"]["usage"]]
     if pd.isna(usage_raw) or usage_raw is None:
-        raise ValueError(f"Invalid {building_mappings['usage']}")
+        raise ValueError(f"Invalid {g.settings['metadata']['building_sheet']['usage']}")
     usage = str(usage_raw).strip()
     
-    maze_map_label_raw = row[building_mappings["maze_map_label"]]
+    maze_map_label_raw = row[g.settings["metadata"]["building_sheet"]["maze_map_label"]]
     maze_map_label = []
     if not pd.isna(maze_map_label_raw) and maze_map_label_raw is not None:
         values = str(maze_map_label_raw).split(';')
@@ -544,8 +695,8 @@ def process_building_row(row) -> dict:
             maze_map_label.append(int(v))
     
     return {
-        "building_id": building_id.strip(),
-        "building_name": row[building_mappings["building_name"]].strip(),
+        "building_code": building_code.strip(),
+        "building_name": row[g.settings["metadata"]["building_sheet"]["building_name"]].strip(),
         "floor_area": floor_area,
         "year_built": year_built,
         "occupancy_type": usage,
@@ -553,67 +704,67 @@ def process_building_row(row) -> dict:
     }
 
 def process_meter_row(row) -> dict:
-    meter_id_clean_raw = row[meter_mappings["meter_id_clean"]]
+    meter_id_clean_raw = row[g.settings["metadata"]["meter_sheet"]["meter_id"]]
     if pd.isna(meter_id_clean_raw) or meter_id_clean_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['meter_id_clean']}")
+        raise ValueError(f"Invalid {g.settings['metadata']['meter_sheet']['meter_id']}")
     meter_id_clean = str(meter_id_clean_raw).strip()
     
-    raw_uuid_raw = row[meter_mappings["raw_uuid"]]
+    raw_uuid_raw = row[g.settings["metadata"]["meter_sheet"]["raw_uuid"]]
     raw_uuid = None
     if not pd.isna(raw_uuid_raw) and raw_uuid_raw is not None:
         raw_uuid = str(raw_uuid_raw).strip()
     
-    building_level_meter_raw = row[meter_mappings["building_level_meter"]]
+    building_level_meter_raw = row[g.settings["metadata"]["meter_sheet"]["building_level_meter"]]
     building_level_meter = False
     if not pd.isna(building_level_meter_raw) and building_level_meter_raw is not None:
         if str(building_level_meter_raw).strip().lower() in ["yes", "1", "y", "true"]:
             building_level_meter = True
     
-    tenant_raw = row[meter_mappings["tenant"]]
+    tenant_raw = row[g.settings["metadata"]["meter_sheet"]["tenant"]]
     tenant = False
     if not pd.isna(tenant_raw) and tenant_raw is not None:
         if str(tenant_raw).strip().lower() in ["yes", "1", "y", "true"]:
             tenant = True
     
-    reading_type_raw = row[meter_mappings["reading_type"]]
+    reading_type_raw = row[g.settings["metadata"]["meter_sheet"]["reading_type"]]
     if pd.isna(reading_type_raw) or reading_type_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['reading_type']}")
+        raise ValueError(f"Invalid {g.settings['metadata']['meter_sheet']['reading_type']}")
     reading_type = str(reading_type_raw).strip().lower()
     if reading_type not in ["cumulative", "rate"]:
-        raise ValueError(f"Invalid {meter_mappings['reading_type']}, needs to be either 'cumulative' or 'rate'")
+        raise ValueError(f"Invalid {g.settings['metadata']['meter_sheet']['reading_type']}, needs to be either 'cumulative' or 'rate'")
     
-    resolution_raw = row[meter_mappings["resolution"]]
+    resolution_raw = row[g.settings["metadata"]["meter_sheet"]["resolution"]]
     if pd.isna(resolution_raw) or resolution_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['resolution']}")
+        raise ValueError(f"Invalid {g.settings['metadata']['meter_sheet']['resolution']}")
     resolution = float(resolution_raw)
     
-    unit_conversion_factor_raw = row[meter_mappings["unit_conversion_factor"]]
+    unit_conversion_factor_raw = row[g.settings["metadata"]["meter_sheet"]["unit_conversion_factor"]]
     if pd.isna(unit_conversion_factor_raw) or unit_conversion_factor_raw is None:
-        raise ValueError(f"Invalid {meter_mappings['unit_conversion_factor']}")
+        raise ValueError(f"Invalid {g.settings['metadata']['meter_sheet']['unit_conversion_factor']}")
     unit_conversion_factor = float(unit_conversion_factor_raw)
     
     return {
         "meter_id": meter_id_clean,
         "raw_uuid": raw_uuid,
-        "description": row[meter_mappings["description"]].strip(),
+        "description": row[g.settings["metadata"]["meter_sheet"]["description"]].strip(),
         "building_level_meter": building_level_meter,
-        "utility_type": row[meter_mappings["meter_type"]].strip(),
+        "utility_type": row[g.settings["metadata"]["meter_sheet"]["meter_type"]].strip(),
         "reading_type": reading_type,
-        "units": row[meter_mappings["units_after_conversion"]].strip(),
+        "units": row[g.settings["metadata"]["meter_sheet"]["units"]].strip(),
         "resolution": resolution,
         "unit_conversion_factor": unit_conversion_factor,
         "tenant": tenant,
-        "building": row[meter_mappings["building"]]
+        "building": row[g.settings["metadata"]["meter_sheet"]["meter_building"]]
     }
 
 def create_building_record(building_data: dict):
     # Import here to stop circular import issue
     import models
     import log
-    log.write(msg=f"Creating building record: {building_data['building_id']}", level=log.info)
+    log.write(msg=f"Creating building record: {building_data['metadata']['building_sheet']['building_code']}", level=log.info)
     
     new_building = models.Building(
-        building_data["building_id"],
+        building_data["building_code"],
         building_data["building_name"],
         building_data["floor_area"],
         building_data["year_built"],
@@ -690,10 +841,10 @@ def initial_database_population() -> bool:
     
     if (len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0
             or len(db.session.execute(db.select(models.Building)).scalars().all()) > 0):
-        from api.settings import process_metadata_update
+        from settings import process_metadata_update
         return process_metadata_update()
     
-    buildings = pd.read_excel(metadata_file, sheet_name=g.settings["building_sheet"])
+    buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["building_sheet"])
     for _, row in buildings.iterrows():
         try:
             data = process_building_row(row)
@@ -702,7 +853,7 @@ def initial_database_population() -> bool:
         except Exception as e:
             db.session.rollback()
             try:
-                building_id = data["building_id"] # type: ignore
+                building_id = data["building_code"] # type: ignore
             except:
                 building_id = "UNKNOWN BUILDING"
             log.write(msg="Error loading building from metadata file",
@@ -710,13 +861,13 @@ def initial_database_population() -> bool:
                       level=log.warning)
     del buildings
     
-    meters = pd.read_excel(metadata_file, sheet_name=g.settings["meter_sheet"])
+    meters = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["meter_sheet"]["meter_sheet"])
     for _, row in meters.iterrows():
         try:
             data = process_meter_row(row)
             
             # Filter out meters with utility types that we don't support
-            if data["utility_type"] in ["Oil", "Spare"]:
+            if data["utility_type"] not in ["electricity", "gas", "heat", "water"]:
                 continue
             
             create_meter_record(data)

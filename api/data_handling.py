@@ -5,18 +5,17 @@ import datetime as dt
 from influxdb import InfluxDBClient
 import json
 import math
-import os
 import pandas as pd
 import threading
 import time
 
-from api.helpers import calculate_time_args, data_cleaner, clean_file_name, has_g_support
-import api.settings as settings
+from api.helpers import data_cleaner, clean_file_name, has_g_support
 from api.users import is_admin
 from constants import *
 from database import db
 import log
 import models
+import settings
 
 
 ## Minimal/efficient call - get time series as Pandas
@@ -40,34 +39,34 @@ def query_influx(m: models.Meter, from_time, to_time, offline_mode) -> pd.DataFr
         return pd.DataFrame()
 
     if has_g_support():
-        InfluxURL = g.settings["InfluxURL"]
-        InfluxPort = g.settings["InfluxPort"]
-        InfluxUser = g.settings["InfluxUser"]
-        InfluxPass = g.settings["InfluxPass"]
-        InfluxTable = g.settings["InfluxTable"]
+        influx_url = g.settings["influx"]["InfluxURL"]
+        influx_port = g.settings["influx"]["InfluxPort"]
+        influx_user = g.settings["influx"]["InfluxUser"]
+        influx_pass = g.settings["influx"]["InfluxPass"]
+        influx_table = g.settings["influx"]["InfluxTable"]
     else:
-        InfluxURL = settings.get("InfluxURL")
-        InfluxPort = settings.get("InfluxPort")
-        InfluxUser = settings.get("InfluxUser")
-        InfluxPass = settings.get("InfluxPass")
-        InfluxTable = settings.get("InfluxTable")
+        influx_url = settings.get("InfluxURL", "influx")
+        influx_port = settings.get("InfluxPort", "influx")
+        influx_user = settings.get("InfluxUser", "influx")
+        influx_pass = settings.get("InfluxPass", "influx")
+        influx_table = settings.get("InfluxTable", "influx")
     
-    if InfluxURL is None or InfluxPort is None or InfluxUser is None or InfluxPass is None or InfluxTable is None:
-        log.write(msg="Tried to talk to Influx with no credentials",
-                  extra_info="To use online mode the Influx credentials need to be filled in",
+    if influx_url is None or influx_port is None or influx_user is None or influx_pass is None or influx_table is None:
+        log.write(msg="Tried to talk to Influx with missing credentials",
+                  extra_info="To use online mode the Influx credentials need to be provided",
                   level=log.error)
         return pd.DataFrame()
     
     # format query
-    qry = f'SELECT * as value FROM "{InfluxTable}"."autogen"."' + m.SEED_uuid + \
+    qry = f'SELECT * as value FROM "{influx_table}"."autogen"."' + m.SEED_uuid + \
         '" WHERE time >= \'' + from_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\'' + \
         ' AND time <= \'' + to_time.strftime("%Y-%m-%dT%H:%M:%SZ") + '\''
     
     # create client for influx
-    client = InfluxDBClient(host = InfluxURL,
-                            port = InfluxPort,
-                            username = InfluxUser,
-                            password = InfluxPass)
+    client = InfluxDBClient(host = influx_url,
+                            port = influx_port,
+                            username = influx_user,
+                            password = influx_pass)
     result = client.query(qry)
 
     return pd.DataFrame(result.get_points())
@@ -99,7 +98,7 @@ def query_time_series(m: models.Meter, from_time, to_time, agg="raw", to_rate=Fa
     }
 
     if has_g_support():
-        offline_mode = g.settings["offline_mode"]
+        offline_mode = g.settings["data"]["offline_mode"]
     else:
         offline_mode = current_app.config["offline_mode"]
     
@@ -171,18 +170,18 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             # Offline data is recorded at intervals set in the settings (default: 60 mins)
             try:
                 if has_g_support():
-                    interval = g.settings["offline_data_interval"]
+                    interval = g.settings["metadata"]["offline_data_interval"]
                 else:
-                    interval = settings.get("offline_data_interval")
+                    interval = settings.get("offline_data_interval", "metadata")
             except:
                 interval = 60
         else:
             # Live data is recorded at intervals set in the settings (default: 10 mins)
             try:
                 if has_g_support():
-                    interval = g.settings["data_interval"]
+                    interval = g.settings["influx"]["data_interval"]
                 else:
-                    interval = settings.get("data_interval")
+                    interval = settings.get("data_interval", "influx")
             except:
                 interval = 10
 
@@ -319,44 +318,9 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             all_outputs.append(out)
         return out
 
-def get_health(args, app_obj, returning=False):
+def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None= None, returning=False):
     # Because this function can be run in a separate thread, we need to push app context onto the thread when ever we
     # want to use app specific functions
-
-    try:
-        meter_ids = args["id"]
-        meter_ids = meter_ids.split(";")
-    except:
-        statement = db.select(models.Meter.id)
-        if not is_admin():
-            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-
-        with app_obj.app_context():
-            meter_ids = [x.id for x in db.session.execute(statement)]
-
-    if has_g_support():
-        offline_mode = g.settings["offline_mode"]
-    else:
-        with app_obj.app_context():
-            offline_mode = current_app.config["offline_mode"]
-
-    to_time = args.get("to_time")
-    from_time = args.get("from_time")
-    try:
-        date_range = int(args["date_range"])
-    except:
-        if has_g_support():
-            date_range = g.settings["default_daterange_health-check"]
-        else:
-            date_range = settings.get("default_daterange_health-check")
-
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, date_range, offline_mode)
-
-    # TODO: Should this be implemented or removed?
-    try:
-        fmt = args["format"]
-    except:
-        fmt = "json"
 
     ## load and trim meters
     statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
@@ -370,14 +334,21 @@ def get_health(args, app_obj, returning=False):
 
     out = []
 
-    n = 15 # Process 15 meters at a time (15 was a random number I chose)
+    if has_g_support():
+        n = g.settings["server"]["meter_batch_size"]
+    else:
+        n = settings.get("meter_batch_size", "server")
+    
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
             print(m.id)
             log.write(msg=f"Started health check for {m.id}", level=log.info)
-            threads.append(threading.Thread(target=process_meter_health, args=(m, from_time, to_time, offline_mode, app_obj, out), name=f"HC_{m.id}", daemon=True))
+            threads.append(threading.Thread(target=process_meter_health,
+                                            args=(m, from_time, to_time, offline_mode, app_obj, out),
+                                            name=f"HC_{m.id}",
+                                            daemon=True))
             threads[-1].start()
 
         # Wait for all threads in chunk to complete
@@ -389,7 +360,7 @@ def get_health(args, app_obj, returning=False):
     log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
-    if set(args).isdisjoint({"date_range", "from_time", "to_time", "id"}):
+    if cache_result:
         try:
             for meter in out:
                 with app_obj.app_context():
@@ -397,15 +368,19 @@ def get_health(args, app_obj, returning=False):
 
             try:
                 hc_meta = {
-                    "to_time": to_time.timestamp(),
-                    "from_time": from_time.timestamp(),
-                    "timestamp": dt.datetime.now(dt.timezone.utc).timestamp(),
+                    "to_time": to_time,
+                    "from_time": from_time,
+                    "timestamp": dt.datetime.now(dt.timezone.utc),
                     "processing_time": proc_time,
                     "offline": offline_mode
                 }
 
                 with app_obj.app_context():
-                    existing_hc_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "health_check")).scalar_one_or_none()
+                    existing_hc_meta = db.session.execute(
+                        db.select(models.CacheMeta)
+                        .where(models.CacheMeta.meta_type == "health_check")
+                    ).scalar_one_or_none()
+                    
                     if existing_hc_meta is None:
                         new_hc_meta = models.CacheMeta("health_check", hc_meta)
                         db.session.add(new_hc_meta)
@@ -441,6 +416,7 @@ def get_health(args, app_obj, returning=False):
 
             cleaned_out.append(meter_data)
         return out
+    return None
 
 def update_health_check(values: dict):
     existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
@@ -530,6 +506,7 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
                 df['time'] = pd.to_datetime(df['time'], format = '%Y-%m-%dT%H:%M:%S%z', utc=True)
                 df.set_index('time', inplace=True)
                 df = df.resample(agg, origin='end').sum()
+                # TODO: Double check if this should use x['obs'] or the newly created df
                 usage = x['obs'][0]['value']
             
             if usage is None:
@@ -593,14 +570,17 @@ def generate_summary(from_time: dt.datetime, to_time: dt.datetime, days: int, ca
     end_time = time.time()
     
     if cache_result:
-        existing_meta = db.session.execute(db.select(models.CacheMeta).where(models.CacheMeta.meta_type == "usage_summary")).scalar_one_or_none()
+        existing_meta = db.session.execute(
+            db.select(models.CacheMeta)
+            .where(models.CacheMeta.meta_type == "usage_summary")
+        ).scalar_one_or_none()
         
         new_meta = {
-            "to_time": to_time.timestamp(),
-            "from_time": from_time.timestamp(),
-            "timestamp": dt.datetime.now(tz=dt.timezone.utc).timestamp(),
+            "to_time": to_time,
+            "from_time": from_time,
+            "timestamp": dt.datetime.now(tz=dt.timezone.utc),
             "processing_time": end_time - start_time,
-            "offline": g.settings["offline_mode"]
+            "offline": g.settings["data"]["offline_mode"]
         }
         
         if existing_meta is None:
@@ -641,7 +621,7 @@ def generate_health_score(from_time: dt.datetime, days: int) -> dict:
 
         for m in meters:
             clean_meter_name = clean_file_name(m.id)
-            if g.settings["offline_mode"]:
+            if g.settings["data"]["offline_mode"]:
                 meter_health_score_file = os.path.join(offline_meter_health_score_files, f"{clean_meter_name}.json")
             else:
                 meter_health_score_file = os.path.join(meter_health_score_files, f"{clean_meter_name}.json")

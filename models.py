@@ -153,7 +153,7 @@ class Building(db.Model):
 class HealthCheck(db.Model):
     meter_id = db.Column(db.String, db.ForeignKey("meter.id"), primary_key=True)
 
-    # All of the following columns can be null
+    # All of the following columns are optional
     count = db.Column(db.Integer)
     count_perc = db.Column(db.String(6))
     count_score = db.Column(db.Integer)
@@ -183,7 +183,7 @@ class HealthCheck(db.Model):
 
     meter = db.relationship(Meter, back_populates="hc_record")
 
-    def __init__(self, meter_id: str, hc_data: dict = {}):
+    def __init__(self, meter_id: str, hc_data: dict):
         self.meter_id = meter_id
         self.count = hc_data.get("HC_count", None)
         self.count_score = hc_data.get("HC_count_score", None)
@@ -276,10 +276,9 @@ class HealthCheck(db.Model):
 
 class CacheMeta(db.Model):
     meta_type = db.Column(db.String, primary_key=True)
-    # Could these be DateTime objects?
-    to_time = db.Column(db.Float, nullable=False)
-    from_time = db.Column(db.Float, nullable=False)
-    timestamp = db.Column(db.Float, nullable=False)
+    to_time = db.Column(db.DateTime, nullable=False)
+    from_time = db.Column(db.DateTime, nullable=False)
+    timestamp = db.Column(db.DateTime, nullable=False)
     processing_time = db.Column(db.Float, nullable=False)
     offline = db.Column(db.Boolean, nullable=False)
 
@@ -334,12 +333,12 @@ class UtilityData(db.Model):
     def __init__(self, building_id: str, electricity: dict, gas: dict, heat: dict, water: dict):
         self.building_id = building_id
         self.update(electricity, gas, heat, water)
-    
+
     def _check_dict(self, dictionary: dict, require_benchmark=True) -> bool:
         # Allow empty data
         if len(dictionary) == 0:
             return True
-        
+
         for meter in dictionary.values():
             if bool(meter.keys() - {"EUI", "consumption", "benchmark"}):
                 return False
@@ -347,9 +346,9 @@ class UtilityData(db.Model):
             if require_benchmark:
                 if bool(meter["benchmark"].keys() - {"good", "typical"}):
                     return False
-        
+
         return True
-    
+
     def update(self, electricity: dict, gas: dict, heat: dict, water: dict):
         if not self._check_dict(electricity):
             raise ValueError("Invalid electricity data")
@@ -391,18 +390,16 @@ class User(db.Model):
     sessions = db.relationship("Sessions", back_populates="user", cascade="all, delete-orphan")
     login_codes = db.relationship("LoginCode", back_populates="user", cascade="all, delete-orphan")
     
-    def __init__(self, email: str, level: int, login_count: int = 0, last_login: datetime|None = None):
+    def __init__(self, email: str, level: int):
         if len(email.split('@')) < 2:
             raise ValueError("Invalid Email Address")
         
         self.email = email
         self.level = level
-        self.login_count = login_count
-        if last_login is not None:
-            self.last_login = last_login
+        self.login_count = 0
 
     def login(self, timestamp: datetime):
-        self.login_count = self.login_count + 1
+        self.login_count += 1
         self.last_login = timestamp
     
     def to_dict(self) -> dict:
@@ -455,7 +452,7 @@ class LoginCode(db.Model):
 
 class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
-    category = db.Column(db.String)
+    category = db.Column(db.String, primary_key=True)
     value = db.Column(db.JSON)
     setting_type = db.Column(db.String, nullable=False)
     
@@ -481,8 +478,7 @@ class Log(db.Model):
     timestamp = db.Column(db.DateTime, nullable=False)
     message = db.Column(db.String, nullable=False)
     info = db.Column(db.String)
-    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"),
-                      nullable=False)
+    level = db.Column(db.String, CheckConstraint("level IN ('info', 'warning', 'error', 'critical')"), nullable=False)
     
     def __init__(self, timestamp: datetime, message: str, level: str, info: str|None = None):
         self.timestamp = timestamp
@@ -515,28 +511,28 @@ class Context(db.Model):
     comment = db.Column(db.String, nullable=False)
     deleted = db.Column(db.Boolean, nullable=False)
     
-    def __init__(self, contextElem: dict):
-        self.update(contextElem)
+    def __init__(self, context_elem: dict):
+        self.update(context_elem)
     
-    def update(self, contextElem):
+    def update(self, context_elem):
         try:
-            self.author = contextElem["author"]
-            self.target_type = contextElem["target_type"].lower()
-            self.target_id = contextElem["target_id"]
+            self.author = context_elem["author"]
+            self.target_type = context_elem["target_type"].lower()
+            self.target_id = context_elem["target_id"]
 
-            start_time = contextElem.get("start")
+            start_time = context_elem.get("start")
             if start_time is not None:
                 start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M")
             self.start_timestamp = start_time
 
-            end_time = contextElem.get("end")
+            end_time = context_elem.get("end")
             if end_time is not None:
                 end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M")
             self.end_timestamp = end_time
 
-            self.context_type = contextElem["type"]
-            self.comment = contextElem.get("comment", "")
-            self.deleted = contextElem.get("deleted", False)
+            self.context_type = context_elem["type"]
+            self.comment = context_elem.get("comment", "")
+            self.deleted = context_elem.get("deleted", False)
         except:
             raise ValueError
     

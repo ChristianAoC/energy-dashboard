@@ -1,15 +1,14 @@
 from flask import Blueprint, make_response, request, jsonify#, session
 
 import uuid
-import os
 # import openpyxl
 
 import api.endpoints.data as data_api_bp
-import api.settings as settings
 from constants import *
-from database import db, generate_offine_meta
+from database import db, generate_offline_meta
 import log
 import models
+import settings
 
 settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
 
@@ -170,9 +169,9 @@ def upload_metadata():
     
     try:
         os.makedirs(os.path.dirname(metadata_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
-        file.save(tempfile, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
-        os.replace(tempfile, metadata_file)
+        temp_file = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
+        file.save(temp_file, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
+        os.replace(temp_file, metadata_file)
         settings.process_metadata_update()
     except Exception as e:
         log.write(msg="Failed to save or process new metadata", extra_info=str(e), level=log.error)
@@ -202,9 +201,9 @@ def upload_benchmark():
     
     try:
         os.makedirs(os.path.dirname(benchmark_data_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
-        file.save(tempfile)
-        os.replace(tempfile, benchmark_data_file)
+        temp_file = os.path.join(os.path.dirname(benchmark_data_file), str(uuid.uuid4()))
+        file.save(temp_file)
+        os.replace(temp_file, benchmark_data_file)
         settings.invalidate_summary_cache()
     except:
         return make_response("Error saving file", 500)
@@ -233,9 +232,9 @@ def upload_polygons():
     
     try:
         os.makedirs(os.path.dirname(mazemap_polygons_file), exist_ok=True)
-        tempfile = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
-        file.save(tempfile)
-        os.replace(tempfile, mazemap_polygons_file)
+        temp_file = os.path.join(os.path.dirname(mazemap_polygons_file), str(uuid.uuid4()))
+        file.save(temp_file)
+        os.replace(temp_file, mazemap_polygons_file)
     except:
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
@@ -244,9 +243,39 @@ def upload_polygons():
 @settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])
 @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
 def regenerate_offline_metadata():
-    if generate_offine_meta():
+    if generate_offline_meta():
         return make_response("OK", 200)
     return make_response("ERROR", 500)
+
+# Can set which type to clear.
+#  sessions - Clears expired sessions (default: 1 year)
+#  login_codes - Clears expired login codes (default: 1 hour)
+#  logs - Clears old logs (defaults:
+#                           info - 1 week
+#                           warning - 2 weeks
+#                           error - 1 month
+#                           critical - 6 months)
+# Example:
+# /api/settings?type=sessions
+@settings_api_bp.route("/clean-database/", methods=["POST"])
+@settings_api_bp.route("/clean-database", methods=["POST"])
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def clean_database():
+    to_clean_raw = request.args.get("type")
+    to_clean = []
+    if to_clean_raw is not None:
+        to_clean = [x.strip() for x in to_clean_raw.lower().split(";")]
+    
+    if to_clean == [] or "sessions" in to_clean:
+        settings.clean_database_sessions()
+    
+    if to_clean == [] or "login_codes" in to_clean:
+        settings.clean_database_login_codes()
+    
+    if to_clean == [] or "logs" in to_clean:
+        settings.clean_database_logs()
+    
+    return make_response("OK", 200)
 
 ## This is the start of a more guided upload for metadata
 # @settings_api_bp.route("/upload/new", methods=["POST"])

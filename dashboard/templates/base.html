@@ -2,7 +2,7 @@
 <html lang="en">
 <head>
 <meta http-equiv="Content-Type" content="text/html; charset=UTF-8">
-<title>{{ g.settings["SITE_NAME"] }}</title>
+<title>{{ g.settings["site"]["SITE_NAME"] }}</title>
 <!-- CSS files (external and own, just main for all pages) -->
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery.datetimepicker.min.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/ext/jquery-ui.min.css') }}" />
@@ -10,7 +10,7 @@
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/context.css') }}" />
 <link rel="stylesheet" type="text/css" href="{{ url_for('static', filename='style/nav.css') }}" />
 
-<!-- exernal JS files -->
+<!-- external JS files -->
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery-3.7.1.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/jquery-ui.min.js') }}"></script>
 <script type="text/javascript" src="{{ url_for('static', filename='script/ext/d3.v7.min.js') }}"></script>
@@ -19,9 +19,9 @@
 
 <script>
 const BASE_PATH = "{{ request.script_root }}";
-const DEFAULT_DATERANGE_BENCHMARK = {{ g.settings["default_daterange_benchmark"] | tojson }};
-const DEFAULT_DATERANGE_BROWSER = {{ g.settings["default_daterange_browser"] | tojson }};
-const DEFAULT_DATERANGE_HEALTHCHECK = {{ g.settings["default_daterange_health-check"] | tojson }};
+const DEFAULT_DATERANGE_BENCHMARK = {{ g.settings["site"]["default_daterange_benchmark"] | tojson }};
+const DEFAULT_DATERANGE_BROWSER = {{ g.settings["site"]["default_daterange_browser"] | tojson }};
+const DEFAULT_DATERANGE_HEALTHCHECK = {{ g.settings["site"]["default_daterange_health-check"] | tojson }};
 </script>
 
 <!-- own JS files -->
@@ -36,12 +36,12 @@ const DEFAULT_DATERANGE_HEALTHCHECK = {{ g.settings["default_daterange_health-ch
     <div id="nav-parent">
     <nav id="nav-top-bar">
     <script>
-    const OFFLINE_MODE = {{ g.settings["offline_mode"] | tojson }};
-    const CAPAVIS_URL = {{ g.settings["capavis_url"] | tojson }};
-    const CLUSTERING_URL = {{ g.settings["clustering_url"] | tojson }};
+    const OFFLINE_MODE = {{ g.settings["data"]["offline_mode"] | tojson }};
+    const CAPAVIS_URL = {{ g.settings["site"]["capavis_url"] | tojson }};
+    const CLUSTERING_URL = {{ g.settings["site"]["clustering_url"] | tojson }};
     
     const STATIC_URLS = {
-        {% if g.settings["offline_mode"] %}
+        {% if g.settings["data"]["offline_mode"] %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-offline-32.png') }}",
         {% else %}
         logo: "{{ url_for('static', filename='gfx/net0i-logo-32.png') }}",

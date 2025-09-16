@@ -322,8 +322,8 @@ async function fetchAndUpdateHealthCheck({ startDateStr, endDateStr, showStatus 
         // Construct URL with query params if dates provided
         const url = new URL(apiEndpoints.meterHealth, window.location.origin);
         if (startDate && endDate) {
-            url.searchParams.append('start', startDate);
-            url.searchParams.append('end', endDate);
+            url.searchParams.append('from_time', startDate);
+            url.searchParams.append('to_time', endDate);
         }
 
         const meterHealthResponse = await fetch(url.toString());
@@ -340,8 +340,8 @@ async function fetchAndUpdateHealthCheck({ startDateStr, endDateStr, showStatus 
         browserData.context = getcontext || [];
 
         if (hcMeta?.from_time && hcMeta?.to_time) {
-            document.getElementById("sb-start-date").value = new Date(hcMeta.from_time * 1000).toISOString().split("T")[0];
-            document.getElementById("sb-end-date").value = new Date(hcMeta.to_time * 1000).toISOString().split("T")[0];
+            document.getElementById("sb-start-date").value = new Date(hcMeta.from_time).toISOString().split("T")[0];
+            document.getElementById("sb-end-date").value = new Date(hcMeta.to_time).toISOString().split("T")[0];
         }
 
         updateHCTable();

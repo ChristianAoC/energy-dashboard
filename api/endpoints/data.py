@@ -3,7 +3,6 @@ from flask import Blueprint, current_app, jsonify, make_response, request, Respo
 import datetime as dt
 from functools import wraps
 import json
-import os
 import threading
 import time
 
@@ -32,15 +31,15 @@ def required_user_level(level_config_key):
                 return function(*args, **kwargs)
             
             try:
-                level = g.settings[level_config_key]
+                level = g.settings["users"][level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if level != 0:
                     cookies = request.cookies
                     email = cookies.get("Email", None)
-                    sessionID = cookies.get("SessionID", None)
+                    session_id = cookies.get("SessionID", None)
                     
-                    if get_user_level(email, sessionID) < level:
+                    if get_user_level(email, session_id) < level:
                         return make_response("Access Denied", 401)
             except Exception as e:
                 print("No or wrong cookie")
@@ -97,14 +96,14 @@ def meters():
 @data_api_bp.route('/hc-meta')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def hc_meta():
-    hc_meta = db.session.execute(
+    meta = db.session.execute(
         db.select(models.CacheMeta)
         .where(models.CacheMeta.meta_type == "health_check")
     ).scalar_one_or_none()
-    if hc_meta is None:
+    if meta is None:
         return make_response(jsonify({}), 404)
 
-    return make_response(jsonify(hc_meta.to_dict()), 200)
+    return make_response(jsonify(meta.to_dict()), 200)
 
 ## Create usage summary of meters
 ##
@@ -178,8 +177,9 @@ def hc_meta():
 def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    offline_mode = g.settings["offline_mode"]
-    from_time, to_time, days = calculate_time_args(from_time, to_time, g.settings["default_daterange_benchmark"], offline_mode)
+    from_time, to_time, days = calculate_time_args(from_time_requested=from_time,
+                                                   to_time_requested=to_time,
+                                                   date_range_requested=g.settings["site"]["default_daterange_benchmark"])
 
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -188,9 +188,9 @@ def summary():
     
     valid_cache = False
     if (cache_meta is not None
-        and cache_meta.to_time == to_time.timestamp()
-        and cache_meta.from_time == from_time.timestamp()
-        and cache_meta.offline == g.settings["offline_mode"]):
+        and cache_meta.to_time == to_time
+        and cache_meta.from_time == from_time
+        and cache_meta.offline == g.settings["data"]["offline_mode"]):
         valid_cache = True
     
     data = {}
@@ -199,11 +199,11 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if g.settings["offline_mode"]:
-            latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+        if g.settings["data"]["offline_mode"]:
+            latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
-        latest_data_date = latest_data_date.replace(hour=0, minute=0, second=0, microsecond=0)
+        latest_data_date = dt.datetime.combine(latest_data_date, dt.datetime.min.time(), tzinfo=latest_data_date.tzinfo)
         
         if to_time < latest_data_date:
             cache_result = False
@@ -243,7 +243,9 @@ def meter_obs():
 
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
-    from_time, to_time, _ = calculate_time_args(from_time, to_time, g.settings["default_daterange_browser"], offline_mode=g.settings["offline_mode"])
+    from_time, to_time, _ = calculate_time_args(from_time_requested=from_time,
+                                                to_time_requested=to_time,
+                                                date_range_requested=g.settings["site"]["default_daterange_browser"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -266,11 +268,11 @@ def meter_obs():
     if not is_admin():
         statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
     
-    meters = db.session.execute(statement).scalars().all()
+    meter_objs = db.session.execute(statement).scalars().all()
 
     out = dict.fromkeys(meter_ids)
 
-    for m in meters:
+    for m in meter_objs:
         out[m.id] = query_time_series(m, from_time, to_time, agg=agg, to_rate=to_rate)
 
     if fmt == "csv":
@@ -312,16 +314,9 @@ def meter_obs():
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def meter_health():
     # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
-    # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters)
-    #       Alternativly, the frontend could just set timeouts with increasing intervals until it received a fresh cache
-    
-    # load existing cache
-    statement = db.select(models.HealthCheck)
-    if not is_admin():
-        statement = (statement.where(models.HealthCheck.meter_id == models.Meter.id)
-                     .where(models.Meter.invoiced.is_(False))) # type: ignore
-    hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
-    
+    # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters and number of concurrent threads)
+    #       Alternatively, the frontend could just set timeouts with increasing intervals until it received a fresh cache
+
     # If database hasn't been initialised properly then the frontend enters a loop of retries because a 500 is returned
     # if there isn't any cache available to serve.
     if len(db.session.execute(db.select(models.Meter)).scalars().all()) == 0:
@@ -329,68 +324,93 @@ def meter_health():
         response.headers['X-Cache-State'] = "fresh"
         return response
 
-    # TODO: What does the last statement do?
-    if len(request.args) == 0 or g.settings["offline_mode"] or list(request.args.keys()) == ["hidden"]:
-        if hc_cache:
-            try:
-                if g.settings["offline_mode"]:
-                    latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"],
-                                                            "%Y-%m-%dT%H:%M:%S%z").timestamp()
-                else:
-                    latest_data_date = dt.datetime.now(dt.timezone.utc).timestamp()
+    from_time, to_time, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
+                                                   to_time_requested=request.args.get("to_time"),
+                                                   date_range_requested=request.args.get("date_range", type=int),
+                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
 
-                meta = db.session.execute(
-                    db.select(models.CacheMeta)
-                    .where(models.CacheMeta.meta_type == "health_check")
-                ).scalar_one_or_none()
-                if meta is None:
-                    raise Exception
-                
-                if not g.settings["offline_mode"]:
-                    cache_age = latest_data_date - meta.to_time
-                    if cache_age < 3600 * g.settings["hc_update_time"] and meta.offline == g.settings["offline_mode"]:
-                        response = make_response(jsonify(hc_cache), 200)
-                        response.headers['X-Cache-State'] = "fresh"
-                        return response
-                elif meta.offline == g.settings["offline_mode"]:
-                        response = make_response(jsonify(hc_cache), 200)
-                        response.headers['X-Cache-State'] = "fresh"
-                        return response
-            except:
-                updateOngoing = False
-                for th in threading.enumerate():
-                    if th.name == "updateMainHC":
-                        updateOngoing = True
-                        break
-                if not updateOngoing:
-                    print("Error reading cache metadata, skipping HC cache")
-                    log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
-
-        # TODO: Implement a lock here instead of this
-        updateOngoing = False
-        for th in threading.enumerate():
-            if th.name == "updateMainHC":
-                updateOngoing = True
-                break
-        
-        if not updateOngoing:
-            thread = threading.Thread(target=get_health, args=(request.args, current_app._get_current_object(), False),
-                                      name="updateMainHC", daemon=True)
-            thread.start()
-
-        if hc_cache:
-            response = make_response(jsonify(hc_cache), 200)
-            response.headers['X-Cache-State'] = "stale"
-            return response
-
-        response = make_response(jsonify([]), 500)
-        response.headers['X-Cache-State'] = "stale"
-        return response
+    if g.settings["data"]["offline_mode"]:
+        latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
     else:
-        health_check_data = get_health(request.args, current_app._get_current_object(), True)
+        latest_data_date = dt.datetime.combine(dt.datetime.now(dt.timezone.utc),
+                                               dt.datetime.max.time(),
+                                               tzinfo=dt.timezone.utc)
+
+    default_args_selected = False
+    if request.args.get("id") is None:
+        default_args_selected = True
+
+        if to_time.date() != latest_data_date.date():
+            default_args_selected = False
+
+        selected_range = to_time - from_time
+        if selected_range.days != g.settings["site"]["default_daterange_health-check"]:
+            default_args_selected = False
+
+    # Load existing cache
+    statement = db.select(models.HealthCheck)
+    if not is_admin():
+        statement = statement.where(models.HealthCheck.meter.invoiced.is_(False)) # type: ignore
+    hc_cache = [x.to_dict() for x in db.session.execute(statement).scalars().all()]
+
+    # Load existing cache meta
+    meta = db.session.execute(
+        db.select(models.CacheMeta)
+        .where(models.CacheMeta.meta_type == "health_check")
+    ).scalar_one_or_none()
+
+    try:
+        meter_ids = request.args["id"]
+        meter_ids = meter_ids.split(";")
+    except:
+        statement = db.select(models.Meter.id)
+        if not is_admin():
+            statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
+
+        meter_ids = [x.id for x in db.session.execute(statement)]
+
+    if not default_args_selected:
+        health_check_data = get_health(from_time=from_time,
+                                       to_time=to_time,
+                                       offline_mode=g.settings["data"]["offline_mode"],
+                                       app_obj=current_app._get_current_object(),
+                                       cache_result=default_args_selected,
+                                       meter_ids=meter_ids,
+                                       returning=True)
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
+
+    if hc_cache and meta is not None and meta.offline == g.settings["data"]["offline_mode"]:
+        try:
+            cache_age = latest_data_date.timestamp() - meta.to_time.timestamp()
+
+            if (g.settings["data"]["offline_mode"]
+                or (not g.settings["data"]["offline_mode"] and cache_age < 3600 * g.settings["data"]["hc_update_time"])):
+                response = make_response(jsonify(hc_cache), 200)
+                response.headers['X-Cache-State'] = "fresh"
+                return response
+        except:
+            if not any(th.name == "updateMainHC" for th in threading.enumerate()):
+                print("Error reading cache metadata, skipping HC cache")
+                log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
+
+    if not any(th.name == "updateMainHC" for th in threading.enumerate()):
+        thread = threading.Thread(target=get_health,
+                                  args=(from_time, to_time, g.settings["data"]["offline_mode"],
+                                        current_app._get_current_object(), default_args_selected, meter_ids, False),
+                                  name="updateMainHC",
+                                  daemon=True)
+        thread.start()
+
+    if hc_cache:
+        response = make_response(jsonify(hc_cache), 200)
+        response.headers['X-Cache-State'] = "stale"
+        return response
+
+    response = make_response(jsonify([]), 500)
+    response.headers['X-Cache-State'] = "stale"
+    return response
 
 ## Return meter hierarchy
 ##
@@ -436,12 +456,12 @@ def meter_hierarchy():
         if not is_admin():
             statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
         
-        meters = db.session.execute(statement).scalars().all()
+        meter_objs = db.session.execute(statement).scalars().all()
         
-        if len(meters) == 0:
+        if len(meter_objs) == 0:
             continue
         
-        for m in meters:
+        for m in meter_objs:
             meter_type = m.utility_type
             if meter_type not in ['gas', 'electricity', 'heat', 'water']:
                 continue
@@ -481,12 +501,12 @@ def meter_hierarchy():
 @data_api_bp.route('/health-score')
 @required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
 def health_score():
-    to_time = request.args.get("to_time")
-    from_time = request.args.get("from_time")
-    from_time, to_time, days = calculate_time_args(from_time, to_time, g.settings["default_daterange_health-check"], offline_mode=g.settings["offline_mode"])
+    from_time, _, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
+                                                   to_time_requested=request.args.get("to_time"),
+                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
 
     data = generate_health_score(from_time, days)
-    
+
     return make_response(jsonify(data), 200)
 
 @data_api_bp.route('/offline-meta/')
@@ -494,9 +514,9 @@ def health_score():
 @required_user_level("USER_LEVEL_VIEW_DASHBOARD")
 def offline_meta():
     out = {
-        "start_time": g.settings["offline_data_start_time"],
-        "end_time": g.settings["offline_data_end_time"],
-        "interval": g.settings["offline_data_end_time"]
+        "start_time": g.settings["metadata"]["offline_data_start_time"],
+        "end_time": g.settings["metadata"]["offline_data_end_time"],
+        "interval": g.settings["metadata"]["offline_data_interval"]
     }
     
     return make_response(jsonify(out), 200)
@@ -521,8 +541,8 @@ def regenerate_cache():
     cache.generate_meter_data_cache()
     end_time = time.time()
     total_time = end_time - start_time
-    print(f"Cache regeneratation took {total_time} seconds")
-    log.write(msg=f"Cache regeneratation took {total_time} seconds", level=log.info)
+    print(f"Cache regeneration took {total_time} seconds")
+    log.write(msg=f"Cache regeneration took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 
 @data_api_bp.route('/populate-database/')

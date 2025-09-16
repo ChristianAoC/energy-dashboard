@@ -23,5 +23,8 @@ COPY . .
 # Expose Flask/gunicorn port
 EXPOSE 5050
 
+# Make sure the data folder is readable
+RUN chmod -R 777 /app/data
+
 # Run app with gunicorn (production-grade WSGI)
-CMD ["gunicorn", "-w", "4", "-b", "0.0.0.0:5050", "app:app"]
+CMD ["gunicorn", "-w", "4", "-t", "240", "-b", "0.0.0.0:5050", "app:app"]
