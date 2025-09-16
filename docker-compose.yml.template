@@ -1,6 +1,6 @@
 services:
   web:
-    image: ghcr.io/ChristianAoC/energy-dashboard:v1.0.0
+    image: ghcr.io/ChristianAoC/energy-dashboard:latest
     container_name: energy-dashboard
     restart: unless-stopped
     expose:
@@ -14,6 +14,8 @@ services:
   nginx:
     image: nginx:latest
     container_name: nginx_proxy
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
     restart: unless-stopped
     ports:
       - "80:80"
@@ -26,6 +28,14 @@ services:
       - web
     networks:
       - appnet
+  
+  watchtower:
+    image: ghcr.io/containrrr/watchtower:latest
+    container_name: watchtower
+    labels:
+      - com.centurylinklabs.watchtower.enable=false
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
 
 networks:
   appnet:
