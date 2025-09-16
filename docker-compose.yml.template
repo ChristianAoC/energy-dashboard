@@ -1,6 +1,6 @@
 services:
   web:
-    image: energy-dashboard
+    image: ghcr.io/ChristianAoC/energy-dashboard:v1.0.0
     container_name: energy-dashboard
     restart: unless-stopped
     expose:
