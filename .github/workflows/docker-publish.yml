@@ -21,7 +21,7 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v4
         with:
-          ref: ${{ github.event.tag_name }}
+          ref: ${{ github.ref }}
 
       - name: Verify tag signature
         run: |
@@ -31,7 +31,7 @@ jobs:
             gpg --command-fd 0 --no-tty --no-greeting -q --edit-key "$(
             gpg --list-packets < dev-public-key.gpg |
             awk '$1=="keyid:"{print$2;exit}')" trust
-          git verify-tag "${{ github.event.tag_name }}"
+          git verify-tag "${{ github.ref_name }}"
           rm -f dev-public-key.gpg
 
       - name: Log into the Container registry
@@ -49,4 +49,4 @@ jobs:
           cache-from: type=${{ env.REGISTRY }},ref=${{ github.actor }}/${{ github.event.repository.name }}:buildcache
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
-            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.event.tag_name }}
+            ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
