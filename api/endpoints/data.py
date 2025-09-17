@@ -562,7 +562,7 @@ def populate_database():
 ## minimum_level - The lowest log level to look for (inclusive)
 ## exact_level - The exact log level to look for (overrules minimal_level)
 ## count - The number of logs to return
-## newest_first - Whether we start with the newest log ("true"/"false") - defaults to True
+## newest_first - Whether we start with the newest log ("true"/"false") - defaults to true
 ##
 ## Returns:
 ## json object:
@@ -613,9 +613,9 @@ def logs():
         count = None
     
     try:
-        newest_first= False
-        if str(request.args["newest_first"]).strip().lower() in ["yes", "1", "y", "true"]:
-            newest_first = True
+        newest_first = True
+        if str(request.args["newest_first"]).strip().lower() in ["no", "0", "n", "false"]:
+            newest_first = False
     except:
         newest_first = True
     
