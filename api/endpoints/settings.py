@@ -1,4 +1,4 @@
-from flask import Blueprint, make_response, request, jsonify#, session
+from flask import Blueprint, make_response, request, jsonify, send_file#, session
 
 import uuid
 # import openpyxl
@@ -238,6 +238,24 @@ def upload_polygons():
     except:
         return make_response("Error saving file", 500)
     return make_response("OK", 200)
+
+@settings_api_bp.route("/download/metadata/")
+@settings_api_bp.route("/download/metadata")
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def download_metadata():
+    return send_file(metadata_file, as_attachment=True)
+
+@settings_api_bp.route("/download/benchmarks/")
+@settings_api_bp.route("/download/benchmarks")
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def download_benchmarks():
+    return send_file(benchmark_data_file, as_attachment=True)
+
+@settings_api_bp.route("/download/polygons/")
+@settings_api_bp.route("/download/polygons")
+@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+def download_polygons():
+    return send_file(mazemap_polygons_file, as_attachment=True)
 
 @settings_api_bp.route("/regenerate-offline-metadata/", methods=["GET", "POST"])
 @settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])

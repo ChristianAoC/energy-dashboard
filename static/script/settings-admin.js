@@ -308,15 +308,24 @@ $(document).ready(function () {
         fileInput.dataset.endpoint = BASE_PATH + '/api/settings/upload/metadata';
         fileInput.click();
     });
+    document.getElementById('download-metadata').addEventListener('click', () => {
+        window.open(BASE_PATH + '/api/settings/download/metadata', '_self');
+    });
 
     document.getElementById('upload-benchmarks').addEventListener('click', () => {
         fileInput.dataset.endpoint = BASE_PATH + '/api/settings/upload/benchmarks';
         fileInput.click();
     });
+    document.getElementById('download-benchmarks').addEventListener('click', () => {
+        window.open(BASE_PATH + '/api/settings/download/benchmarks', '_self');
+    });
 
     document.getElementById('upload-polygons').addEventListener('click', () => {
         fileInput.dataset.endpoint = BASE_PATH + '/api/settings/upload/polygons';
         fileInput.click();
+    });
+    document.getElementById('download-polygons').addEventListener('click', () => {
+        window.open(BASE_PATH + '/api/settings/download/polygons', '_self');
     });
 
     fileInput.addEventListener('change', () => {
