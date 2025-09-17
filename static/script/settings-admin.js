@@ -244,7 +244,16 @@ function loadLogs() {
                 pageLength: 25,
                 dom: 'lrtp',
                 columns: [
-                    { data: 'timestamp', title: "Timestamp"},
+                    { 
+                        data: 'timestamp',
+                        title: "Timestamp",
+                        render: function(data, type) {
+                            if (type === 'sort') {
+                                return new Date(data).getTime();
+                            }
+                            return new Date(data).toISOString().replace('T', ' ').slice(0, -5);
+                        }
+                    },
                     { data: "level", title: "Level"},
                     { data: "message", title: "Message"},
                     { data: "info", title: "Info"}
