@@ -27,9 +27,13 @@ jobs:
       - name: Verify tag signature
         run: |
           echo "${{ secrets.DEVELOPER_KEY }}" | base64 --decode > dev-public-key.gpg
-          gpg --import dev-public-key.gpg
+          gpg -q --import dev-public-key.gpg
+          (echo 5; echo y; echo save) |
+            gpg --command-fd 0 --no-tty --no-greeting -q --edit-key "$(
+            gpg --list-packets < dev-public-key.gpg |
+            awk '$1=="keyid:"{print$2;exit}')" trust
           git verify-tag ${{ github.event.tag_name }}
-          echo "Tag verified successfully"
+          rm -f dev-public-key.gpg
 
       - name: Log into the Container registry
         uses: docker/login-action@v3
