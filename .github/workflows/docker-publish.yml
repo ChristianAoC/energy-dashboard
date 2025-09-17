@@ -31,7 +31,7 @@ jobs:
             gpg --command-fd 0 --no-tty --no-greeting -q --edit-key "$(
             gpg --list-packets < dev-public-key.gpg |
             awk '$1=="keyid:"{print$2;exit}')" trust
-          git verify-tag ${{ github.event.tag_name }}
+          git verify-tag "${{ github.event.tag_name }}"
           rm -f dev-public-key.gpg
 
       - name: Log into the Container registry
