@@ -26,7 +26,8 @@ jobs:
 
       - name: Verify tag signature
         run: |
-          gpg --import ${{ secrets.DEVELOPER_KEY }}
+          echo "${{ secrets.DEVELOPER_KEY }}" | base64 --decode > dev-public-key.gpg
+          gpg --import dev-public-key.gpg
           git verify-tag ${{ github.event.tag_name }}
           echo "Tag verified successfully"
 
