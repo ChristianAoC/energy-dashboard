@@ -102,6 +102,18 @@ default_settings = {
     }
 }
 
+def process_categories(settings: dict, key: str, category: str, value = None, write: bool = False):
+    parts = category.split('.')
+    
+    temp = settings
+    for part in parts[:-1]:
+        temp = temp.setdefault(part, {})
+    
+    if write:
+        temp[parts[-1]][key] = value
+    else:
+        return temp[parts[-1]][key]
+
 def load_settings():
     # I had an idea to implement a "lazy loading" system here but for now there isn't enough settings to require it.
     # May be worth looking into if the DB gets locked up frequently
@@ -115,12 +127,11 @@ def load_settings():
         g.settings = copy.deepcopy(default_settings)
         
         for setting in db.session.execute(db.select(models.Settings)).scalars().all():
-            parts = setting.category.split('.')
-            temp = g.settings
-            for part in parts[:-1]:
-                temp = temp.setdefault(part, {})
-            
-            temp[parts[-1]][setting.key] = setting.value
+            process_categories(settings=g.settings,
+                               key=setting.key,
+                               category=setting.category,
+                               value=setting.value,
+                               write=True)
 
 def create_record(key: str, value, setting_type: str, category: str|None = None):
     try:
@@ -159,20 +170,18 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
 def get(key: str, category: str):
     existing_setting = None
     try:
-        statement = db.Select(models.Settings).where(models.Settings.key == key).where(models.Settings.category == category)
-        if has_app_context():
-            existing_setting = db.session.execute(statement).scalar_one_or_none()
-        else:
-            from app import app
-            with app.app_context():
-                existing_setting = db.session.execute(statement).scalar_one_or_none()
+        existing_setting = db.session.execute(
+            db.Select(models.Settings)
+            .where(models.Settings.key == key)
+            .where(models.Settings.category == category)
+        ).scalar_one_or_none()
     except:
         existing_setting = None
     
     if existing_setting is None:
-        value = default_settings.get(key)
+        value = process_categories(default_settings, key, category)
         if value is None:
-            log.write(msg="Error retrieving setting", extra_info=f"Key {key}", level=log.error)
+            log.write(msg="Error retrieving setting", extra_info=f"{category}.{key}", level=log.error)
             raise Exception(f"Unable to retrieve settings with key {key}")
     else:
         value = existing_setting.value
