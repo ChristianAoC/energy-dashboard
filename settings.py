@@ -159,20 +159,18 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
 def get(key: str, category: str):
     existing_setting = None
     try:
-        statement = db.Select(models.Settings).where(models.Settings.key == key).where(models.Settings.category == category)
-        if has_app_context():
-            existing_setting = db.session.execute(statement).scalar_one_or_none()
-        else:
-            from app import app
-            with app.app_context():
-                existing_setting = db.session.execute(statement).scalar_one_or_none()
+        existing_setting = db.session.execute(
+            db.Select(models.Settings)
+            .where(models.Settings.key == key)
+            .where(models.Settings.category == category)
+        ).scalar_one_or_none()
     except:
         existing_setting = None
     
     if existing_setting is None:
         value = default_settings.get(key)
         if value is None:
-            log.write(msg="Error retrieving setting", extra_info=f"Key {key}", level=log.error)
+            log.write(msg="Error retrieving setting", extra_info=f"{category}.{key}", level=log.error)
             raise Exception(f"Unable to retrieve settings with key {key}")
     else:
         value = existing_setting.value

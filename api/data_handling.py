@@ -337,7 +337,8 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
     if has_g_support():
         n = g.settings["server"]["meter_batch_size"]
     else:
-        n = settings.get("meter_batch_size", "server")
+        with app_obj.app_context():
+            n = settings.get("meter_batch_size", "server")
     
     meter_chunks = [meters[i:i + n] for i in range(0, len(meters), n)]
     for meter_chunk in meter_chunks:
