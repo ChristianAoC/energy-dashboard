@@ -18,19 +18,7 @@ COPY requirements.txt .
 RUN pip install --no-cache-dir -r requirements.txt gunicorn
 
 # Copy files
-COPY api/*.py .
-COPY dashboard/*.py .
-COPY app.py .
-COPY settings.py .
-COPY constants.py .
-COPY database.py .
-COPY log.py .
-COPY models.py .
-
-COPY LICENSE .
-
-COPY static/ ./static/
-COPY dashboard/templates/ ./dashboard/templates/
+COPY . .
 
 # Expose Flask/gunicorn port
 EXPOSE 5050
