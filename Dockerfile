@@ -24,7 +24,7 @@ COPY . .
 EXPOSE 5050
 
 # Make sure the data folder is readable
-RUN mkdir /app/data
+RUN mkdir -p /app/data
 RUN chmod -R 777 /app/data
 
 # Run app with gunicorn (production-grade WSGI)
