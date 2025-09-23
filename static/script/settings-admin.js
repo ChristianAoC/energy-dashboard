@@ -99,7 +99,22 @@ async function loadUsers() {
                 pageLength: 25,
                 columns: [
                     { data: "email", title: "Email"},
-                    { data: "lastlogin", title: "Last login"},
+                    {
+                        data: "lastlogin",
+                        title: "Last login",
+                        render: function(data, type, row) {
+                            if (!data) return '';
+                            
+                            const dateParts = data.split(' ');
+                            const [dateStr, timeStr] = dateParts;
+                            const [year, month, day] = dateStr.split('-');
+                            const [hours, minutes, seconds] = timeStr.split(':');
+                            
+                            const date = new Date(Date.UTC(year, month - 1, day, hours, minutes, seconds));
+                            
+                            return date.toLocaleString();
+                        }
+                    },
                     {
                         data: "level",
                         render: function (level, type, row) {
