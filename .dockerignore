@@ -1,0 +1,23 @@
+# Misc project files
+.github/
+.idea/
+.venv/
+.dockerignore
+.env
+.env.template
+.gitignore
+CHANGELOG.md
+docker-compose.yml
+docker-compose.yml.template
+Dockerfile
+nginx.conf.template
+README.md
+
+# Application data
+data/
+
+# Python caches
+dashboard/__pycache__/
+api/__pycache__/
+api/endpoints/__pycache__/
+__pycache__/
