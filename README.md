@@ -1,3 +1,5 @@
+[![Docker Image CI](https://github.com/ChristianAoC/energy-dashboard/actions/workflows/docker-publish.yml/badge.svg?branch=main&event=push)](https://github.com/ChristianAoC/energy-dashboard/actions/workflows/docker-publish.yml)
+
 # Energy Dashboard with Context Explorer
 
 The goal of this dashboard is to allow users to contextualise energy data. A description of the origins and research intentions can be found on the [Net0i project website](https://wp.lancs.ac.uk/net0i/energy-dashboard/), and a paper/poster explaining its use can be [accessed here](https://wp.lancs.ac.uk/net0i/files/2025/06/2025-remy-contextviz.pdf). A public demo is available here: [https://christianremy.com/dashboard/](https://christianremy.com/dashboard/)
