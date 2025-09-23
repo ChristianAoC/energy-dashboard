@@ -45,8 +45,19 @@ Settings table primary key changed "key" to "key and category".
 ```sql
 BEGIN TRANSACTION;
 
-ALTER TABLE settings DROP PRIMARY KEY;
-ALTER TABLE settings ADD PRIMARY KEY (key, category);
+CREATE TABLE settings_new (
+    key TEXT,
+    category TEXT,
+    value TEXT,
+    setting_type TEXT NOT NULL,
+    PRIMARY KEY (key, category)
+);
+
+INSERT INTO settings_new (key, category, value, setting_type)
+SELECT key, category, value, setting_type FROM settings;
+
+DROP TABLE settings;
+ALTER TABLE settings_new RENAME TO settings;
 
 COMMIT;
 ```
