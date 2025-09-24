@@ -48,7 +48,6 @@ jobs:
         with:
           context: .
           push: true
-          cache-from: type=${{ env.REGISTRY }},ref=${{ env.IMAGE_NAME }}:buildcache
           tags: |
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:latest
             ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}:${{ github.ref_name }}
