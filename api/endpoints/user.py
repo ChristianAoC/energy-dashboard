@@ -110,8 +110,10 @@ def delete():
         return make_response("No email specified", 400)
     
     result = users.delete_user(email)
+    
+    # Because we have already done the email check, result will only be False if the selected user is an admin.
     if not result:
-        return make_response(f"Couldn't remove user {email}", 500)
+        return make_response(f"Couldn't remove user {email} because they are an admin", 400)
     
     return make_response(f"Successfully removed user {email}", 200)
 
