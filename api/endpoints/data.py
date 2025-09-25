@@ -388,8 +388,20 @@ def meter_health():
                                        offline_mode=g.settings["data"]["offline_mode"],
                                        app_obj=current_app._get_current_object(),
                                        cache_result=default_args_selected,
-                                       meter_ids=meter_ids,
-                                       returning=True)
+                                       meter_ids=meter_ids)
+        if not is_admin():
+            out = []
+            for meter_data in health_check_data:
+                meter = db.session.execute(
+                    db.select(models.Meter)
+                    .where(models.Meter.id == meter_data["meter_id"])
+                ).scalar_one_or_none()
+                
+                if meter is None or meter.invoiced:
+                    continue
+                
+                out.append(meter_data)
+        
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -410,7 +422,7 @@ def meter_health():
     if not any(th.name == "updateMainHC" for th in threading.enumerate()):
         thread = threading.Thread(target=get_health,
                                   args=(from_time, to_time, g.settings["data"]["offline_mode"],
-                                        current_app._get_current_object(), default_args_selected, meter_ids, False),
+                                        current_app._get_current_object(), default_args_selected, meter_ids),
                                   name="updateMainHC",
                                   daemon=True)
         thread.start()
