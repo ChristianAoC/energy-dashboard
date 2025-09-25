@@ -17,11 +17,11 @@ def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_tim
     if type(from_time_requested) is str:
         from_time = dt.datetime.combine(dt.datetime.strptime(from_time_requested,"%Y-%m-%d"), dt.datetime.min.time(), tzinfo=dt.timezone.utc)
     if type(to_time_requested) is str:
-        to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
+        to_time = dt.datetime.combine(dt.datetime.strptime(to_time_requested, "%Y-%m-%d"), dt.datetime.min.time(), tzinfo=dt.timezone.utc)
     
     if not g.settings["data"]["offline_mode"]:
         if to_time_requested is None:
-            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.max.time(), tzinfo=dt.timezone.utc)
+            to_time = dt.datetime.combine(dt.date.today(), dt.datetime.min.time(), tzinfo=dt.timezone.utc)
 
         if from_time_requested is None:
             from_time = to_time - dt.timedelta(days=time_range, seconds=1)

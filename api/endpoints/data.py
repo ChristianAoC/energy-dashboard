@@ -324,7 +324,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "fresh"
         return response
 
-    from_time, to_time, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
+    from_time, to_time, _ = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
                                                    date_range_requested=request.args.get("date_range", type=int),
                                                    desired_time_range=g.settings["site"]["default_daterange_health-check"])
@@ -333,7 +333,7 @@ def meter_health():
         latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
     else:
         latest_data_date = dt.datetime.combine(dt.datetime.now(dt.timezone.utc),
-                                               dt.datetime.max.time(),
+                                               dt.datetime.min.time(),
                                                tzinfo=dt.timezone.utc)
 
     default_args_selected = False
