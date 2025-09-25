@@ -364,6 +364,18 @@ def meter_health():
     try:
         meter_ids = request.args["id"]
         meter_ids = meter_ids.split(";")
+        
+        if not is_admin():
+            for meter_id in meter_ids:
+                meter = db.session.execute(
+                    db.select(models.Meter)
+                    .where(models.Meter.id == meter_id)
+                ).scalar_one_or_none()
+                
+                if meter is None:
+                    return make_response("Access Denied", 403)
+                if meter.invoiced:
+                    return make_response("Access Denied", 403)
     except:
         statement = db.select(models.Meter.id)
         if not is_admin():
