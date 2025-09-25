@@ -42,7 +42,6 @@ def required_user_level(level_config_key):
                     if get_user_level(email, session_id) < level:
                         return make_response("Access Denied", 403)
             except Exception as e:
-                print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 return make_response("Access Denied", 401)
 
@@ -406,7 +405,6 @@ def meter_health():
                 return response
         except:
             if not any(th.name == "updateMainHC" for th in threading.enumerate()):
-                print("Error reading cache metadata, skipping HC cache")
                 log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
     if not any(th.name == "updateMainHC" for th in threading.enumerate()):
@@ -555,7 +553,6 @@ def regenerate_cache():
     cache.generate_meter_data_cache()
     end_time = time.time()
     total_time = end_time - start_time
-    print(f"Cache regeneration took {total_time} seconds")
     log.write(msg=f"Cache regeneration took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 

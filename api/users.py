@@ -249,6 +249,7 @@ def login_request(email: str) -> tuple:
 
     if first_user:
         return ("First user created. <a href='" + code_url + "'>Click on this link</a> to become an administrator.", 200)
+    
     print("Mail sending off until everything else works. Post this URL into the browser:")
     print(code_url)
     log.write(msg="Mail sending is off", extra_info=f"For user {email}", level=log.info)

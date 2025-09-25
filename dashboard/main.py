@@ -50,7 +50,6 @@ def required_user_level(level_config_key):
                             return make_response("Access Denied", 403)
                         return no_access()
             except Exception as e:
-                print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 if request.method == "POST":
                     return make_response("Access Denied", 401)

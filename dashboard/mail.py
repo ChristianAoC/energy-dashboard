@@ -14,7 +14,6 @@ def send_email(email_receiver: str, email_subject: str, email_body_plain: str, e
     smtp_server = g.settings["smtp"]["SMTP_SERVER"]
     smtp_port = g.settings["smtp"]["SMTP_PORT"]
     if email_sender is None or email_password is None or smtp_server is None or smtp_port is None:
-        print("SMTP variables not set in settings, couldn't send email!")
         log.write(msg="SMTP variables not set in settings, couldn't send email", level=log.error)
         return "SMTP variables not set in settings, couldn't send email!"
     em = MIMEMultipart("alternative")

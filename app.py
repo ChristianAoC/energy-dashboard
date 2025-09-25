@@ -106,7 +106,6 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
         log.write(msg=f"Scheduled api call to {url} failed with code {request_response.status_code}",
                        level=log.error)
     else:
-        print(f"Finished scheduled request to: {url}")
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
 # Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request

@@ -356,7 +356,6 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
             t.join()
 
     proc_time = (time.time() - start_time)
-    # print("--- Health check took %s seconds ---" % proc_time)
     log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
@@ -388,15 +387,9 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
                         existing_hc_meta.update(hc_meta)
                     db.session.commit()
             except Exception as e:
-                print("Error trying to save metadata for latest HC cache")
-                print(e)
                 log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
         except Exception as e:
-            print("Error trying to save current health check in cache")
-            print(e)
             log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
-
-        print("Completed HC update")
         log.write(msg="Completed health check update", level=log.info)
 
     if returning:
