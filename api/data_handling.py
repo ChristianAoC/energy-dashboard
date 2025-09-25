@@ -344,7 +344,6 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
-            print(m.id)
             log.write(msg=f"Started health check for {m.id}", level=log.info)
             threads.append(threading.Thread(target=process_meter_health,
                                             args=(m, from_time, to_time, offline_mode, app_obj, out),
