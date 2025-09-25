@@ -134,7 +134,11 @@ async function loadUsers() {
                     {
                         data: null, title: "Actions",
                         render: function (u, type, row) {
-                            return `<button class="btn-delete" data-email="${u.email}">Delete</button>`;
+                            if (u.level < admin_level) {
+                                return `<button class="btn-delete" data-email="${u.email}">Delete</button>`;
+                            } else {
+                                return `<button class="btn-delete" disabled="" data-email="${u.email}">Delete</button>`
+                            }
                         }
                     }
                 ]
@@ -408,7 +412,17 @@ $(document).ready(function () {
             .then(res => {
                 if (!res.ok) throw new Error("Failed to update user");
             })
-            .then(data => {
+            .then(async data => {
+                const deleteButton = document.querySelector(`button[data-email="${email}"]`);
+                if (!deleteButton) throw new Error("Failed to update delete button");
+                
+                const admin_level = await getAdminUserLevel();
+
+                if (newLevel < admin_level) {
+                    deleteButton.disabled = false;
+                } else {
+                    deleteButton.disabled = true;
+                }
             })
             .catch(err => {
                 alert("Error updating user level");
