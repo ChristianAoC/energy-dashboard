@@ -340,7 +340,9 @@ def meter_health():
     if request.args.get("id") is None:
         default_args_selected = True
 
-        if to_time.date() != latest_data_date.date():
+        # Allow to_time date to be either today or yesterday. This is a workaround because the frontend sends
+        # yesterday's date. The data shouldn't be too different across the two days.
+        if to_time.date() != latest_data_date.date() and to_time.date() != (latest_data_date.date()-dt.timedelta(days=1)):
             default_args_selected = False
 
         selected_range = to_time - from_time
