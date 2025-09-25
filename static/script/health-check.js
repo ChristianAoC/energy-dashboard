@@ -361,7 +361,7 @@ async function fetchAndUpdateHealthCheck({ startDateStr, endDateStr, showStatus 
 
 // Retry logic now reuses the unified fetcher
 function retryHealthCheckUpdate() {
-    const retryIntervalMs = 5000;
+    const retryIntervalMs = 10000;
     setTimeout(() => {
         fetchAndUpdateHealthCheck({ showStatus: true });
     }, retryIntervalMs);
