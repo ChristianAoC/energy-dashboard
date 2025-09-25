@@ -47,7 +47,7 @@ def required_user_level(level_config_key):
 
                     if users.get_user_level(email, session_id) < required_level:
                         if request.method == "POST":
-                            return make_response("Access Denied", 401)
+                            return make_response("Access Denied", 403)
                         return no_access()
             except Exception as e:
                 print("No or wrong cookie")
