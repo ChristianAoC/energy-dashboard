@@ -106,7 +106,7 @@ def delete():
         return make_response("No JSON data received", 400)
     
     email = data.get('email')
-    if email is None:
+    if not email:
         return make_response("No email specified", 400)
     
     result = users.delete_user(email)
