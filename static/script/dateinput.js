@@ -108,11 +108,12 @@ $(async function () {
             throw new Error("offlineMeta missing or malformed");
         } else {
             const endDate = new Date();
+            endDate.setHours(0, 0, 0, 0);
+            
             const startDate = new Date(endDate);
             startDate.setDate(endDate.getDate() - defaultDateRanges[filename]);
-
+            
             // set max selectable to one millisecond after today (otherwise today looks greyed out)
-            endDate.setHours(0, 0, 0, 0);
             const maxSelectable = new Date(endDate);
             maxSelectable.setDate(maxSelectable.getDate() + 100);
             setDatePickerLimits(earliestAllowed, maxSelectable);

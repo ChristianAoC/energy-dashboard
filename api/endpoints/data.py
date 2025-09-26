@@ -40,9 +40,8 @@ def required_user_level(level_config_key):
                     session_id = cookies.get("SessionID", None)
                     
                     if get_user_level(email, session_id) < level:
-                        return make_response("Access Denied", 401)
+                        return make_response("Access Denied", 403)
             except Exception as e:
-                print("No or wrong cookie")
                 log.write(msg="No or wrong cookie", extra_info=str(e), level=log.warning)
                 return make_response("Access Denied", 401)
 
@@ -324,7 +323,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "fresh"
         return response
 
-    from_time, to_time, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
+    from_time, to_time, _ = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
                                                    date_range_requested=request.args.get("date_range", type=int),
                                                    desired_time_range=g.settings["site"]["default_daterange_health-check"])
@@ -333,14 +332,16 @@ def meter_health():
         latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
     else:
         latest_data_date = dt.datetime.combine(dt.datetime.now(dt.timezone.utc),
-                                               dt.datetime.max.time(),
+                                               dt.datetime.min.time(),
                                                tzinfo=dt.timezone.utc)
 
     default_args_selected = False
     if request.args.get("id") is None:
         default_args_selected = True
 
-        if to_time.date() != latest_data_date.date():
+        # Allow to_time date to be either today or yesterday. This is a workaround because the frontend sends
+        # yesterday's date. The data shouldn't be too different across the two days.
+        if to_time.date() != latest_data_date.date() and to_time.date() != (latest_data_date.date()-dt.timedelta(days=1)):
             default_args_selected = False
 
         selected_range = to_time - from_time
@@ -362,6 +363,18 @@ def meter_health():
     try:
         meter_ids = request.args["id"]
         meter_ids = meter_ids.split(";")
+        
+        if not is_admin():
+            for meter_id in meter_ids:
+                meter = db.session.execute(
+                    db.select(models.Meter)
+                    .where(models.Meter.id == meter_id)
+                ).scalar_one_or_none()
+                
+                if meter is None:
+                    return make_response("Access Denied", 403)
+                if meter.invoiced:
+                    return make_response("Access Denied", 403)
     except:
         statement = db.select(models.Meter.id)
         if not is_admin():
@@ -375,8 +388,20 @@ def meter_health():
                                        offline_mode=g.settings["data"]["offline_mode"],
                                        app_obj=current_app._get_current_object(),
                                        cache_result=default_args_selected,
-                                       meter_ids=meter_ids,
-                                       returning=True)
+                                       meter_ids=meter_ids)
+        if not is_admin():
+            out = []
+            for meter_data in health_check_data:
+                meter = db.session.execute(
+                    db.select(models.Meter)
+                    .where(models.Meter.id == meter_data["meter_id"])
+                ).scalar_one_or_none()
+                
+                if meter is None or meter.invoiced:
+                    continue
+                
+                out.append(meter_data)
+        
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -392,13 +417,12 @@ def meter_health():
                 return response
         except:
             if not any(th.name == "updateMainHC" for th in threading.enumerate()):
-                print("Error reading cache metadata, skipping HC cache")
                 log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
     if not any(th.name == "updateMainHC" for th in threading.enumerate()):
         thread = threading.Thread(target=get_health,
                                   args=(from_time, to_time, g.settings["data"]["offline_mode"],
-                                        current_app._get_current_object(), default_args_selected, meter_ids, False),
+                                        current_app._get_current_object(), default_args_selected, meter_ids),
                                   name="updateMainHC",
                                   daemon=True)
         thread.start()
@@ -541,7 +565,6 @@ def regenerate_cache():
     cache.generate_meter_data_cache()
     end_time = time.time()
     total_time = end_time - start_time
-    print(f"Cache regeneration took {total_time} seconds")
     log.write(msg=f"Cache regeneration took {total_time} seconds", level=log.info)
     return make_response(str(total_time), 200)
 

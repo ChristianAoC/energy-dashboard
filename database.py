@@ -6,7 +6,6 @@ from dotenv import load_dotenv
 import os
 import pandas as pd
 import json
-import sys
 
 from constants import metadata_file, offline_data_files, offline_meta_file
 
@@ -652,7 +651,7 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             log.write(msg="You are running in offline mode with no offline metadata (and it couldn't be generated). Please either place it in ./data/offline_data.json or add the data directly to the database.",
                         extra_info="Note: there may be other critical errors that are being masked by this one.",
                         level=log.critical)
-            sys.exit(1)
+            raise e
         log.write(msg="Error initialising settings table", extra_info=str(e), level=log.critical)
         raise e
     except Exception as e:

@@ -13,7 +13,6 @@ import base64
 from datetime import timezone
 from dotenv import load_dotenv
 import requests
-import psutil
 
 from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
@@ -25,6 +24,7 @@ import database
 import log
 import models
 from settings import load_settings, default_settings
+import shutdown
 
 
 app = Flask(__name__)
@@ -61,14 +61,7 @@ with app.app_context():
 
 # Show all error messages before exiting
 if not successful_initialisation:
-    current_pid = os.getpid()
-    for proc in psutil.process_iter(['pid', 'name']):
-        if proc.info['name'] == 'gunicorn' and proc.info['pid'] != current_pid:
-            try:
-                os.kill(proc.info['pid'], 15) # SIGTERM
-            except OSError as e:
-                print(f"Error terminating process {proc.info['pid']}: {e}")
-    sys.exit(1)
+    shutdown.hard()
 del successful_initialisation
 
 ###########################################################
@@ -113,7 +106,6 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
         log.write(msg=f"Scheduled api call to {url} failed with code {request_response.status_code}",
                        level=log.error)
     else:
-        print(f"Finished scheduled request to: {url}")
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
 # Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request

@@ -16,7 +16,7 @@ import models
 # - bypassing authentication (in a normal case)
 # - skipping something (a meter/building in a health check / summary)
 #
-# Useful for debugging and must not require direct intervention, it should be safe to ignore/discard
+# Useful for debugging and must not require direct intervention, they should be safe to ignore/discard
 info = "info"
 
 # An error that doesn't stop the operation from continuing, e.g:

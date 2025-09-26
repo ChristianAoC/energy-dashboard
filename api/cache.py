@@ -89,7 +89,6 @@ def cache_validity_checker(days: int, cache_file: str, data_start_time: dt.datet
 def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end_time: dt.datetime, app_obj) -> None:
     # Because this function can be run in a separate thread, we need to push app context onto the thread
     with app_obj.app_context():
-        print(f"Started: {m.id}")
         log.write(msg=f"Started data cache generation for {m.id}", level=log.info)
         try:
             file_name = clean_file_name(f"{m.id}.csv")
@@ -120,7 +119,6 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
                 score = process_meter_health(m, cache_item[1], cache_item[2], offline_mode, app_obj)
                 if score is None:
                     # Something happened to the offline data since running cache_validity_checker, quit thread
-                    print(f"Ended: {m.id} - An Error occurred accessing the offline data for this meter")
                     log.write(msg=f"Error accessing the offline data for {m.id}", level=log.error)
                     return
                 meter_health_scores.update({cache_item[0].isoformat(): score['HC_score']})
@@ -149,10 +147,8 @@ def generate_meter_cache(m: models.Meter, data_start_time: dt.datetime, data_end
             with open(meter_snapshots_file, "w") as f:
                 json.dump(meter_snapshots, f)
         except Exception as e:
-            print(f"An error occurred generating cache for meter {m.id}")
             log.write(msg=f"An error occurred generating cache for meter {m.id}", level=log.error)
             raise e
-        print(f"Ended: {m.id}")
         log.write(msg=f"Finished data cache generation for {m.id}", level=log.info)
 
 ## Generates the cache data for meter health scores and meter snapshots
@@ -204,7 +200,6 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
 
             if g.settings["data"]["offline_mode"]:
                 if not os.path.exists(os.path.join(DATA_DIR, "offline", file_name)):
-                    print(f"Skipping: {m.id}")
                     continue
 
             meter_health_score_file = os.path.join(current_meter_health_score_files, file_name)
@@ -220,7 +215,6 @@ def generate_meter_data_cache(return_if_generating=True) -> None:
                                            meter_snapshots_file,
                                            data_start_time,
                                            data_end_time)):
-                print(f"Skipping: {m.id}")
                 log.write(msg=f"Skipping data cache generation for {m.id}", level=log.info)
                 continue
 

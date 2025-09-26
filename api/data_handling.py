@@ -318,20 +318,17 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             all_outputs.append(out)
         return out
 
-def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None= None, returning=False):
+def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None= None):
     # Because this function can be run in a separate thread, we need to push app context onto the thread when ever we
     # want to use app specific functions
-
-    ## load and trim meters
-    statement = db.select(models.Meter).where(models.Meter.id.in_(meter_ids)) # type: ignore
-    if not is_admin():
-        statement = statement.where(models.Meter.invoiced.is_(False)) # type: ignore
-
+    
     with app_obj.app_context():
-        meters = db.session.execute(statement).scalars().all()
+        meters = db.session.execute(
+            db.select(models.Meter)
+            .where(models.Meter.id.in_(meter_ids)) # type: ignore
+        ).scalars().all()
 
     start_time = time.time()
-
     out = []
 
     if has_g_support():
@@ -344,7 +341,6 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
     for meter_chunk in meter_chunks:
         threads = []
         for m in meter_chunk:
-            print(m.id)
             log.write(msg=f"Started health check for {m.id}", level=log.info)
             threads.append(threading.Thread(target=process_meter_health,
                                             args=(m, from_time, to_time, offline_mode, app_obj, out),
@@ -357,7 +353,6 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
             t.join()
 
     proc_time = (time.time() - start_time)
-    # print("--- Health check took %s seconds ---" % proc_time)
     log.write(msg=f"Health check took {proc_time} seconds", level=log.info)
 
     # save cache, but only if it's a "default" query
@@ -389,38 +384,20 @@ def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool,
                         existing_hc_meta.update(hc_meta)
                     db.session.commit()
             except Exception as e:
-                print("Error trying to save metadata for latest HC cache")
-                print(e)
-                log.write(msg="Error trying to save metadata for latest health check cache", extra_info=str(e), level=log.warning)
+                log.write(msg="Error trying to save metadata for latest health check cache",
+                          extra_info=str(e),
+                          level=log.warning)
         except Exception as e:
-            print("Error trying to save current health check in cache")
-            print(e)
             log.write(msg="Error trying to save latest health check", extra_info=str(e), level=log.warning)
-
-        print("Completed HC update")
         log.write(msg="Completed health check update", level=log.info)
-
-    if returning:
-        exclude_tenants = not is_admin()
-        if not exclude_tenants:
-            return out
-
-        cleaned_out = []
-        for meter_data in out:
-            with app_obj.app_context():
-                meter = db.session.execute(db.select(models.Meter).where(models.Meter.id == meter_data["meter_id"])).scalar_one_or_none()
-            if meter is None:
-                continue
-
-            if meter.invoiced:
-                continue
-
-            cleaned_out.append(meter_data)
-        return out
-    return None
+    return out
 
 def update_health_check(values: dict):
-    existing_hc = db.session.execute(db.select(models.HealthCheck).where(models.HealthCheck.meter_id == values["meter_id"])).scalar_one_or_none()
+    existing_hc = db.session.execute(
+        db.select(models.HealthCheck)
+        .where(models.HealthCheck.meter_id == values["meter_id"])
+    ).scalar_one_or_none()
+    
     if existing_hc is None:
         new_hc = models.HealthCheck(meter_id=values["meter_id"], hc_data=values)
         db.session.add(new_hc)

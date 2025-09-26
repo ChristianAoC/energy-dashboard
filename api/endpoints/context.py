@@ -24,7 +24,7 @@ def add_context():
         email = cookies.get("Email", None)
         session_id = cookies.get("SessionID", None)
         if users.get_user_level(email, session_id) < g.settings["users"]["USER_LEVEL_EDIT_COMMENTS"]:
-            return make_response("Unauthorised", 401)
+            return make_response("Unauthorised", 403)
     
     return context.add_context(context_elem)
 
@@ -40,7 +40,7 @@ def edit_context():
         email = cookies.get("Email", None)
         session_id = cookies.get("SessionID", None)
         if users.get_user_level(email, session_id) < 4:
-            return make_response("Unauthorised", 401)
+            return make_response("Unauthorised", 403)
     return context.edit_context(context_elem)
 
 @context_api_bp.route("/delete/", methods=['POST'])
@@ -57,7 +57,7 @@ def delete_context():
         return make_response("Unauthorised", 401)
     user_level = users.get_user_level(email, session_id)
     if user_level < 4:
-        return make_response("Unauthorised", 401)
+        return make_response("Unauthorised", 403)
     return context.delete_context(context_id)
 
 @context_api_bp.route("/all/")
