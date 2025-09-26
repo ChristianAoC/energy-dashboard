@@ -4,18 +4,18 @@ The goal of this dashboard is to allow users to contextualise energy data. A des
 
 # Setup Instructions
 
-You can download/fork/checkout the repository to run and test locally. There is a Dockerfile to simplify setup, but if you decide to run it in a testing environment (e.g., VSCode) make sure you have the required Python packages in `requirements.txt` installed in your virtual environment.
+You can download/fork/checkout the repository to run and test locally. There is a template `docker-compose.yml` file to simplify setup, but if you decide to run it in a testing environment (e.g., VSCode) make sure you have the required Python packages in `requirements.txt` installed in your virtual environment.
 
 A typical installation with Docker goes as follows (make sure Docker and Git are installed):
 
-1) `sudo git clone https://github.com/ChristianAoC/energy-dashboard/`
-2) `sudo docker build -t energy-dashboard .`
+1) `git clone --branch v1.0.6 --single-branch https://github.com/ChristianAoC/energy-dashboard.git`
+2) Copy the example docker compose file and configure it as needed
 3) `sudo docker compose up -d`
 
 You can check if the container is running with `sudo docker compose ps`. Also check for any error messages in `sudo docker logs energy-dashboard`.
 
 > [!NOTE]
-> For ease of deployment, you can optionally define some settings in a `.env` file. An example file is provided with in the repo and explains what each setting does.
+> For ease of deployment, you can optionally define some settings in a `.env` file. An example file is provided and explains what each setting does.
 > Any settings that aren't provided in the file are given default values that can be edited later.
 >
 > The `.env` file is only used for initial setup, it won't be kept up-to-date with any changes made in the dashboard and vice-vera.
