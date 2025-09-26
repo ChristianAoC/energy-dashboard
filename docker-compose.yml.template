@@ -32,9 +32,10 @@ services:
   watchtower:
     image: ghcr.io/containrrr/watchtower:latest
     container_name: watchtower
+    restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 1800 --include-restarting --label-enable
+    command: --interval 3600 --include-restarting --label-enable
 
 networks:
   appnet:
