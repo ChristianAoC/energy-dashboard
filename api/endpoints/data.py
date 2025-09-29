@@ -187,8 +187,8 @@ def summary():
     
     valid_cache = False
     if (cache_meta is not None
-        and cache_meta.to_time == to_time
-        and cache_meta.from_time == from_time
+        and cache_meta.to_time.date() == to_time.date()
+        and cache_meta.from_time.date() == from_time.date()
         and cache_meta.offline == g.settings["data"]["offline_mode"]):
         valid_cache = True
     
