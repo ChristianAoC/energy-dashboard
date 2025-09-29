@@ -605,6 +605,7 @@ def populate_database():
 ## http://127.0.0.1:5000/api/logs?to_time=1754672345&minimum_level=error
 @data_api_bp.route('/logs/')
 @data_api_bp.route('/logs')
+@required_user_level("USER_LEVEL_ADMIN")
 def logs():
     try:
         from_time = dt.datetime.fromtimestamp(float(request.args["from_time"]))
