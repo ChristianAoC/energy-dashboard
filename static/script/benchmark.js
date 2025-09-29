@@ -382,6 +382,10 @@ function setGraphSliderRanges() {
 
 async function getNewSummary() {
     document.getElementById("loading-text").classList.remove("hidden");
+
+    document.getElementById("toggleGraphContainer").classList.add("hidden");
+    document.getElementById("toggleGraph").disabled = true;
+
     document.getElementById("sb-start-date").disabled = true;
     document.getElementById("sb-end-date").disabled = true;
 
@@ -414,6 +418,10 @@ async function getNewSummary() {
         console.error("Error reloading summary data", err);
     } finally {
         document.getElementById("loading-text").classList.add("hidden");
+
+        document.getElementById("toggleGraphContainer").classList.remove("hidden");
+        document.getElementById("toggleGraph").disabled = false;
+
         document.getElementById("sb-start-date").disabled = false;
         document.getElementById("sb-end-date").disabled = false;
     }

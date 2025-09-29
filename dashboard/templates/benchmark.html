@@ -134,18 +134,18 @@ Buildings with data: <span id="span-total">0</span> (for <span id="span-type">el
 </script>
 
 <div id="view-benchmark" class="start-view-selection">
-<h3>Buildings in Comparison</h3>
-
-<input type="checkbox" id="toggleGraph" class="toggleCheckbox" onchange="toggleGraph()" />
-<label for="toggleGraph" class="toggleContainer">
-    <div>Consumption</div> 
-    <div>Intensity</div>
-</label>
+  <h3>Buildings in Comparison</h3>
+  <div id="toggleGraphContainer" class="toggleCheckboxContainer">
+    <input type="checkbox" id="toggleGraph" class="toggleCheckbox" onchange="toggleGraph()"/>
+    <label for="toggleGraph" class="toggleContainer">
+        <div>Consumption</div> 
+        <div>Intensity</div>
+    </label>
+  </div>
 
 <br><br>
 
-<div id="comparison-plot" class="plot-div">
-</div>
+<div id="comparison-plot" class="plot-div"></div>
 
 </div>
 
