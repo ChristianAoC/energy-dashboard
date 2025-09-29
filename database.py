@@ -747,7 +747,7 @@ def process_meter_row(row) -> dict:
         "raw_uuid": raw_uuid,
         "description": row[g.settings["metadata"]["meter_sheet"]["description"]].strip(),
         "building_level_meter": building_level_meter,
-        "utility_type": row[g.settings["metadata"]["meter_sheet"]["meter_type"]].strip(),
+        "utility_type": row[g.settings["metadata"]["meter_sheet"]["meter_type"]].strip().lower(),
         "reading_type": reading_type,
         "units": row[g.settings["metadata"]["meter_sheet"]["units"]].strip(),
         "resolution": resolution,
@@ -760,7 +760,7 @@ def create_building_record(building_data: dict):
     # Import here to stop circular import issue
     import models
     import log
-    log.write(msg=f"Creating building record: {building_data['metadata']['building_sheet']['building_code']}", level=log.info)
+    log.write(msg=f"Creating building record: {building_data['building_code']}", level=log.info)
     
     new_building = models.Building(
         building_data["building_code"],
@@ -838,12 +838,13 @@ def initial_database_population() -> bool:
     import models
     import log
     
+    # If records already exist then run the metadata update function that handles existing records
     if (len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0
             or len(db.session.execute(db.select(models.Building)).scalars().all()) > 0):
         from settings import process_metadata_update
         return process_metadata_update()
     
-    buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["building_sheet"])
+    buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["building_sheet"]["building_sheet"])
     for _, row in buildings.iterrows():
         try:
             data = process_building_row(row)

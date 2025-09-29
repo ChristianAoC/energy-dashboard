@@ -229,29 +229,27 @@ def process_metadata_update() -> bool:
                             level=log.warning,
                             commit=False)
                     continue
-                last_seen_id = data["building_id"]
+                last_seen_id = data["building_code"]
                 
-                with db.session.no_autoflush:
-                    existing_building = db.session.execute(
-                        db.select(models.Building)
-                        .where(models.Building.id == data["building_id"])
-                    ).scalar_one_or_none()
-                    if existing_building is None:
-                        create_building_record(data)
-                    else:
-                        log.write(msg=f"Modifying building record: {data['building_id']}", level=log.info, commit=False)
-                        existing_building.update(data) # type: ignore
+                existing_building = db.session.execute(
+                    db.select(models.Building)
+                    .where(models.Building.id == data["building_code"])
+                ).scalar_one_or_none()
+                if existing_building is None:
+                    create_building_record(data)
+                else:
+                    log.write(msg=f"Modifying building record: {data['building_code']}", level=log.info, commit=False)
+                    existing_building.update(data) # type: ignore
                 
-                seen_building_ids.append(data["building_id"])
+                seen_building_ids.append(data["building_code"])
             del buildings
             
-            with db.session.no_autoflush:
-                missing_buildings = db.session.execute(
-                    db.select(models.Building)
-                    .where(not_(models.Building.id.in_(seen_building_ids))) # type: ignore
-                ).scalars().all()
-                for building in missing_buildings:
-                    delete_building_record(building)
+            missing_buildings = db.session.execute(
+                db.select(models.Building)
+                .where(not_(models.Building.id.in_(seen_building_ids))) # type: ignore
+            ).scalars().all()
+            for building in missing_buildings:
+                delete_building_record(building)
 
             meters = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["meter_sheet"]["meter_sheet"])
             seen_meter_ids = []
@@ -267,8 +265,8 @@ def process_metadata_update() -> bool:
                 last_seen_id = data["meter_id"]
                 
                 try:
-                    # We don't currently handle Oil meters
-                    if data["utility_type"] in ["Oil", "Spare"]:
+                    # Filter out meters with utility types that we don't support
+                    if data["utility_type"] not in ["electricity", "gas", "heat", "water"]:
                         log.write(msg="Error loading meter from metadata file",
                                 extra_info=f"Meter {data['meter_id']} is has an invalid utility type {data['utility_type']}",
                                 level=log.warning,
@@ -279,27 +277,26 @@ def process_metadata_update() -> bool:
                             extra_info=f"Meter {data['meter_id']} is has an invalid utility type {data['utility_type']}",
                             level=log.warning,
                             commit=False)
+                    continue
                 
-                with db.session.no_autoflush:
-                    existing_meter = db.session.execute(
-                        db.select(models.Meter)
-                        .where(models.Meter.id == data["meter_id"])
-                    ).scalar_one_or_none()
-                    if existing_meter is None:
-                        create_meter_record(data)
-                    else:
-                        log.write(msg=f"Modifying meter record: {data['meter_id']}", level=log.info, commit=False)
-                        existing_meter.update(data) # type: ignore
+                existing_meter = db.session.execute(
+                    db.select(models.Meter)
+                    .where(models.Meter.id == data["meter_id"])
+                ).scalar_one_or_none()
+                if existing_meter is None:
+                    create_meter_record(data)
+                else:
+                    log.write(msg=f"Modifying meter record: {data['meter_id']}", level=log.info, commit=False)
+                    existing_meter.update(data) # type: ignore
                 seen_meter_ids.append(data["meter_id"])
             del meters
             
-            with db.session.no_autoflush:
-                missing_meters = db.session.execute(
-                    db.select(models.Meter)
-                    .where(not_(models.Meter.id.in_(seen_meter_ids))) # type: ignore
-                ).scalars().all()
-                for meter in missing_meters:
-                    delete_meter_record(meter)
+            missing_meters = db.session.execute(
+                db.select(models.Meter)
+                .where(not_(models.Meter.id.in_(seen_meter_ids))) # type: ignore
+            ).scalars().all()
+            for meter in missing_meters:
+                delete_meter_record(meter)
             
             invalidate_summary_cache(commit=False, just_meta=True)
             invalidate_hc_cache(commit=False, just_meta=True)
