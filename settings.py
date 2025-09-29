@@ -149,9 +149,14 @@ def create_record(key: str, value, setting_type: str, category: str|None = None)
 
 def update_record(obj: models.Settings, value, setting_type: str, category: str|None = None):
     try:
+        # Check for invalid changes
         if obj.setting_type != setting_type:
             raise TypeError(f"Type {setting_type} doesn't match the existing type of {obj.setting_type}")
 
+        if obj.key == "log_level" and value not in log.index.keys():
+            raise ValueError(f"Value {value} isn't a valid option: {log.index.keys()}")
+        
+        # Handle special conditions
         if obj.key == "offline_mode" and obj.value != value:
             current_app.config["offline_mode"] = value
             invalidate_hc_cache()
