@@ -35,7 +35,9 @@ services:
     restart: unless-stopped
     volumes:
       - /var/run/docker.sock:/var/run/docker.sock
-    command: --interval 3600 --include-restarting --label-enable
+    command: --interval 86400 --include-restarting --label-enable
+    depends_on:
+        - web
 
 networks:
   appnet:

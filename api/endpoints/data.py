@@ -408,7 +408,7 @@ def meter_health():
 
     if hc_cache and meta is not None and meta.offline == g.settings["data"]["offline_mode"]:
         try:
-            cache_age = latest_data_date.timestamp() - meta.to_time.timestamp()
+            cache_age = latest_data_date.timestamp() - meta.timestamp.timestamp()
 
             if (g.settings["data"]["offline_mode"]
                 or (not g.settings["data"]["offline_mode"] and cache_age < 3600 * g.settings["data"]["hc_update_time"])):
