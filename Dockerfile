@@ -28,5 +28,7 @@ EXPOSE 5050
 RUN mkdir -p /app/data
 RUN chmod -R 777 /app/data
 
+# NOTE: I was having some issues on the live server and the only thing that seemed to fix it was reducing the worker
+#       count to 1.
 # Run app with gunicorn (production-grade WSGI)
-CMD ["gunicorn", "-w", "4", "-t", "240", "-b", "0.0.0.0:5050", "app:app"]
+CMD ["gunicorn", "-w", "1", "-t", "240", "-b", "0.0.0.0:5050", "app:app"]
