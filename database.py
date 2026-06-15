@@ -47,6 +47,9 @@ def generate_offline_meta(write_to_db: bool = True) -> bool|dict:
     end_time = None
     interval = None
     
+    if not os.path.exists(offline_data_files):
+        return False
+    
     for file in os.listdir(offline_data_files):
         if not file.endswith(".csv"):
             continue
