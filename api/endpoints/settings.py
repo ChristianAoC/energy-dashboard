@@ -5,9 +5,10 @@ import uuid
 
 import api.endpoints.data as data_api_bp
 from constants import *
-from database import db, generate_offline_meta
+from database import generate_offline_meta
 import log
 import models
+from models import db
 import settings
 
 settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')

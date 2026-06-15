@@ -1,9 +1,12 @@
+from flask_sqlalchemy import SQLAlchemy
 from sqlalchemy import CheckConstraint
 
 from datetime import datetime
 
 from api.helpers import data_cleaner
-from database import db
+
+
+db = SQLAlchemy()
 
 class Meter(db.Model):
     # ID is the meter_clean_id from the input data

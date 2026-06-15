@@ -3,8 +3,8 @@ from flask import g, has_app_context
 import datetime as dt
 from sqlalchemy import or_
 
-from database import db
 import models
+from models import db
 
 
 # Levels were loosely based on https://stackoverflow.com/a/2031209 (and other answers for that question),

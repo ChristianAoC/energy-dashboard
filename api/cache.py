@@ -7,9 +7,9 @@ import threading
 from api.data_handling import process_meter_health, query_time_series
 from api.helpers import clean_file_name, has_g_support
 from constants import *
-from database import db
 import log
 import models
+from models import db
 import settings
 
 
