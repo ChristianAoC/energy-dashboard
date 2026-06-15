@@ -6,9 +6,10 @@ import datetime as dt
 import pandas as pd
 
 from constants import metadata_file
-from database import db, process_building_row, process_meter_row, create_building_record, create_meter_record, delete_building_record, delete_meter_record
+from database import process_building_row, process_meter_row, create_building_record, create_meter_record, delete_building_record, delete_meter_record
 import log
 import models
+from models import db
 
 
 default_settings = {

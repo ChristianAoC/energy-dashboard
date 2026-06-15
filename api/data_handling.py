@@ -12,9 +12,9 @@ import time
 from api.helpers import data_cleaner, clean_file_name, has_g_support
 from api.users import is_admin
 from constants import *
-from database import db
 import log
 import models
+from models import db
 import settings
 
 

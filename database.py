@@ -1,5 +1,4 @@
 from flask import g
-from flask_sqlalchemy import SQLAlchemy
 
 import copy
 from dotenv import load_dotenv
@@ -8,36 +7,34 @@ import pandas as pd
 import json
 
 from constants import metadata_file, offline_data_files, offline_meta_file
+import models
+from models import db
+import log
 
-db = SQLAlchemy()
 
-def init(app) -> bool:
-    app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'data', 'data.sqlite')}"
-    db.init_app(app)
+def init() -> bool:
+    db.create_all()
 
-    with app.app_context():
-        db.create_all()
-
-        try:
-            if not initialise_settings_table(True):
-                try:
-                    import log
-                    log.write(msg="Skipped initialising settings table",
-                              extra_info="Most likely already populated",
-                              level=log.info)
-                except:
-                    pass
-        except Exception as e:
-            print("\n" + "="*20)
-            print("\tERROR: Failed to initialise settings table!")
-            print(f"\tThis could be because: {e}")
-            print("="*20 + "\n")
+    try:
+        if not initialise_settings_table(True):
             try:
                 import log
-                log.write(msg="Failed to initialise settings table", extra_info=str(e), level=log.critical)
+                log.write(msg="Skipped initialising settings table",
+                            extra_info="Most likely already populated",
+                            level=log.info)
             except:
                 pass
-            return False
+    except Exception as e:
+        print("\n" + "="*20)
+        print("\tERROR: Failed to initialise settings table!")
+        print(f"\tThis could be because: {e}")
+        print("="*20 + "\n")
+        try:
+            import log
+            log.write(msg="Failed to initialise settings table", extra_info=str(e), level=log.critical)
+        except:
+            pass
+        return False
     return True
 
 def generate_offline_meta(write_to_db: bool = True) -> bool|dict:
@@ -214,10 +211,6 @@ def load_settings_from_env(from_env: bool = True) -> dict:
     return result
 
 def initialise_settings_table(from_env: bool = False) -> bool:
-    # Import here to stop circular import issue
-    import log
-    import models
-    
     try:
         if len(db.session.execute(db.select(models.Settings)).scalars().all()) > 0:
             return False
@@ -760,9 +753,6 @@ def process_meter_row(row) -> dict:
     }
 
 def create_building_record(building_data: dict):
-    # Import here to stop circular import issue
-    import models
-    import log
     log.write(msg=f"Creating building record: {building_data['building_code']}", level=log.info)
     
     new_building = models.Building(
@@ -776,9 +766,6 @@ def create_building_record(building_data: dict):
     db.session.add(new_building)
 
 def create_meter_record(meter_data: dict):
-    # Import here to stop circular import issue
-    import models
-    import log
     log.write(msg=f"Creating meter record: {meter_data['meter_id']}", level=log.info)
     
     new_meter = models.Meter(
@@ -797,9 +784,6 @@ def create_meter_record(meter_data: dict):
     db.session.add(new_meter)
 
 def delete_building_record(building_obj):
-    # Import here to stop circular import issue
-    import models
-    import log
     building_id = building_obj.id
     log.write(msg=f"Deleting building record: {building_id}", level=log.info)
     
@@ -818,9 +802,6 @@ def delete_building_record(building_obj):
     db.session.execute(db.delete(models.Building).where(models.Building.id == building_id))
 
 def delete_meter_record(meter_obj):
-    # Import here to stop circular import issue
-    import models
-    import log
     meter_id = meter_obj.id
     log.write(msg=f"Deleting meter record: {meter_id}", level=log.info)
     
@@ -837,10 +818,6 @@ def delete_meter_record(meter_obj):
 # ======================================================================================================================
 
 def initial_database_population() -> bool:
-    # Import here to stop circular import issue
-    import models
-    import log
-    
     # If records already exist then run the metadata update function that handles existing records
     if (len(db.session.execute(db.select(models.Meter)).scalars().all()) > 0
             or len(db.session.execute(db.select(models.Building)).scalars().all()) > 0):

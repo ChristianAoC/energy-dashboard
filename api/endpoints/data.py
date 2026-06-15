@@ -11,9 +11,10 @@ from api.data_handling import query_time_series, get_health, generate_summary, g
 from api.helpers import calculate_time_args, data_cleaner
 from api.users import get_user_level, is_admin
 from constants import *
-from database import db, initial_database_population
+from database import initial_database_population
 import log
 import models
+from models import db
 
 
 data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')

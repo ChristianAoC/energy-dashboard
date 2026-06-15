@@ -6,9 +6,9 @@ import re
 import uuid
 
 import dashboard.mail as mail
-from database import db
 import log
 import models
+from models import db
 
 
 def get_user(email: str|None = None) -> models.User|None:

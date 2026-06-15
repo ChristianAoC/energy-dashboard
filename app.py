@@ -28,9 +28,16 @@ import shutdown
 
 
 app = Flask(__name__)
-successful_initialisation = database.init(app)
 # needed because sometimes WSGI is a bit thick
 application = app
+
+# Set app config
+app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'data', 'data.sqlite')}"
+
+models.db.init_app(app)
+with app.app_context():
+    successful_initialisation = database.init()
+
 
 ###########################################################
 ###              Check required files exist             ###
