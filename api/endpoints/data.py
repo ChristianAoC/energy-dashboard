@@ -32,7 +32,7 @@ def required_user_level(level_config_key):
                 return function(*args, **kwargs)
             
             try:
-                level = g.settings["users"][level_config_key]
+                level = g.settings[level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if level != 0:
@@ -70,7 +70,7 @@ def health():
 ## Helper function needed for accessing raw list of all meters in other blueprint
 @data_api_bp.route('/meters/')
 @data_api_bp.route('/meters')
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def meters():
     statement = db.select(models.Meter)
     if not is_admin():
@@ -94,7 +94,7 @@ def meters():
 ## Health check cache meta
 @data_api_bp.route('/hc-meta/')
 @data_api_bp.route('/hc-meta')
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def hc_meta():
     meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -173,13 +173,13 @@ def hc_meta():
 ## http://127.0.0.1:5000/api/summary
 @data_api_bp.route('/summary/')
 @data_api_bp.route('/summary')
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def summary():
     to_time = request.args.get("to_time")
     from_time = request.args.get("from_time")
     from_time, to_time, days = calculate_time_args(from_time_requested=from_time,
                                                    to_time_requested=to_time,
-                                                   date_range_requested=g.settings["site"]["default_daterange_benchmark"])
+                                                   date_range_requested=g.settings["default_daterange_benchmark"])
 
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
@@ -190,7 +190,7 @@ def summary():
     if (cache_meta is not None
         and cache_meta.to_time.date() == to_time.date()
         and cache_meta.from_time.date() == from_time.date()
-        and cache_meta.offline == g.settings["data"]["offline_mode"]):
+        and cache_meta.offline == g.settings["offline_mode"]):
         valid_cache = True
     
     data = {}
@@ -199,8 +199,8 @@ def summary():
             data[x.building.id] = x.to_dict()
     else:
         cache_result = True
-        if g.settings["data"]["offline_mode"]:
-            latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+        if g.settings["offline_mode"]:
+            latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
             latest_data_date = dt.datetime.now(dt.timezone.utc)
         latest_data_date = dt.datetime.combine(latest_data_date, dt.datetime.min.time(), tzinfo=latest_data_date.tzinfo)
@@ -233,7 +233,7 @@ def summary():
 ## http://127.0.0.1:5000/api/meter-obs?id=WTHR_0
 @data_api_bp.route('/meter-obs/')
 @data_api_bp.route('/meter-obs')
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def meter_obs():
     try:
         meter_ids = request.args["id"] # this is url decoded
@@ -245,7 +245,7 @@ def meter_obs():
     from_time = request.args.get("from_time")
     from_time, to_time, _ = calculate_time_args(from_time_requested=from_time,
                                                 to_time_requested=to_time,
-                                                date_range_requested=g.settings["site"]["default_daterange_browser"])
+                                                date_range_requested=g.settings["default_daterange_browser"])
 
     try:
         fmt = request.args["format"] # this is url decoded
@@ -311,7 +311,7 @@ def meter_obs():
 ## http://127.0.0.1:5000/api/meter-health?id=AP001_L01_M2&date_range=30
 @data_api_bp.route('/meter-health/')
 @data_api_bp.route('/meter-health')
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def meter_health():
     # The frontend should read the headers sent with this response and send another request later to retrieve the latest version if 'X-Cache-State'=stale
     # TODO: maybe add a header telling the frontend how long to wait (could guesstimate this from number of meters and number of concurrent threads)
@@ -327,10 +327,10 @@ def meter_health():
     from_time, to_time, _ = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
                                                    date_range_requested=request.args.get("date_range", type=int),
-                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
+                                                   desired_time_range=g.settings["default_daterange_health-check"])
 
-    if g.settings["data"]["offline_mode"]:
-        latest_data_date = dt.datetime.strptime(g.settings["metadata"]["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
+    if g.settings["offline_mode"]:
+        latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
     else:
         latest_data_date = dt.datetime.combine(dt.datetime.now(dt.timezone.utc),
                                                dt.datetime.min.time(),
@@ -346,7 +346,7 @@ def meter_health():
             default_args_selected = False
 
         selected_range = to_time - from_time
-        if selected_range.days != g.settings["site"]["default_daterange_health-check"]:
+        if selected_range.days != g.settings["default_daterange_health-check"]:
             default_args_selected = False
 
     # Load existing cache
@@ -386,7 +386,7 @@ def meter_health():
     if not default_args_selected:
         health_check_data = get_health(from_time=from_time,
                                        to_time=to_time,
-                                       offline_mode=g.settings["data"]["offline_mode"],
+                                       offline_mode=g.settings["offline_mode"],
                                        app_obj=current_app._get_current_object(),
                                        cache_result=default_args_selected,
                                        meter_ids=meter_ids)
@@ -407,12 +407,12 @@ def meter_health():
         response.headers['X-Cache-State'] = "fresh"
         return response
 
-    if hc_cache and meta is not None and meta.offline == g.settings["data"]["offline_mode"]:
+    if hc_cache and meta is not None and meta.offline == g.settings["offline_mode"]:
         try:
             cache_age = latest_data_date.timestamp() - meta.timestamp.timestamp()
 
-            if (g.settings["data"]["offline_mode"]
-                or (not g.settings["data"]["offline_mode"] and cache_age < 3600 * g.settings["data"]["hc_update_time"])):
+            if (g.settings["offline_mode"]
+                or (not g.settings["offline_mode"] and cache_age < 3600 * g.settings["hc_update_time"])):
                 response = make_response(jsonify(hc_cache), 200)
                 response.headers['X-Cache-State'] = "fresh"
                 return response
@@ -422,7 +422,7 @@ def meter_health():
 
     if not any(th.name == "updateMainHC" for th in threading.enumerate()):
         thread = threading.Thread(target=get_health,
-                                  args=(from_time, to_time, g.settings["data"]["offline_mode"],
+                                  args=(from_time, to_time, g.settings["offline_mode"],
                                         current_app._get_current_object(), default_args_selected, meter_ids),
                                   name="updateMainHC",
                                   daemon=True)
@@ -469,7 +469,7 @@ def meter_health():
 ## }
 @data_api_bp.route('/meter-hierarchy/')
 @data_api_bp.route('/meter-hierarchy')
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def meter_hierarchy():
     buildings = db.session.execute(db.select(models.Building)).scalars().all()
 
@@ -524,11 +524,11 @@ def meter_hierarchy():
 ## http://127.0.0.1:5000/api/health-score
 @data_api_bp.route('/health-score/')
 @data_api_bp.route('/health-score')
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def health_score():
     from_time, _, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
                                                    to_time_requested=request.args.get("to_time"),
-                                                   desired_time_range=g.settings["site"]["default_daterange_health-check"])
+                                                   desired_time_range=g.settings["default_daterange_health-check"])
 
     data = generate_health_score(from_time, days)
 
@@ -536,19 +536,19 @@ def health_score():
 
 @data_api_bp.route('/offline-meta/')
 @data_api_bp.route('/offline-meta')
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def offline_meta():
     out = {
-        "start_time": g.settings["metadata"]["offline_data_start_time"],
-        "end_time": g.settings["metadata"]["offline_data_end_time"],
-        "interval": g.settings["metadata"]["offline_data_interval"]
+        "start_time": g.settings["offline_data_start_time"],
+        "end_time": g.settings["offline_data_end_time"],
+        "interval": g.settings["offline_data_interval"]
     }
     
     return make_response(jsonify(out), 200)
 
 @data_api_bp.route("/mazemap-polygons/")
 @data_api_bp.route("/mazemap-polygons")
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def mazemap_polygons():
     if not os.path.exists(mazemap_polygons_file):
         log.write(msg="Mazemap polygons are missing", level=log.error)
@@ -560,7 +560,7 @@ def mazemap_polygons():
 
 @data_api_bp.route('/regenerate-cache/', methods=["GET", "POST"])
 @data_api_bp.route('/regenerate-cache', methods=["GET", "POST"])
-@required_user_level("USER_LEVEL_ADMIN")
+@required_user_level("user_level_admin")
 def regenerate_cache():
     start_time = time.time()
     cache.generate_meter_data_cache()
@@ -571,7 +571,7 @@ def regenerate_cache():
 
 @data_api_bp.route('/populate-database/')
 @data_api_bp.route('/populate-database')
-@required_user_level("USER_LEVEL_ADMIN")
+@required_user_level("user_level_admin")
 def populate_database():
     result = initial_database_population()
     if result:
@@ -606,7 +606,7 @@ def populate_database():
 ## http://127.0.0.1:5000/api/logs?to_time=1754672345&minimum_level=error
 @data_api_bp.route('/logs/')
 @data_api_bp.route('/logs')
-@required_user_level("USER_LEVEL_ADMIN")
+@required_user_level("user_level_admin")
 def logs():
     try:
         from_time = dt.datetime.fromtimestamp(float(request.args["from_time"]))

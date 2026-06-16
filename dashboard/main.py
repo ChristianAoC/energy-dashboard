@@ -17,11 +17,11 @@ dashboard_bp = Blueprint('dashboard_bp'
 
 @dashboard_bp.route("/helloworld")
 def helloworld():
-    return g.settings["site"]["SITE_NAME"]
+    return g.settings["site_name"]
 
 @dashboard_bp.route("/")
 def index():
-    return redirect("/" + g.settings["site"]["default_start_page"])
+    return redirect("/" + g.settings["default_start_page"])
 
 @dashboard_bp.route("/favicon.ico")
 def get_favicon():
@@ -37,7 +37,7 @@ def required_user_level(level_config_key):
         @wraps(function)
         def wrapper(*args, **kwargs):
             try:
-                required_level = g.settings["users"][level_config_key]
+                required_level = g.settings[level_config_key]
                 
                 # Skip validating if required level is 0 (allow unauthenticated users)
                 if required_level != 0:
@@ -68,37 +68,37 @@ def no_access():
     return render_template('noaccess.html')
 
 @dashboard_bp.route("/map")
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def campus_map():
     return render_template('map.html')
 
 @dashboard_bp.route("/benchmark")
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def benchmark():
     return render_template('benchmark.html')
 
 @dashboard_bp.route("/browser")
-@required_user_level("USER_LEVEL_VIEW_DASHBOARD")
+@required_user_level("user_level_view_dashboard")
 def browser():
     return render_template('browser.html')
 
 @dashboard_bp.route("/health-check")
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def health_check():
     return render_template('health-check.html')
 
 @dashboard_bp.route("/capavis")
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def capavis():
     return render_template('capavis.html')
 
 @dashboard_bp.route("/clustering")
-@required_user_level("USER_LEVEL_VIEW_HEALTHCHECK")
+@required_user_level("user_level_view_healthcheck")
 def clustering():
     return render_template('clustering.html')
 
 @dashboard_bp.route("/context")
-@required_user_level("USER_LEVEL_VIEW_COMMENTS")
+@required_user_level("user_level_view_comments")
 def context_view():
     return render_template('context.html')
 

@@ -23,7 +23,7 @@ settings_api_bp = Blueprint('metadata_api_bp', __name__, static_url_path='')
 ## http://127.0.0.1:5000/api/settings/?key=key
 @settings_api_bp.route("/")
 @settings_api_bp.route("")
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def get():
     try:
         key = request.args["key"]
@@ -31,13 +31,20 @@ def get():
         key = None
     
     if key is None:
-        result = db.session.execute(db.select(models.Settings)).scalars().all()
+        result = db.session.execute(
+            db.select(models.Settings)
+        ).scalars().all()
+        
         out = []
         for entry in result:
             out.append(entry.to_dict())
         return make_response(jsonify(out), 200)
     
-    result = db.session.execute(db.select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
+    result = db.session.execute(
+        db.select(models.Settings)
+        .where(models.Settings.key == key)
+    ).scalar_one_or_none()
+
     if result is None:
         return make_response("Key not found", 404)
     return make_response(jsonify(result.value), 200)
@@ -48,8 +55,7 @@ def get():
 ## json = {
 ##     key: {
 ##         "value": value,
-##         "type": type,
-##         "category": category
+##         "type": type
 ##     }
 ## }
 ##
@@ -59,28 +65,23 @@ def get():
 ##               json={
 ##                   "str": {
 ##                       "value": "test",
-##                       "type": "str",
-##                       "category": "testing"
+##                       "type": "str"
 ##                   },
 ##                   "int": {
 ##                       "value": 1,
-##                       "type": "int",
-##                       "category": "testing"
+##                       "type": "int"
 ##                   },
 ##                   "float": {
 ##                       "value": 2.3,
-##                       "type": "float",
-##                       "category": "testing"
+##                       "type": "float"
 ##                   },
 ##                   "bool": {
 ##                       "value": True,
-##                       "type": "bool",
-##                       "category": "testing"
+##                       "type": "bool"
 ##                   },
 ##                   "dict": {
 ##                       "value": {"test": "me", "out": "!"},
-##                       "type": "dict",
-##                       "category": "testing"
+##                       "type": "dict"
 ##               }
 ##              )
 ##
@@ -88,7 +89,7 @@ def get():
 ## http://127.0.0.1:5000/api/settings/
 @settings_api_bp.route("/", methods=["POST"])
 @settings_api_bp.route("", methods=["POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def post():
     if request.content_type != "application/json":
         return make_response("Invalid data", 400)
@@ -104,25 +105,25 @@ def post():
     key = None
     try:
         for key, value in data.items():
-            existing_setting = db.session.execute(db.Select(models.Settings).where(models.Settings.key == key)).scalar_one_or_none()
+            existing_setting = db.session.execute(
+                db.Select(models.Settings)
+                .where(models.Settings.key == key)
+            ).scalar_one_or_none()
             
             if type(value) is not dict and existing_setting is None:
                 setting_value = value
                 setting_type = type(value).__name__
-                category = None
             elif type(value) is not dict and existing_setting is not None:
                 setting_value = value
                 setting_type = type(value).__name__
-                category = existing_setting.category
             else:
                 setting_value = value["value"]
                 setting_type = value["type"]
-                category = value.get("category")
             
             if existing_setting is None:
-                settings.create_record(key=key, value=setting_value, setting_type=setting_type, category=category)
+                settings.create_record(key=key, value=setting_value, setting_type=setting_type)
             else:
-                settings.update_record(obj=existing_setting, value=setting_value, setting_type=setting_type, category=category)
+                settings.update_record(obj=existing_setting, value=setting_value, setting_type=setting_type)
     except Exception as e:
         log.write(msg=f"Error processing key: '{key}'", extra_info=str(e), level=log.error)
         return make_response(f"Error processing key: '{key}'", 500)
@@ -149,7 +150,7 @@ def post():
 
 @settings_api_bp.route("/upload/metadata/", methods=["POST"])
 @settings_api_bp.route("/upload/metadata", methods=["POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def upload_metadata():
     if 'file' not in request.files:
         return make_response("Invalid data", 400)
@@ -181,7 +182,7 @@ def upload_metadata():
 
 @settings_api_bp.route("/upload/benchmarks/", methods=["POST"])
 @settings_api_bp.route("/upload/benchmarks", methods=["POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def upload_benchmark():
     if 'file' not in request.files:
         return make_response("Invalid data", 400)
@@ -212,7 +213,7 @@ def upload_benchmark():
 
 @settings_api_bp.route("/upload/polygons/", methods=["POST"])
 @settings_api_bp.route("/upload/polygons", methods=["POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def upload_polygons():
     if 'file' not in request.files:
         return make_response("Invalid data", 400)
@@ -242,25 +243,25 @@ def upload_polygons():
 
 @settings_api_bp.route("/download/metadata/")
 @settings_api_bp.route("/download/metadata")
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def download_metadata():
     return send_file(metadata_file, as_attachment=True)
 
 @settings_api_bp.route("/download/benchmarks/")
 @settings_api_bp.route("/download/benchmarks")
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def download_benchmarks():
     return send_file(benchmark_data_file, as_attachment=True)
 
 @settings_api_bp.route("/download/polygons/")
 @settings_api_bp.route("/download/polygons")
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def download_polygons():
     return send_file(mazemap_polygons_file, as_attachment=True)
 
 @settings_api_bp.route("/regenerate-offline-metadata/", methods=["GET", "POST"])
 @settings_api_bp.route("/regenerate-offline-metadata", methods=["GET", "POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def regenerate_offline_metadata():
     if generate_offline_meta():
         return make_response("OK", 200)
@@ -278,7 +279,7 @@ def regenerate_offline_metadata():
 # /api/settings?type=sessions
 @settings_api_bp.route("/clean-database/", methods=["POST"])
 @settings_api_bp.route("/clean-database", methods=["POST"])
-@data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+@data_api_bp.required_user_level("user_level_admin")
 def clean_database():
     to_clean_raw = request.args.get("type")
     to_clean = []
@@ -298,7 +299,7 @@ def clean_database():
 
 ## This is the start of a more guided upload for metadata
 # @settings_api_bp.route("/upload/new", methods=["POST"])
-# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# @data_api_bp.required_user_level("user_level_admin")
 # def upload_new():
 #     if 'file' not in request.files:
 #         return make_response("Invalid data", 400)
@@ -335,7 +336,7 @@ def clean_database():
 #     return make_response("OK", 200)
 
 # @settings_api_bp.route("/upload/sheets", methods=["GET"])
-# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# @data_api_bp.required_user_level("user_level_admin")
 # def upload_sheets_get():
 #     try:
 #         filename = session["metadata_upload_filename"]
@@ -353,7 +354,7 @@ def clean_database():
 #     return make_response(jsonify(results), 200)
 
 # @settings_api_bp.route("/upload/sheets", methods=["POST"])
-# @data_api_bp.required_user_level("USER_LEVEL_ADMIN")
+# @data_api_bp.required_user_level("user_level_admin")
 # def upload_sheets_post():
 #     try:
 #         filename = session["metadata_upload_filename"]

@@ -12,7 +12,7 @@ context_api_bp = Blueprint('context_api_bp', __name__, static_url_path='')
 
 @context_api_bp.route("/add/", methods=['POST'])
 @context_api_bp.route("/add", methods=['POST'])
-@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("user_level_submit_comments")
 def add_context():
     context_elem = request.json
     if context_elem is None:
@@ -23,14 +23,14 @@ def add_context():
         cookies = request.cookies
         email = cookies.get("Email", None)
         session_id = cookies.get("SessionID", None)
-        if users.get_user_level(email, session_id) < g.settings["users"]["USER_LEVEL_EDIT_COMMENTS"]:
+        if users.get_user_level(email, session_id) < g.settings["user_level_edit_comments"]:
             return make_response("Unauthorised", 403)
     
     return context.add_context(context_elem)
 
 @context_api_bp.route("/edit/", methods=['POST'])
 @context_api_bp.route("/edit", methods=['POST'])
-@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("user_level_submit_comments")
 def edit_context():
     context_elem = request.json
     if not context_elem:
@@ -45,7 +45,7 @@ def edit_context():
 
 @context_api_bp.route("/delete/", methods=['POST'])
 @context_api_bp.route("/delete", methods=['POST'])
-@data_api_bp.required_user_level("USER_LEVEL_SUBMIT_COMMENTS")
+@data_api_bp.required_user_level("user_level_submit_comments")
 def delete_context():
     context_id = request.args.get('contextID')
     if not context_id:
@@ -62,6 +62,6 @@ def delete_context():
 
 @context_api_bp.route("/all/")
 @context_api_bp.route("/all")
-@data_api_bp.required_user_level("USER_LEVEL_VIEW_COMMENTS")
+@data_api_bp.required_user_level("user_level_view_comments")
 def get_context():
     return make_response(jsonify(context.view_all()), 200)

@@ -13,114 +13,85 @@ from models import db
 
 
 default_settings = {
-    "users": {
-        "DEFAULT_USER_LEVEL": 1,
-        "USER_LEVEL_VIEW_DASHBOARD": 0,
-        "USER_LEVEL_VIEW_HEALTHCHECK": 1,
-        "USER_LEVEL_VIEW_COMMENTS": 1,
-        "USER_LEVEL_SUBMIT_COMMENTS": 1,
-        "USER_LEVEL_EDIT_COMMENTS": 4,
-        "USER_LEVEL_ADMIN": 5,
-        "REQUIRED_EMAIL_DOMAINS": None,
-        "DEMO_EMAIL_DOMAINS": None
-    },
-    "mazemap": {
-        "MAZEMAP_CAMPUS_ID": 341,
-        "MAZEMAP_LNG": "-2.780372",
-        "MAZEMAP_LAT": "54.008809"
-    },
-    "smtp": {
-        "SMTP_ENABLED": False,
-        "SMTP_ADDRESS": None,
-        "SMTP_PASSWORD": None,
-        "SMTP_SERVER": None,
-        "SMTP_PORT": None
-    },
-    "site": {
-        "SITE_NAME": "Energy Dashboard",
-        "default_start_page": "browser",
-        "default_daterange_benchmark": 365,
-        "default_daterange_browser": 30,
-        "default_daterange_health-check": 30,
-        "capavis_url": "",
-        "clustering_url": ""
-    },
-    "influx": {
-        "data_interval": 10,
-        "InfluxURL": None,
-        "InfluxPort": None,
-        "InfluxUser": None,
-        "InfluxPass": None,
-        "InfluxTable": None
-    },
-    # Data settings
-    "data": {
-        "offline_mode": True,
-        "hc_update_time": 20,
-        "cache_time_health_score": 365,
-        "cache_time_summary": 30
-    },
-    "metadata": {
-        "offline_data_start_time": None,
-        "offline_data_end_time": None,
-        "offline_data_interval": None,
-        "meter_sheet": {
-            "meter_sheet": "Energie points",
-            "meter_id": "meter_id_clean2",
-            "raw_uuid": "SEED_uuid",
-            "description": "description",
-            "building_level_meter": "Building Level Meter",
-            "meter_type": "Meter Type",
-            "reading_type": "class",
-            "units": "units_after_conversion",
-            "resolution": "Resolution",
-            "unit_conversion_factor": "unit_conversion_factor",
-            "tenant": "tenant",
-            "meter_building": "Building code"
-        },
-        "building_sheet": {
-            "building_sheet": "Buildings",
-            "building_code": "Property code",
-            "building_name": "Building Name",
-            "floor_area": "floor_area",
-            "year_built": "Year",
-            "usage": "Function",
-            "maze_map_label": "mazemap_ids"
-        }
-    },
-    "logging": {
-        "log_level": log.warning
-    },
-    "server": {
-        "BACKGROUND_TASK_TIMING": "02:00",
-        "meter_batch_size": 16,
-        "session_timeout": 365,
-        "login_code_timeout": 60,
-        "log_info_expiry": 7,
-        "log_warning_expiry": 14,
-        "log_error_expiry": 30,
-        "log_critical_expiry": 180
-    }
+    "default_user_level": 1,
+    "user_level_view_dashboard": 0,
+    "user_level_view_healthcheck": 1,
+    "user_level_view_comments": 1,
+    "user_level_submit_comments": 1,
+    "user_level_edit_comments": 4,
+    "user_level_admin": 5,
+    
+    "required_email_domains": None,
+    "demo_email_domains": None,
+    
+    "mazemap_campus_id": 341,
+    "mazemap_lng": "-2.780372",
+    "mazemap_lat": "54.008809",
+    
+    "smtp_enabled": False,
+    "smtp_address": None,
+    "smtp_password": None,
+    "smtp_server": None,
+    "smtp_port": None,
+    
+    "site_name": "Energy Dashboard",
+    "default_start_page": "browser",
+    "default_daterange_benchmark": 365,
+    "default_daterange_browser": 30,
+    "default_daterange_health-check": 30,
+    "capavis_url": "",
+    "clustering_url": "",
+    
+    "influx_data_interval": 10,
+    "influx_url": None,
+    "influx_port": None,
+    "influx_user": None,
+    "influx_pass": None,
+    "influx_table": None,
+    
+    "offline_mode": True,
+    "hc_update_time": 20,
+    "cache_time_health_score": 365,
+    "cache_time_summary": 30,
+    
+    "offline_data_start_time": None,
+    "offline_data_end_time": None,
+    "offline_data_interval": None,
+    
+    "metadata.meter_sheet": "Energie points",
+    "metadata.meter_sheet.meter_id": "meter_id_clean2",
+    "metadata.meter_sheet.raw_uuid": "SEED_uuid",
+    "metadata.meter_sheet.description": "description",
+    "metadata.meter_sheet.building_level_meter": "Building Level Meter",
+    "metadata.meter_sheet.meter_type": "Meter Type",
+    "metadata.meter_sheet.reading_type": "class",
+    "metadata.meter_sheet.units": "units_after_conversion",
+    "metadata.meter_sheet.resolution": "Resolution",
+    "metadata.meter_sheet.unit_conversion_factor": "unit_conversion_factor",
+    "metadata.meter_sheet.tenant": "tenant",
+    "metadata.meter_sheet.meter_building": "Building code",
+    "metadata.building_sheet": "Buildings",
+    "metadata.building_sheet.building_code": "Property code",
+    "metadata.building_sheet.building_name": "Building Name",
+    "metadata.building_sheet.floor_area": "floor_area",
+    "metadata.building_sheet.year_built": "Year",
+    "metadata.building_sheet.usage": "Function",
+    "metadata.building_sheet.maze_map_label": "mazemap_ids",
+    
+    "log_level": log.warning,
+    "background_task_timing": "02:00",
+    "meter_batch_size": 16,
+    "session_timeout": 365,
+    "login_code_timeout": 60,
+    "log_info_expiry": 7,
+    "log_warning_expiry": 14,
+    "log_error_expiry": 30,
+    "log_critical_expiry": 180
 }
 
-def process_categories(settings: dict, key: str, category: str, value = None, write: bool = False):
-    parts = category.split('.')
-    
-    temp = settings
-    for part in parts[:-1]:
-        temp = temp.setdefault(part, {})
-    
-    if write:
-        temp[parts[-1]][key] = value
-    else:
-        return temp[parts[-1]][key]
-
 def load_settings():
-    # I had an idea to implement a "lazy loading" system here but for now there isn't enough settings to require it.
-    # May be worth looking into if the DB gets locked up frequently
-    
-    # NOTE: When accessing g settings you should use `g.settings[category][key]` to raise an Exception
-    #       (unless you can handle it locally)
+    # NOTE: When accessing g settings you should use `g.settings[key]` to raise an Exception, unless you can handle it
+    #       locally.
     if request.path.startswith('/static'):
         return
     
@@ -128,18 +99,13 @@ def load_settings():
         g.settings = copy.deepcopy(default_settings)
         
         for setting in db.session.execute(db.select(models.Settings)).scalars().all():
-            process_categories(settings=g.settings,
-                               key=setting.key,
-                               category=setting.category,
-                               value=setting.value,
-                               write=True)
+            g.settings[setting.key] = setting.value
 
-def create_record(key: str, value, setting_type: str, category: str|None = None):
+def create_record(key: str, value, setting_type: str):
     try:
         new_record = models.Settings(
             key=key,
             value=value,
-            category=category,
             setting_type=setting_type
         )
         db.session.add(new_record)
@@ -148,7 +114,7 @@ def create_record(key: str, value, setting_type: str, category: str|None = None)
         db.session.rollback()
         raise ValueError
 
-def update_record(obj: models.Settings, value, setting_type: str, category: str|None = None):
+def update_record(obj: models.Settings, value, setting_type: str):
     try:
         # Check for invalid changes
         if obj.setting_type != setting_type:
@@ -163,42 +129,38 @@ def update_record(obj: models.Settings, value, setting_type: str, category: str|
             invalidate_hc_cache()
             invalidate_summary_cache()
         
-        if obj.key == "USER_LEVEL_ADMIN" and value > obj.value:
+        if obj.key == "user_level_admin" and value > obj.value:
             elevate_existing_admins(value)
         
         obj.value = value
-        obj.category = category
         db.session.commit()
     except Exception as e:
         db.session.rollback()
         raise e
 
-def get(key: str, category: str):
+def get(key: str, log_errors: bool = True):
     existing_setting = None
     try:
         existing_setting = db.session.execute(
             db.Select(models.Settings)
             .where(models.Settings.key == key)
-            .where(models.Settings.category == category)
         ).scalar_one_or_none()
     except:
         existing_setting = None
     
     if existing_setting is None:
-        value = process_categories(default_settings, key, category)
-        if value is None:
-            log.write(msg="Error retrieving setting", extra_info=f"{category}.{key}", level=log.error)
-            raise Exception(f"Unable to retrieve settings with key {key}")
+        if log_errors:
+            log.write(msg="Error retrieving setting", extra_info=f"{key}", level=log.error)
+        raise Exception(f"Unable to retrieve settings with key {key}")
     else:
-        value = existing_setting.value
-    return value
+        return existing_setting.value
 
 def elevate_existing_admins(new_level: int):
-    if new_level <= g.settings["users"]["USER_LEVEL_ADMIN"]:
+    if new_level <= g.settings["user_level_admin"]:
         raise ValueError("New level for admins is lower than the current level")
     existing_admins = db.session.execute(
         db.select(models.User)
-        .where(models.User.level == g.settings["users"]["USER_LEVEL_ADMIN"])
+        .where(models.User.level == g.settings["user_level_admin"])
     ).scalars().all()
     
     for admin in existing_admins:
@@ -224,7 +186,7 @@ def process_metadata_update() -> bool:
     last_seen_id = "UNKNOWN BUILDING"
     with db.session.no_autoflush:
         try:
-            buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["building_sheet"]["building_sheet"])
+            buildings = pd.read_excel(metadata_file, sheet_name=g.settings["metadata.building_sheet"])
             seen_building_ids = []
             for _, row in buildings.iterrows():
                 try:
@@ -257,7 +219,7 @@ def process_metadata_update() -> bool:
             for building in missing_buildings:
                 delete_building_record(building)
 
-            meters = pd.read_excel(metadata_file, sheet_name=g.settings["metadata"]["meter_sheet"]["meter_sheet"])
+            meters = pd.read_excel(metadata_file, sheet_name=g.settings["metadata.meter_sheet"])
             seen_meter_ids = []
             for _, row in meters.iterrows():
                 try:
@@ -316,9 +278,9 @@ def process_metadata_update() -> bool:
         return True
 
 def clean_database_sessions():
-    # Sessions are deleted after g.settings["server"]["session_timeout"] days
+    # Sessions are deleted after g.settings["session_timeout"] days
     
-    expiry = dt.datetime.now() - dt.timedelta(days=g.settings["server"]["session_timeout"])
+    expiry = dt.datetime.now() - dt.timedelta(days=g.settings["session_timeout"])
     
     db.session.execute(
         db.delete(models.Sessions)
@@ -327,9 +289,9 @@ def clean_database_sessions():
     db.session.commit()
 
 def clean_database_login_codes():
-    # Login codes are deleted after g.settings["server"]["login_code_timeout"] minutes
+    # Login codes are deleted after g.settings["login_code_timeout"] minutes
     
-    expiry = dt.datetime.now() - dt.timedelta(minutes=g.settings["server"]["login_code_timeout"])
+    expiry = dt.datetime.now() - dt.timedelta(minutes=g.settings["login_code_timeout"])
     
     db.session.execute(
         db.delete(models.LoginCode)
@@ -339,15 +301,15 @@ def clean_database_login_codes():
 
 def clean_database_logs():
     # Logs are deleted after:
-    #  info - g.settings["server"]["log_info_expiry"] days
-    #  warning - g.settings["server"]["log_warning_expiry"] days
-    #  error - g.settings["server"]["log_error_expiry"] days
-    #  critical - g.settings["server"]["log_critical_expiry"] days
+    #  info - g.settings["log_info_expiry"] days
+    #  warning - g.settings["log_warning_expiry"] days
+    #  error - g.settings["log_error_expiry"] days
+    #  critical - g.settings["log_critical_expiry"] days
     
     log_types = ["info", "warning", "error", "critical"]
     
     for log_type in log_types:
-        expiry = dt.datetime.now() - dt.timedelta(days=g.settings["server"][f"log_{log_type}_expiry"])
+        expiry = dt.datetime.now() - dt.timedelta(days=g.settings[f"log_{log_type}_expiry"])
         
         db.session.execute(
             db.delete(models.Log)

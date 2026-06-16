@@ -455,21 +455,18 @@ class LoginCode(db.Model):
 
 class Settings(db.Model):
     key = db.Column(db.String, primary_key=True)
-    category = db.Column(db.String, primary_key=True)
     value = db.Column(db.JSON)
     setting_type = db.Column(db.String, nullable=False)
     
-    def __init__(self, key: str, value, category: str|None, setting_type: str):
+    def __init__(self, key: str, value, setting_type: str):
         self.key = key
         self.value = value
-        self.category = category
         self.setting_type = setting_type
     
     def to_dict(self):
         return {
             "key": self.key,
             "value": self.value,
-            "category": self.category,
             "setting_type": self.setting_type
         }
     
