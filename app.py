@@ -48,7 +48,6 @@ with app.app_context():
     # Need to get offline mode manually from database as g.settings hasn't been created as this isn't a request
     result = database.db.session.execute(
         database.db.Select(models.Settings)
-        .where(models.Settings.category == "data")
         .where(models.Settings.key == "offline_mode")
     ).scalar_one_or_none()
     offline_mode = True
@@ -119,20 +118,18 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
 with app.app_context():
     result = database.db.session.execute(
         database.db.Select(models.Settings)
-        .where(models.Settings.category == "server")
-        .where(models.Settings.key == "BACKGROUND_TASK_TIMING")
+        .where(models.Settings.key == "background_task_timing")
     ).scalar_one_or_none()
-    val = default_settings["server"]["BACKGROUND_TASK_TIMING"]
+    val = default_settings["background_task_timing"]
     if result is not None:
         val = result.value
     background_task_timing = val.split(":")
     
     result = database.db.session.execute(
         database.db.Select(models.Settings)
-        .where(models.Settings.category == "server")
         .where(models.Settings.key == "login_code_timeout")
     ).scalar_one_or_none()
-    login_code_task_timing = default_settings["server"]["login_code_timeout"]
+    login_code_task_timing = default_settings["login_code_timeout"]
     if result is not None:
         login_code_task_timing = result.value
 

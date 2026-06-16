@@ -9,10 +9,10 @@ import log
 
 
 def send_email(email_receiver: str, email_subject: str, email_body_plain: str, email_body_html: str) -> str:
-    email_sender = g.settings["smtp"]["SMTP_ADDRESS"]
-    email_password = g.settings["smtp"]["SMTP_PASSWORD"]
-    smtp_server = g.settings["smtp"]["SMTP_SERVER"]
-    smtp_port = g.settings["smtp"]["SMTP_PORT"]
+    email_sender = g.settings["smtp_address"]
+    email_password = g.settings["smtp_password"]
+    smtp_server = g.settings["smtp_server"]
+    smtp_port = g.settings["smtp_port"]
     if email_sender is None or email_password is None or smtp_server is None or smtp_port is None:
         log.write(msg="SMTP variables not set in settings, couldn't send email", level=log.error)
         return "SMTP variables not set in settings, couldn't send email!"

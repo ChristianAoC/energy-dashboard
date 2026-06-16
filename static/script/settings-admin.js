@@ -70,7 +70,7 @@ function onSettingChange(input) {
 
 async function getAdminUserLevel() {
     try {
-        const response = await fetch(BASE_PATH + '/api/settings/?key=USER_LEVEL_ADMIN');
+        const response = await fetch(BASE_PATH + '/api/settings/?key=user_level_admin');
         if (!response.ok) {
             return 5;
         }
@@ -171,7 +171,6 @@ function loadSettings() {
                 pageLength: 25,
                 dom: 'lrtp',
                 columns: [
-                    { data: "category", title: "Category"},
                     { data: "key", title: "Key"},
                     { data: 'value', title: "Value",
                         render: function (data, type, row) {

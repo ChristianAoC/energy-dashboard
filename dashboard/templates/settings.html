@@ -25,7 +25,7 @@
 Logged in as {{ user.email | tojson | safe }}.<br><br>
 <button type="button" onclick="logout()" class="button-generic" id="button-logout">Logout</button>
 
-{% if user.level >= g.settings["users"]["USER_LEVEL_ADMIN"] %}
+{% if user.level >= g.settings["user_level_admin"] %}
 
 <br><br>
 
@@ -75,13 +75,11 @@ Note: switching between online and offline modes invalidates the health check an
     <table id="settingsTable">
         <thead>
         <tr>
-            <th>Category</th>
             <th>Key</th>
             <th>Value</th>
             <th>Type</th>
         </tr>
         <tr>
-            <th class="select" data-dt-order="disable">Category</th>
             <th class="text" data-dt-order="disable">Key</th>
             <th class="text" data-dt-order="disable">Value</th>
             <th class="select" data-dt-order="disable">Type</th>

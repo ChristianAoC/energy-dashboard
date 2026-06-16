@@ -77,7 +77,7 @@ def get_level():
 
 @users_api_bp.route("/set-level/", methods=['POST'])
 @users_api_bp.route("/set-level", methods=['POST'])
-@dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
+@dashboard_bp.required_user_level("user_level_admin")
 def set_level():
     data = request.get_json()
     if not data:
@@ -99,7 +99,7 @@ def set_level():
 
 @users_api_bp.route('/delete/', methods=['POST'])
 @users_api_bp.route('/delete', methods=['POST'])
-@dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
+@dashboard_bp.required_user_level("user_level_admin")
 def delete():
     data = request.get_json()
     if not data:
@@ -119,6 +119,6 @@ def delete():
 
 @users_api_bp.route('/list/')
 @users_api_bp.route('/list')
-@dashboard_bp.required_user_level("USER_LEVEL_ADMIN")
+@dashboard_bp.required_user_level("user_level_admin")
 def user_list():
     return users.list_users()
