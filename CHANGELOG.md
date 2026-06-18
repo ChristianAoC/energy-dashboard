@@ -1,7 +1,19 @@
 # Changelog
-## Pre-Release
 This list contains the breaking changes for individual commits (anything that needs to be manually changed on the server).
 
+## Release v2.0.0
+As suggested by the increment in major versioning number, this update is incompatible with previous versions.
+We try to avoid this whenever possible, but it was necessary in this situation.
+
+The breaking change is the migration from using SQLite3 as our local database to PostgreSQL, the removal of the "dict"
+setting type, along with changing how settings are stored.
+
+The easiest way to migrate is to update your .env file with any settings changes that you have made, reupload your
+metadata .xlsx file, and write a script to recreate context data and users via the API.
+
+**TODO: write migration script before releasing v2.0.0**
+
+## Pre-Release
 ### Commit [7871ff3884b5f9de7e6b193c9fc3aaf604134ea7](https://github.com/ChristianAoC/energy-dashboard/commit/7871ff3884b5f9de7e6b193c9fc3aaf604134ea7)
 ### Created settings:
 - server.session_timeout

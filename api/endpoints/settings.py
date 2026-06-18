@@ -1,7 +1,6 @@
-from flask import Blueprint, make_response, request, jsonify, send_file#, session
+from flask import Blueprint, make_response, request, jsonify, send_file
 
 import uuid
-# import openpyxl
 
 import api.endpoints.data as data_api_bp
 from constants import *
@@ -78,10 +77,7 @@ def get():
 ##                   "bool": {
 ##                       "value": True,
 ##                       "type": "bool"
-##                   },
-##                   "dict": {
-##                       "value": {"test": "me", "out": "!"},
-##                       "type": "dict"
+##                   }
 ##               }
 ##              )
 ##
@@ -110,6 +106,7 @@ def post():
                 .where(models.Settings.key == key)
             ).scalar_one_or_none()
             
+            
             if type(value) is not dict and existing_setting is None:
                 setting_value = value
                 setting_type = type(value).__name__
@@ -119,6 +116,9 @@ def post():
             else:
                 setting_value = value["value"]
                 setting_type = value["type"]
+            
+            if type(setting_value).__name__ != setting_type:
+                raise TypeError(f"Type mismatch, provided '{value['type']}', detected '{type(value['value']).__name__}'")
             
             if existing_setting is None:
                 settings.create_record(key=key, value=setting_value, setting_type=setting_type)
@@ -139,7 +139,6 @@ def post():
 #                                    "int": 1,
 #                                    "float": 2.3,
 #                                    "bool": True,
-#                                    "dict": {"test": "me", "out": "!"}}
 #                         ).text
 # @settings_api_bp.route("/test/string")
 # def test_string():
@@ -174,7 +173,8 @@ def upload_metadata():
         temp_file = os.path.join(os.path.dirname(metadata_file), str(uuid.uuid4()))
         file.save(temp_file, buffer_size=1048576) # Allow files up to 1 Mebibyte in size
         os.replace(temp_file, metadata_file)
-        settings.process_metadata_update()
+        if not settings.process_metadata_update():
+            raise Exception("An error occured while processing the metadata.")
     except Exception as e:
         log.write(msg="Failed to save or process new metadata", extra_info=str(e), level=log.error)
         return make_response("Error saving file", 500)
@@ -296,82 +296,3 @@ def clean_database():
         settings.clean_database_logs()
     
     return make_response("OK", 200)
-
-## This is the start of a more guided upload for metadata
-# @settings_api_bp.route("/upload/new", methods=["POST"])
-# @data_api_bp.required_user_level("user_level_admin")
-# def upload_new():
-#     if 'file' not in request.files:
-#         return make_response("Invalid data", 400)
-    
-#     file = request.files['file']
-#     if not file or file.filename == '':
-#         return make_response("Invalid data", 400)
-    
-#     if file.content_type != "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet":
-#         response = make_response("Invalid data", 415)
-#         response.headers["Accept-Post"] = "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
-#         return response
-    
-#     filename = str(file.filename)
-    
-#     if not ("." in filename and filename.rsplit(".", 1)[1].lower() == "xlsx"):
-#         return make_response("Invalid data", 415)
-#     cleaned_filename = f"{str(uuid.uuid4())}.xlsx"
-#     folder_path = os.path.join(upload_folder, "metadata_upload")
-    
-#     os.makedirs(folder_path, exist_ok=True)
-    
-#     file_path = os.path.join(folder_path, cleaned_filename)
-    
-#     if os.path.exists(file_path):
-#         os.remove(file_path)
-    
-#     try:
-#         file.save(file_path)
-#     except:
-#         return make_response("Error saving file", 500)
-    
-#     session["metadata_upload_filename"] = cleaned_filename
-#     return make_response("OK", 200)
-
-# @settings_api_bp.route("/upload/sheets", methods=["GET"])
-# @data_api_bp.required_user_level("user_level_admin")
-# def upload_sheets_get():
-#     try:
-#         filename = session["metadata_upload_filename"]
-#     except:
-#         return make_response("Upload the file first", 400)
-    
-#     cleaned_filename = secure_filename(filename)
-#     file_path = os.path.join(upload_folder, "metadata_upload", cleaned_filename)
-    
-#     if not os.path.exists(file_path):
-#         return make_response("Invalid file", 404)
-    
-#     results = openpyxl.load_workbook(file_path).sheetnames
-    
-#     return make_response(jsonify(results), 200)
-
-# @settings_api_bp.route("/upload/sheets", methods=["POST"])
-# @data_api_bp.required_user_level("user_level_admin")
-# def upload_sheets_post():
-#     try:
-#         filename = session["metadata_upload_filename"]
-#     except:
-#         return make_response("Upload the file first", 400)
-    
-#     try:
-#         data = request.get_json()
-#     except:
-#         return make_response("Error parsing data", 400)
-    
-#     cleaned_filename = secure_filename(filename)
-#     file_path = os.path.join(upload_folder, cleaned_filename)
-    
-#     if not os.path.exists(file_path):
-#         return make_response("Invalid filename", 404)
-    
-#     results = openpyxl.load_workbook(file_path).sheetnames
-    
-#     return make_response(jsonify(results), 200)

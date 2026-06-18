@@ -10,11 +10,10 @@ from constants import metadata_file, offline_data_files, offline_meta_file
 import models
 from models import db
 import log
+import settings
 
 
 def init() -> bool:
-    db.create_all()
-
     try:
         if not initialise_settings_table(True):
             try:
@@ -103,7 +102,7 @@ def generate_offline_meta(write_to_db: bool = True) -> bool|dict:
     
     return True
 
-def load_settings_from_env(from_env: bool = True) -> dict[str,str|bool|None|int]:
+def load_settings_from_env(from_env: bool = True) -> dict[str,str|bool|None|int|float]:
     from settings import default_settings
     result = copy.deepcopy(default_settings)
     
@@ -208,361 +207,355 @@ def initialise_settings_table(from_env: bool = False) -> bool:
             return False
         
         log.write(msg="Loading settings", level=log.info)
-        
-        settings = []
-        
+
         initial_settings = load_settings_from_env(from_env)
         
         # Users
-        settings.append(models.Settings(
+        settings.create_record(
             key="default_user_level",
             value=initial_settings["default_user_level"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_view_dashboard",
             value=initial_settings["user_level_view_dashboard"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_view_healthcheck",
             value=initial_settings["user_level_view_healthcheck"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_view_comments",
             value=initial_settings["user_level_view_comments"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_submit_comments",
             value=initial_settings["user_level_submit_comments"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_edit_comments",
             value=initial_settings["user_level_edit_comments"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="user_level_admin",
             value=initial_settings["user_level_admin"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="required_email_domains",
             value=initial_settings["required_email_domains"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="demo_email_domains",
             value=initial_settings["demo_email_domains"],
             setting_type="str"
-        ))
+        )
         
         # Mazemap info
-        settings.append(models.Settings(
+        settings.create_record(
             key="mazemap_campus_id",
             value=initial_settings["mazemap_campus_id"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="mazemap_lng",
             value=initial_settings["mazemap_lng"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="mazemap_lat",
             value=initial_settings["mazemap_lat"],
             setting_type="str"
-        ))
+        )
 
         # SMTP
-        settings.append(models.Settings(
+        settings.create_record(
             key="smtp_enabled",
             value=initial_settings["smtp_enabled"],
             setting_type="bool"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="smtp_address",
             value=initial_settings["smtp_address"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="smtp_password",
             value=initial_settings["smtp_password"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="smtp_server",
             value=initial_settings["smtp_server"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="smtp_port",
             value=initial_settings["smtp_port"],
             setting_type="str"
-        ))
+        )
         
         # Site info
-        settings.append(models.Settings(
+        settings.create_record(
             key="site_name",
             value=initial_settings["site_name"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="default_start_page",
             value=initial_settings["default_start_page"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="default_daterange_benchmark",
             value=initial_settings["default_daterange_benchmark"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="default_daterange_browser",
             value=initial_settings["default_daterange_browser"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="default_daterange_health-check",
             value=initial_settings["default_daterange_health-check"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="capavis_url",
             value=initial_settings["capavis_url"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="clustering_url",
             value=initial_settings["clustering_url"],
             setting_type="str"
-        ))
+        )
         
         # Influx
-        settings.append(models.Settings(
+        settings.create_record(
             key="influx_url",
             value=initial_settings["influx_url"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="influx_port",
             value=initial_settings["influx_port"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="influx_user",
             value=initial_settings["influx_user"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="influx_pass",
             value=initial_settings["influx_pass"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="influx_table",
             value=initial_settings["influx_table"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="influx_data_interval",
             value=initial_settings["influx_data_interval"],
             setting_type="int"
-        ))
+        )
         
         # Data
-        settings.append(models.Settings(
+        settings.create_record(
             key="offline_mode",
             value=initial_settings["offline_mode"],
             setting_type="bool"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="hc_update_time",
             value=initial_settings["hc_update_time"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="cache_time_health_score",
             value=initial_settings["cache_time_health_score"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="cache_time_summary",
             value=initial_settings["cache_time_summary"],
             setting_type="int"
-        ))
+        )
         
         # Metadata
-        settings.append(models.Settings(
+        settings.create_record(
             key="offline_data_start_time",
             value=initial_settings["offline_data_start_time"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="offline_data_end_time",
             value=initial_settings["offline_data_end_time"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="offline_data_interval",
             value=initial_settings["offline_data_interval"],
             setting_type="int"
-        ))
+        )
 
         ## Meter table
-        settings.append(models.Settings(
+        settings.create_record(
             key="metadata.meter_sheet",
             value=initial_settings["metadata.meter_sheet"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.meter_id",
             value=initial_settings["metadata.meter_sheet.meter_id"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.raw_uuid",
             value=initial_settings["metadata.meter_sheet.raw_uuid"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.description",
             value=initial_settings["metadata.meter_sheet.description"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.building_level_meter",
             value=initial_settings["metadata.meter_sheet.building_level_meter"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.meter_type",
             value=initial_settings["metadata.meter_sheet.meter_type"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.reading_type",
             value=initial_settings["metadata.meter_sheet.reading_type"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.units",
             value=initial_settings["metadata.meter_sheet.units"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.resolution",
             value=initial_settings["metadata.meter_sheet.resolution"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.unit_conversion_factor",
             value=initial_settings["metadata.meter_sheet.unit_conversion_factor"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.tenant",
             value=initial_settings["metadata.meter_sheet.tenant"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.meter_sheet.meter_building",
             value=initial_settings["metadata.meter_sheet.meter_building"],
             setting_type="str"
-        ))
+        )
 
         ## Building table
-        settings.append(models.Settings(
+        settings.create_record(
             key="metadata.building_sheet",
             value=initial_settings["metadata.building_sheet"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.building_code",
             value=initial_settings["metadata.building_sheet.building_code"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.building_name",
             value=initial_settings["metadata.building_sheet.building_name"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.floor_area",
             value=initial_settings["metadata.building_sheet.floor_area"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.year_built",
             value=initial_settings["metadata.building_sheet.year_built"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.usage",
             value=initial_settings["metadata.building_sheet.usage"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="metadata.building_sheet.maze_map_label",
             value=initial_settings["metadata.building_sheet.maze_map_label"],
             setting_type="str"
-        ))
+        )
 
         # Logging
-        settings.append(models.Settings(
+        settings.create_record(
             key="log_level",
             value=initial_settings["log_level"],
             setting_type="str"
-        ))
+        )
         
         # Server settings
-        settings.append(models.Settings(
+        settings.create_record(
             key="background_task_timing",
             value=initial_settings["background_task_timing"],
             setting_type="str"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="meter_batch_size",
             value=initial_settings["meter_batch_size"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="session_timeout",
             value=initial_settings["session_timeout"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="login_code_timeout",
             value=initial_settings["login_code_timeout"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="log_info_expiry",
             value=initial_settings["log_info_expiry"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="log_warning_expiry",
             value=initial_settings["log_warning_expiry"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="log_error_expiry",
             value=initial_settings["log_error_expiry"],
             setting_type="int"
-        ))
-        settings.append(models.Settings(
+        )
+        settings.create_record(
             key="log_critical_expiry",
             value=initial_settings["log_critical_expiry"],
             setting_type="int"
-        ))
-        
-        db.session.add_all(settings)
-        
-        db.session.commit()
+        )
         return True
     except ValueError as e:
         db.session.rollback()
@@ -665,6 +658,11 @@ def process_meter_row(row) -> dict:
         raise ValueError(f"Invalid {g.settings['metadata.meter_sheet.unit_conversion_factor']}")
     unit_conversion_factor = float(unit_conversion_factor_raw)
     
+    units_raw = row[g.settings["metadata.meter_sheet.units"]]
+    units = units_raw.strip()
+    if len(units) > 5:
+        raise ValueError(f"Invalid {g.settings['metadata.meter_sheet.units']}")
+    
     return {
         "meter_id": meter_id_clean,
         "raw_uuid": raw_uuid,
@@ -672,7 +670,7 @@ def process_meter_row(row) -> dict:
         "building_level_meter": building_level_meter,
         "utility_type": row[g.settings["metadata.meter_sheet.meter_type"]].strip().lower(),
         "reading_type": reading_type,
-        "units": row[g.settings["metadata.meter_sheet.units"]].strip(),
+        "units": units,
         "resolution": resolution,
         "unit_conversion_factor": unit_conversion_factor,
         "tenant": tenant,

@@ -111,7 +111,7 @@ class Building(db.Model):
     # Not a required field
     year_built = db.Column(db.Integer)
     
-    occupancy_type = db.Column(db.String(11), CheckConstraint(occupancy_type_check_constraint), nullable=False)
+    occupancy_type = db.Column(db.String(20), CheckConstraint(occupancy_type_check_constraint), nullable=False)
     maze_map_label = db.Column(db.JSON)
     
     ud_record = db.relationship("UtilityData", uselist=False, back_populates='building', cascade="all, delete-orphan")
@@ -170,7 +170,7 @@ class HealthCheck(db.Model):
     diff_pos_score = db.Column(db.Integer)
     diff_zero = db.Column(db.Integer)
     diff_zero_perc = db.Column(db.String(6))
-    class_check = db.Column(db.String(20))
+    class_check = db.Column(db.String(28))
     functional_matrix = db.Column(db.Integer)
     mean = db.Column(db.Integer)
     median = db.Column(db.Integer)
@@ -182,7 +182,7 @@ class HealthCheck(db.Model):
     score = db.Column(db.Integer)
     outliers_perc = db.Column(db.String(6))
     outliers_ignz = db.Column(db.Integer)
-    outliers_ignz_perc = db.Column(db.Integer)
+    outliers_ignz_perc = db.Column(db.String(6))
 
     meter = db.relationship(Meter, back_populates="hc_record")
 
@@ -460,8 +460,21 @@ class Settings(db.Model):
     
     def __init__(self, key: str, value, setting_type: str):
         self.key = key
-        self.value = value
         self.setting_type = setting_type
+        
+        if value is None:
+            self.value = None
+        else:
+            if setting_type == "str":
+                self.value = str(value)
+            elif setting_type == "int":
+                self.value = int(value)
+            elif setting_type == "float":
+                self.value = float(value)
+            elif setting_type == "bool":
+                self.value = bool(value)
+            else:
+                raise TypeError("Unsupported setting type selected")
     
     def to_dict(self):
         return {

@@ -102,6 +102,10 @@ def load_settings():
             g.settings[setting.key] = setting.value
 
 def create_record(key: str, value, setting_type: str):
+    # Check for invalid types
+    if setting_type not in ["str", "int", "float", "bool"]:
+        raise TypeError(f"Type '{setting_type}' isn't supported")
+    
     try:
         new_record = models.Settings(
             key=key,
@@ -116,9 +120,13 @@ def create_record(key: str, value, setting_type: str):
 
 def update_record(obj: models.Settings, value, setting_type: str):
     try:
+        # Check for invalid types
+        if setting_type not in ["str", "int", "float", "bool"]:
+            raise TypeError(f"Type '{setting_type}' isn't supported")
+        
         # Check for invalid changes
         if obj.setting_type != setting_type:
-            raise TypeError(f"Type {setting_type} doesn't match the existing type of {obj.setting_type}")
+            raise TypeError(f"Type '{setting_type}' doesn't match the existing type of '{obj.setting_type}'")
 
         if obj.key == "log_level" and value not in log.index.keys():
             raise ValueError(f"Value {value} isn't a valid option: {log.index.keys()}")

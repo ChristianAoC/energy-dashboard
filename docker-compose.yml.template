@@ -10,8 +10,11 @@ services:
     volumes:
       - ./data:/app/data
       - ./.env:/app/.env:ro
+    depends_on:
+      - db
     networks:
       - appnet
+      - privatenet
 
   nginx:
     image: nginx:latest
@@ -37,8 +40,24 @@ services:
       - /var/run/docker.sock:/var/run/docker.sock
     command: --interval 86400 --include-restarting --label-enable
     depends_on:
-        - web
+      - web
+  
+  db:
+    image: postgres:18-alpine
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: "net0i"
+      POSTGRES_USER: "net0i"
+      POSTGRES_PASSWORD: "<your-password>"
+    expose:
+      - 5432
+    volumes:
+      - ./tables.sql:/docker-entrypoint-initdb.d/tables.sql:ro
+      - ./db:/var/lib/postgresql
+    networks:
+      - privatenet
 
 networks:
   appnet:
     driver: bridge
+  privatenet:

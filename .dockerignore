@@ -21,3 +21,6 @@ dashboard/__pycache__/
 api/__pycache__/
 api/endpoints/__pycache__/
 __pycache__/
+
+# Database
+db/
