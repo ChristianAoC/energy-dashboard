@@ -433,7 +433,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
 
-    response = make_response(jsonify([]), 500)
+    response = make_response(jsonify([]), 404)
     response.headers['X-Cache-State'] = "stale"
     return response
 
