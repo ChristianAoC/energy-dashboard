@@ -13,7 +13,7 @@ You can download/fork/checkout the repository to run and test locally. There is 
 
 A typical installation with Docker goes as follows (make sure Docker and Git are installed):
 
-1) `git clone --branch v1.0.6 --single-branch https://github.com/ChristianAoC/energy-dashboard.git`
+1) `git clone --branch v1.0.8 --single-branch https://github.com/ChristianAoC/energy-dashboard.git`
 2) Copy the example docker compose file and configure it as needed
 3) `sudo docker compose up -d`
 
