@@ -1,17 +1,100 @@
 # Changelog
-This list contains the breaking changes for individual commits (anything that needs to be manually changed on the server).
+This list contains the breaking changes for individual commits (anything that needs to be manually changed on the
+server).
 
 ## Release v2.0.0
-As suggested by the increment in major versioning number, this update is incompatible with previous versions.
-We try to avoid this whenever possible, but it was necessary in this situation.
+As suggested by the increment in major versioning number, this update is incompatible with previous versions. We try to
+avoid this whenever possible, but it was necessary in this situation.
 
-The breaking change is the migration from using SQLite3 as our local database to PostgreSQL, the removal of the "dict"
-setting type, along with changing how settings are stored.
+The breaking changes are: the migration from using SQLite3 as our local database to PostgreSQL, the removal of the
+"dict" and "list" setting types, and the removal of settings categories.
 
-The easiest way to migrate is to update your .env file with any settings changes that you have made, reupload your
-metadata .xlsx file, and write a script to recreate context data and users via the API.
+The easiest way to migrate is to use the [provided script](scripts/v1.0.8-to-v2.0.0.py). Make sure that you review it
+before running it and that you follow all advice given in it's output.
 
-**TODO: write migration script before releasing v2.0.0**
+You can manually migrate by updating your .env file with any settings changes that you have made (take note of the
+[.env changes](#changed-env-variables) listed below) and add your Postgres credential, reupload your metadata .xlsx
+file, and either write a script to recreate context data and users via the API or manually recreate them yourself.
+
+### Changed settings:
+>Formatted as `category.key => key` as categories were removed
+- users.DEFAULT_USER_LEVEL => default_user_level
+- users.USER_LEVEL_VIEW_DASHBOARD => user_level_view_dashboard
+- users.USER_LEVEL_VIEW_HEALTHCHECK => user_level_view_healthcheck
+- users.USER_LEVEL_VIEW_COMMENTS => user_level_view_comments
+- users.USER_LEVEL_SUBMIT_COMMENTS => user_level_submit_comments
+- users.USER_LEVEL_EDIT_COMMENTS => user_level_edit_comments
+- users.USER_LEVEL_ADMIN => user_level_admin
+- users.REQUIRED_EMAIL_DOMAINS => required_email_domains
+- users.DEMO_EMAIL_DOMAINS => demo_email_domains
+- mazemap.MAZEMAP_CAMPUS_ID => mazemap_campus_id
+- mazemap.MAZEMAP_LNG => mazemap_lng
+- mazemap.MAZEMAP_LAT => mazemap_lat
+- smtp.SMTP_ENABLED => smtp_enabled
+- smtp.SMTP_ADDRESS => smtp_address
+- smtp.SMTP_PASSWORD => smtp_password
+- smtp.SMTP_SERVER => smtp_server
+- smtp.SMTP_PORT => smtp_port
+- site.SITE_NAME => site_name
+- site.default_start_page => default_start_page
+- site.default_daterange_benchmark => default_daterange_benchmark
+- site.default_daterange_browser => default_daterange_browser
+- site.default_daterange_health-check => default_daterange_health-check
+- site.capavis_url => capavis_url
+- site.clustering_url => clustering_url
+- influx.InfluxURL => influx_url
+- influx.InfluxPort => influx_port
+- influx.InfluxUser => influx_user
+- influx.InfluxPass => influx_pass
+- influx.InfluxTable => influx_table
+- influx.data_interval => influx_data_interval
+- data.offline_mode => offline_mode
+- data.hc_update_time => hc_update_time
+- data.cache_time_health_score => cache_time_health_score
+- data.cache_time_summary => cache_time_summary
+- metadata.offline_data_start_time => offline_data_start_time
+- metadata.offline_data_end_time => offline_data_end_time
+- metadata.offline_data_interval => offline_data_interval
+- metadata.meter_sheet.meter_sheet => metadata.meter_sheet
+- metadata.meter_sheet.meter_id => metadata.meter_sheet.meter_id
+- metadata.meter_sheet.raw_uuid => metadata.meter_sheet.raw_uuid
+- metadata.meter_sheet.description => metadata.meter_sheet.description
+- metadata.meter_sheet.building_level_meter => metadata.meter_sheet.building_level_meter
+- metadata.meter_sheet.meter_type => metadata.meter_sheet.meter_type
+- metadata.meter_sheet.reading_type => metadata.meter_sheet.reading_type
+- metadata.meter_sheet.units => metadata.meter_sheet.units
+- metadata.meter_sheet.resolution => metadata.meter_sheet.resolution
+- metadata.meter_sheet.unit_conversion_factor => metadata.meter_sheet.unit_conversion_factor
+- metadata.meter_sheet.tenant => metadata.meter_sheet.tenant
+- metadata.meter_sheet.meter_building => metadata.meter_sheet.meter_building
+- metadata.building_sheet.building_sheet => metadata.building_sheet
+- metadata.building_sheet.building_code => metadata.building_sheet.building_code
+- metadata.building_sheet.building_name => metadata.building_sheet.building_name
+- metadata.building_sheet.floor_area => metadata.building_sheet.floor_area
+- metadata.building_sheet.year_built => metadata.building_sheet.year_built
+- metadata.building_sheet.usage => metadata.building_sheet.usage
+- metadata.building_sheet.maze_map_label => metadata.building_sheet.maze_map_label
+- logging.log_level => log_level
+- server.BACKGROUND_TASK_TIMING => background_task_timing
+- server.meter_batch_size => meter_batch_size
+- server.session_timeout => session_timeout
+- server.login_code_timeout => login_code_timeout
+- server.log_info_expiry => log_info_expiry
+- server.log_warning_expiry => log_warning_expiry
+- server.log_error_expiry => log_error_expiry
+- server.log_critical_expiry => log_critical_expiry
+
+### .env variables
+#### Added .env variables
+- POSTGRES_ADDRESS
+- POSTGRES_PORT
+- POSTGRES_USER
+- POSTGRES_PASS
+- POSTGRES_TABLE
+
+#### Changed .env variables
+- data_interval => INFLUX_DATA_INTERVAL
+- meter_batch_size => METER_BATCH_SIZE
 
 ## Pre-Release
 ### Commit [7871ff3884b5f9de7e6b193c9fc3aaf604134ea7](https://github.com/ChristianAoC/energy-dashboard/commit/7871ff3884b5f9de7e6b193c9fc3aaf604134ea7)

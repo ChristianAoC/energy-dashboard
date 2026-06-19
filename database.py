@@ -197,7 +197,8 @@ def load_settings_from_env(from_env: bool = True) -> dict[str,str|bool|None|int|
         result["offline_data_end_time"] = end_time
         result["offline_data_interval"] = interval
         
-        result["background_task_timing"] = os.getenv("BACKGROUND_TASK_TIMING", default_settings["background_task_timing"])
+        result["background_task_timing"] = os.getenv("BACKGROUND_TASK_TIMING",
+                                                     default_settings["background_task_timing"])
         result["meter_batch_size"] = os.getenv("METER_BATCH_SIZE", default_settings["meter_batch_size"])
     return result
 
