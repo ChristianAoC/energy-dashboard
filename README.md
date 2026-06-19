@@ -3,6 +3,7 @@
 > [!CAUTION]
 > We are currently preparing for major version v2.0.0, **you are advised to use the tagged docker release instead of manually compiling until we are finished working**.
 > One of the major changes is migrating the local database from SQLite3 to PostgreSQL, along with some structure changes to the database. Until v2.0.0 releases, breaking changes can be merged into main without warning - use with caution.
+> Take a look at [the changelog](CHANGELOG.md) to see what changes have been made.
 
 The goal of this dashboard is to allow users to contextualise energy data. A description of the origins and research intentions can be found on the [Net0i project website](https://wp.lancs.ac.uk/net0i/energy-dashboard/), and a paper/poster explaining its use can be [accessed here](https://wp.lancs.ac.uk/net0i/files/2025/06/2025-remy-contextviz.pdf). A public demo is available here: [https://christianremy.com/dashboard/](https://christianremy.com/dashboard/)
 
