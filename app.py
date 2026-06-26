@@ -1,3 +1,5 @@
+print("Running main app")
+
 import os
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -42,13 +44,15 @@ load_dotenv()
 app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
 app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
 
-app.config["postgres_user"] = os.getenv("POSTGRES_USER", "net0i")
-app.config["postgres_pass"] = os.getenv("POSTGRES_PASS")
-app.config["postgres_address"] = os.getenv("POSTGRES_ADDRESS", "db")
-app.config["postgres_port"] = int(os.getenv("POSTGRES_PORT", 5432))
-app.config["postgres_table"] = os.getenv("POSTGRES_TABLE", "net0i")
+POSTGRES_USER = os.getenv("POSTGRES_USER", "net0i")
+POSTGRES_PASS = os.getenv("POSTGRES_PASS")
+POSTGRES_ADDRESS = os.getenv("POSTGRES_ADDRESS", "db")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5432))
+POSTGRES_TABLE = os.getenv("POSTGRES_TABLE", "net0i")
 
-if app.config["postgres_pass"] is None:
+app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_ADDRESS}:{POSTGRES_PORT}/{POSTGRES_TABLE}"
+
+if POSTGRES_PASS is None:
     print("\n" + "="*20)
     print("\tERROR: You have not set the PostgreSQL credentials!")
     print("\tPlease set them in your .env file.")
@@ -63,7 +67,7 @@ for attempts in range(0, max_database_connection_attempts):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(5)
     try:
-        s.connect((app.config["postgres_address"], app.config["postgres_port"]))
+        s.connect((POSTGRES_ADDRESS, POSTGRES_PORT))
         s.shutdown(socket.SHUT_RDWR)
         database_available = True
         break
@@ -74,21 +78,14 @@ for attempts in range(0, max_database_connection_attempts):
 
 if not database_available:
     print("\n" + "="*20)
-    print("\tPostgreSQL credentials cannot be updated through the application - the values in .env are always used.")
     print(f"\tFailed to connect to database after {max_database_connection_attempts} attempts, aborting startup.")
     print("\tPlease check your PostgreSQL credentials in .env, the address may not be correct")
     print("="*20 + "\n")
-    shutdown.hard()
+    exit() # Don't shutdown the Gunicorn thread, just restart the worker
 else:
     print("Database connection successful!")
 
-app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql+psycopg://{app.config['postgres_user']}:{app.config['postgres_pass']}@{app.config['postgres_address']}:{app.config['postgres_port']}/{app.config['postgres_table']}"
-
 models.db.init_app(app)
-with app.app_context():
-    successful_database_init = database.init()
-    if not successful_database_init:
-        shutdown.hard()
 
 ###########################################################
 ###              Check required files exist             ###
@@ -102,6 +99,20 @@ with app.app_context():
         .where(models.Settings.key == "offline_mode")
     ).scalar_one_or_none()
     offline_mode = True
+    if result is None:
+        # Most likely this is the first startup and the settings table hasn't been initialised fully yet, wait and try
+        # again. This shouldn't happen anymore but leaving it here just incase.
+        time.sleep(1)
+        
+        result = database.db.session.execute(
+            database.db.Select(models.Settings)
+            .where(models.Settings.key == "offline_mode")
+        ).scalar_one_or_none()
+        
+        if result is not None:
+            offline_mode = result.value
+    else:
+        offline_mode = result.value
     if result is not None:
         offline_mode = result.value
     app.config["offline_mode"] = offline_mode
