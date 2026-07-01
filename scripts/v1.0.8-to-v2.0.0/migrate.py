@@ -5,13 +5,14 @@
 #
 # - Luke Needle (v2.0.0 release coordinator)
 
+from datetime import datetime
 import getpass
 import json
 import os
 import requests
 import secrets
-import sqlite3 # NOTE: using sqlite directly to decrease the number of dependencies needed to migrate
 import shutil
+import sqlite3 # NOTE: using sqlite directly to decrease the number of dependencies needed to migrate
 
 ###########################################################
 ###                      Variables                      ###
@@ -837,8 +838,6 @@ if log_steps["users"] == False:
                 print(f"=> Failed to set level of {old_users_map[user_id]['level']} for {old_users_map[user_id]['email']}")
                 emails_level_failed.append(old_users_map[user_id]["email"])
 
-        print("\n=> Creating map between user emails and old user IDs")
-
         # Display summary of users migrated
         print("User migration summary:")
         print(f"    Accounts successfully migrated: {len(old_users_map) - len(emails_skipped) - len(emails_level_failed)}")
@@ -936,12 +935,6 @@ else:
 
 # Checking if it is False as this section can be None
 if log_steps["context"] == False:
-    # TODO: Remove \/
-    print("Context migration hasn't been implemented yet as changes are required to the context endpoints")
-    print(f"To complete migration without the context step, set 'context' to `null` in {LOG_FILE} and try again.")
-    exit()
-    # TODO: Remove /\
-    
     if log_steps["users"] is None:
         print("=> Skipping Context as User migration was skipped")
         skip_section(log_steps=log_steps, key="context")
@@ -953,17 +946,47 @@ if log_steps["context"] == False:
         with open(COOKIE_JAR_FILE, "r") as f:
             cookie_jar = json.load(f)
         
-        # TODO: Get context from old DB
         with sqlite3.connect(ORIGINAL_DB) as conn:
             cur = conn.cursor()
-            old_context_raw = cur.execute("SELECT author, target_type, start_timestamp, end_timestamp, context_type, comment FROM context WHERE deleted = 0;").fetchall()
+            old_context_raw = cur.execute("SELECT id, author, target_type, target_id, start_timestamp, end_timestamp, context_type, comment FROM context WHERE deleted = 0;").fetchall()
             print(old_context_raw)
         
-        # TODO: For each context, recreate it
+        failed = []
         
-        # TODO: Provide a summary of any that failed to the user
+        for context in old_context_raw:
+            start_time = context[4]
+            if start_time is not None:
+                start_time = datetime.strptime(start_time, "%Y-%m-%d %H:%M:%S.%f").strftime("%Y-%m-%d %H:%M")
+            
+            end_time = context[5]
+            if end_time is not None:
+                end_time = datetime.strptime(end_time, "%Y-%m-%d %H:%M:%S.%f").strftime("%Y-%m-%d %H:%M")
+            
+            req = requests.post(
+                f"{server_address}/api/context/add",
+                cookies=cookie_jar,
+                json={
+                    "author": context[1],
+                    "target_type": context[2],
+                    "target_id": context[3],
+                    "start": start_time,
+                    "end": end_time,
+                    "type": context[6],
+                    "comment": context[7],
+                    "id": None
+                }
+            )
+            if req.status_code != 200:
+                print(f"ERROR: Failed to add context id {context[0]}")
+                failed.append(context[0])
+                input("Press Enter to continue.")
         
-        exit() # TODO: Remove
+        # Display summary of context migrated
+        print("Context migration summary:")
+        print(f"    Successful: {len(old_context_raw)-len(failed)}")
+        print(f"    Failed: {len(failed)}")
+        for context_id in failed:
+            print(f"\t- id={context_id}")
         
         complete_section(log_steps=log_steps, key="context")
 else:
@@ -1048,7 +1071,7 @@ if log_steps["cleanup"] == False:
         shutil.rmtree(TEMP_FOLDER)
         
         print(f"""
-You must manually delete the user '{MIGRATOR_ACCOUNT}'. NOTE: No one can log into the account")
+You must manually delete the user '{MIGRATOR_ACCOUNT}'. NOTE: No one can currently log into the account
 You should also modify your .env file to remove {MIGRATOR_DOMAIN}
 """)
         input("Press Enter to continue.")
@@ -1063,6 +1086,7 @@ else:
 
 print(f"""
 You have completed v2.0.0 migration!
-Please remember to remove \'{MIGRATOR_ACCOUNT}\' from DEMO_EMAIL_DOMAINS in your .env file if you haven't already.
-"The cleanup step removed it from the dashboard settings so you don't need to do that unless you skipped it.
+Please remember to remove \'{MIGRATOR_ACCOUNT}\' from DEMO_EMAIL_DOMAINS in your .env file if you haven't already. The
+cleanup step removed it from the dashboard settings so you don't need to do anything on the dashboard unless you skipped
+that step.
 """)
