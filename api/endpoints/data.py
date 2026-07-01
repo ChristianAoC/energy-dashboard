@@ -15,6 +15,7 @@ from database import initial_database_population
 import log
 import models
 from models import db
+import settings
 
 
 data_api_bp = Blueprint('data_api_bp', __name__, static_url_path='')
@@ -650,3 +651,17 @@ def logs():
         return make_response(jsonify([]), 404)
 
     return make_response(jsonify(data), 200)
+
+@data_api_bp.route('/invalidate-health-check-cache/', methods=["GET", "POST"])
+@data_api_bp.route('/invalidate-health-check-cache', methods=["GET", "POST"])
+@required_user_level("user_level_admin")
+def invalidate_hc_cache():
+    settings.invalidate_hc_cache()
+    return make_response("success")
+
+@data_api_bp.route('/invalidate-summary-cache/', methods=["GET", "POST"])
+@data_api_bp.route('/invalidate-summary-cache', methods=["GET", "POST"])
+@required_user_level("user_level_admin")
+def invalidate_summary_cache():
+    settings.invalidate_summary_cache()
+    return make_response("success")

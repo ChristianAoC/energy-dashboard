@@ -355,6 +355,27 @@ $(document).ready(function () {
         window.open(BASE_PATH + '/api/settings/download/polygons', '_self');
     });
 
+    document.getElementById('invalidate-hc').addEventListener('click', () => {
+        fetch(BASE_PATH + '/api/invalidate-health-check-cache')
+            .then(res => {
+                if (res.ok) {
+                    window.alert("Successfully invalidated the Health Check cache")
+                } else {
+                    window.alert("Failed to invalidate the Health Check cache");
+                }
+            });
+    });
+    document.getElementById('invalidate-summary').addEventListener('click', () => {
+        fetch(BASE_PATH + '/api/invalidate-summary-cache')
+            .then(res => {
+                if (res.ok) {
+                    window.alert("Successfully invalidated the Summary cache")
+                } else {
+                    window.alert("Failed to invalidate the Summary cache");
+                }
+            });
+    });
+
     fileInput.addEventListener('change', () => {
         const file = fileInput.files[0];
         if (!file) return;

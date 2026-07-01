@@ -441,7 +441,7 @@ form#viewToggle > div {
     top:1px;
     left:1px;
     bottom:1px;
-    width:calc(25%);
+    width:calc(20%);
     background-color: #3f3f3f;
     border-radius:30px;
     box-shadow: 0px 1px 2px 1px rgba(0, 0, 0, 0.288);
@@ -458,7 +458,7 @@ form#viewToggle::after {
 
 form#viewToggle label {
     float:left;
-    width:calc(25%);
+    width:calc(20%);
     position:relative;
     padding: 6px 0px 26px;
     overflow:hidden;
