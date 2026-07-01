@@ -2,9 +2,12 @@
 .github/
 .idea/
 .venv/
+scripts/
+.github/
 .dockerignore
 .env
 .env.template
+.env*.bak
 .gitignore
 CHANGELOG.md
 docker-compose.yml
