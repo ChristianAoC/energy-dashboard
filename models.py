@@ -458,23 +458,28 @@ class Settings(db.Model):
     value = db.Column(db.JSON)
     setting_type = db.Column(db.String, nullable=False)
     
-    def __init__(self, key: str, value, setting_type: str):
+    def __init__(self, key: str, value: str|int|float|bool|None, setting_type: str):
         self.key = key
         self.setting_type = setting_type
         
         if value is None:
             self.value = None
+        elif setting_type not in ["str", "int", "float", "bool"]:
+            raise TypeError(f"Unsupported setting type selected '{setting_type}'")
+        elif setting_type == type(value).__name__:
+            self.value = value
+        elif setting_type == "str" and type(value) is not str:
+            self.value = str(value)
+        elif setting_type == "int" and (type(value) is float or type(value) is str):
+            self.value = int(value)
+        elif setting_type == "float" and (type(value) is int or type(value) is str):
+            self.value = float(value)
+        elif setting_type == "bool" and type(value) is str:
+            self.value = value == "true"
+        elif setting_type != type(value).__name__:
+            raise TypeError(f"Setting type doesn't match: Expecting {setting_type}, got {type(value).__name__}")
         else:
-            if setting_type == "str":
-                self.value = str(value)
-            elif setting_type == "int":
-                self.value = int(value)
-            elif setting_type == "float":
-                self.value = float(value)
-            elif setting_type == "bool":
-                self.value = bool(value)
-            else:
-                raise TypeError("Unsupported setting type selected")
+            raise Exception(f"Error creating setting {key}={value} ({setting_type})")
     
     def to_dict(self):
         return {

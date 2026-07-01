@@ -106,7 +106,6 @@ def post():
                 .where(models.Settings.key == key)
             ).scalar_one_or_none()
             
-            
             if type(value) is not dict and existing_setting is None:
                 setting_value = value
                 setting_type = type(value).__name__
@@ -117,8 +116,8 @@ def post():
                 setting_value = value["value"]
                 setting_type = value["type"]
             
-            if type(setting_value).__name__ != setting_type:
-                raise TypeError(f"Type mismatch, provided '{value['type']}', detected '{type(value['value']).__name__}'")
+            if type(setting_value).__name__ != setting_type and setting_value is not None:
+                raise TypeError(f"Type mismatch, provided '{setting_type}', detected '{type(setting_value).__name__}'")
             
             if existing_setting is None:
                 settings.create_record(key=key, value=setting_value, setting_type=setting_type)
