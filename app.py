@@ -1,3 +1,5 @@
+print("Running main app")
+
 import os
 abspath = os.path.abspath(__file__)
 dname = os.path.dirname(abspath)
@@ -5,14 +7,16 @@ os.chdir(dname)
 import sys
 sys.path.append(dname)
 
-from flask import Flask
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
 import base64
 from datetime import timezone
 from dotenv import load_dotenv
+from flask import Flask
 import requests
+import socket
+import time
 
 from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
@@ -31,13 +35,57 @@ app = Flask(__name__)
 # needed because sometimes WSGI is a bit thick
 application = app
 
+###########################################################
+###                   Set app config                    ###
+###########################################################
+
 # Set app config
-app.config["SQLALCHEMY_DATABASE_URI"] = f"sqlite:///{os.path.join(os.path.dirname(__file__), 'data', 'data.sqlite')}"
+load_dotenv()
+app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
+app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
+
+POSTGRES_USER = os.getenv("POSTGRES_USER", "net0i")
+POSTGRES_PASS = os.getenv("POSTGRES_PASS")
+POSTGRES_ADDRESS = os.getenv("POSTGRES_ADDRESS", "db")
+POSTGRES_PORT = int(os.getenv("POSTGRES_PORT", 5432))
+POSTGRES_TABLE = os.getenv("POSTGRES_TABLE", "net0i")
+
+app.config["SQLALCHEMY_DATABASE_URI"] = f"postgresql+psycopg://{POSTGRES_USER}:{POSTGRES_PASS}@{POSTGRES_ADDRESS}:{POSTGRES_PORT}/{POSTGRES_TABLE}"
+
+if POSTGRES_PASS is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the PostgreSQL credentials!")
+    print("\tPlease set them in your .env file.")
+    print("\tPostgreSQL credentials cannot be updated through the application - the values in .env are always used.")
+    print("="*20 + "\n")
+    shutdown.hard()
+
+# Test if database is accessible
+database_available = False
+max_database_connection_attempts = 10
+for attempts in range(0, max_database_connection_attempts):
+    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
+    s.settimeout(5)
+    try:
+        s.connect((POSTGRES_ADDRESS, POSTGRES_PORT))
+        s.shutdown(socket.SHUT_RDWR)
+        database_available = True
+        break
+    except Exception:
+        if attempts < max_database_connection_attempts:
+            print(f"Failed to connect to database, retrying in 1 second! ({attempts+1}/{max_database_connection_attempts})")
+            time.sleep(1)
+
+if not database_available:
+    print("\n" + "="*20)
+    print(f"\tFailed to connect to database after {max_database_connection_attempts} attempts, aborting startup.")
+    print("\tPlease check your PostgreSQL credentials in .env, the address may not be correct")
+    print("="*20 + "\n")
+    exit() # Don't shutdown the Gunicorn thread, just restart the worker
+else:
+    print("Database connection successful!")
 
 models.db.init_app(app)
-with app.app_context():
-    successful_initialisation = database.init()
-
 
 ###########################################################
 ###              Check required files exist             ###
@@ -51,6 +99,20 @@ with app.app_context():
         .where(models.Settings.key == "offline_mode")
     ).scalar_one_or_none()
     offline_mode = True
+    if result is None:
+        # Most likely this is the first startup and the settings table hasn't been initialised fully yet, wait and try
+        # again. This shouldn't happen anymore but leaving it here just incase.
+        time.sleep(1)
+        
+        result = database.db.session.execute(
+            database.db.Select(models.Settings)
+            .where(models.Settings.key == "offline_mode")
+        ).scalar_one_or_none()
+        
+        if result is not None:
+            offline_mode = result.value
+    else:
+        offline_mode = result.value
     if result is not None:
         offline_mode = result.value
     app.config["offline_mode"] = offline_mode
@@ -63,12 +125,7 @@ with app.app_context():
         log.write(msg="You are running in offline mode without any offline data",
                 extra_info="Place your data in ./data/offline/",
                 level=log.critical)
-        successful_initialisation = False
-
-# Show all error messages before exiting
-if not successful_initialisation:
-    shutdown.hard()
-del successful_initialisation
+        shutdown.hard()
 
 ###########################################################
 ###                      Blueprints                     ###
@@ -83,10 +140,6 @@ app.register_blueprint(context_api_bp, url_prefix='/api/context')
 app.register_blueprint(users_api_bp, url_prefix='/api/user')
 app.register_blueprint(settings_api_bp, url_prefix='/api/settings')
 app.register_blueprint(dashboard_bp)
-
-load_dotenv()
-app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
-app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
 
 ###########################################################
 ###               Set up scheduled tasks                ###
@@ -148,7 +201,7 @@ login_code_trigger = IntervalTrigger(
 scheduler.add_job(run_scheduled_requests,
                   overnight_trigger,
                   id="meter_health_cache_generation",
-                  args=("http://127.0.0.1:5000/api/regeneratecache", "get",
+                  args=("http://127.0.0.1:5000/api/regenerate-cache", "get",
                         {"Authorization": app.config["internal_api_key"]}))
 scheduler.add_job(run_scheduled_requests,
                   overnight_trigger,
@@ -159,7 +212,6 @@ scheduler.add_job(run_scheduled_requests,
                   id="clean_database_all",
                   args=("http://127.0.0.1:5000/api/settings/clean-database", "post",
                         {"Authorization": app.config["internal_api_key"]}))
-
 scheduler.add_job(run_scheduled_requests,
                   overnight_trigger,
                   id="clean_database_login_codes",

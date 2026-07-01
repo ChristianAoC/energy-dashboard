@@ -433,7 +433,7 @@ def meter_health():
         response.headers['X-Cache-State'] = "stale"
         return response
 
-    response = make_response(jsonify([]), 500)
+    response = make_response(jsonify([]), 404)
     response.headers['X-Cache-State'] = "stale"
     return response
 
@@ -527,8 +527,8 @@ def meter_hierarchy():
 @required_user_level("user_level_view_healthcheck")
 def health_score():
     from_time, _, days = calculate_time_args(from_time_requested=request.args.get("from_time"),
-                                                   to_time_requested=request.args.get("to_time"),
-                                                   desired_time_range=g.settings["default_daterange_health-check"])
+                                             to_time_requested=request.args.get("to_time"),
+                                             desired_time_range=g.settings["default_daterange_health-check"])
 
     data = generate_health_score(from_time, days)
 

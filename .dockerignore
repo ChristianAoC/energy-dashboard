@@ -2,9 +2,12 @@
 .github/
 .idea/
 .venv/
+scripts/
+.github/
 .dockerignore
 .env
 .env.template
+.env*.bak
 .gitignore
 CHANGELOG.md
 docker-compose.yml
@@ -21,3 +24,6 @@ dashboard/__pycache__/
 api/__pycache__/
 api/endpoints/__pycache__/
 __pycache__/
+
+# Database
+db/
