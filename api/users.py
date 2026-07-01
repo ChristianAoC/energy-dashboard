@@ -2,7 +2,6 @@ from flask import request, current_app, Response, make_response, render_template
 
 import datetime as dt
 import random
-import re
 import uuid
 
 import dashboard.mail as mail
@@ -182,7 +181,7 @@ def create_user(email: str, level: int) -> bool:
 
 # login request or add user to JSON if not exist already
 def login_request(email: str) -> tuple:
-    if len(email) > 254 or len(email.split('@')) < 2:
+    if len(email) > 254 or len(email.split('@')) != 2:
         return ("Invalid email", 400)
     
     email_domain = email.split('@')[1]
@@ -195,9 +194,6 @@ def login_request(email: str) -> tuple:
         
         if len(demo_domains) != 0 and email_domain in demo_domains:
             demo_user = True
-    
-    if not re.match(r"[^@\s]+@[^@\s]+\.[a-zA-Z0-9]+$", email) and not demo_user:
-        return ("Email entered doesn't seem to be a valid address!", 400)
     
     required_domains = []
     if (raw_required := g.settings.get("required_email_domains")) and not demo_user:
