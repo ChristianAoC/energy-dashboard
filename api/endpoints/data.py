@@ -185,13 +185,13 @@ def summary():
     cache_meta = db.session.execute(
         db.select(models.CacheMeta)
         .where(models.CacheMeta.meta_type == "usage_summary")
+        .where(models.CacheMeta.offline == g.settings["offline_mode"])
     ).scalar_one_or_none()
     
     valid_cache = False
     if (cache_meta is not None
         and cache_meta.to_time.date() == to_time.date()
-        and cache_meta.from_time.date() == from_time.date()
-        and cache_meta.offline == g.settings["offline_mode"]):
+        and cache_meta.from_time.date() == from_time.date()):
         valid_cache = True
     
     data = {}
@@ -203,13 +203,13 @@ def summary():
         if g.settings["offline_mode"]:
             latest_data_date = dt.datetime.strptime(g.settings["offline_data_end_time"], "%Y-%m-%dT%H:%M:%S%z")
         else:
-            latest_data_date = dt.datetime.now(dt.timezone.utc)
+            latest_data_date = dt.datetime.now(dt.timezone.utc) - dt.timedelta(days=1)
         latest_data_date = dt.datetime.combine(latest_data_date, dt.datetime.min.time(), tzinfo=latest_data_date.tzinfo)
         
         if to_time < latest_data_date:
             cache_result = False
         
-        if days != 365:
+        if days != g.settings["default_daterange_benchmark"]:
             cache_result = False
         
         data = generate_summary(from_time, to_time, days, cache_result)
