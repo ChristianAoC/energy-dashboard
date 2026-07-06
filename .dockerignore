@@ -3,7 +3,7 @@
 .idea/
 .venv/
 scripts/
-.github/
+.git/
 .dockerignore
 .env
 .env.template
