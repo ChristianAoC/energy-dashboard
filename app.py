@@ -22,6 +22,7 @@ from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.settings import settings_api_bp
 from api.endpoints.user import users_api_bp
+from api.helpers import acquire_lock
 import constants
 from dashboard.main import dashboard_bp
 import database
@@ -147,7 +148,7 @@ app.register_blueprint(dashboard_bp)
 
 def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None):
     if method is None:
-        method = "get"
+        method = "GET"
     if headers is None:
         headers = {}
     if params is None:
@@ -156,7 +157,7 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
         send_data = {}
 
     request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
-    
+
     if request_response.status_code != 200:
         print("\n" + "="*20)
         print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
@@ -166,6 +167,20 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
                        level=log.error)
     else:
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
+
+def run_sequential_tasks(tasks: list[dict], key) -> None:
+    if not acquire_lock(key):
+        return
+    
+    for task in tasks:
+        print(f"Running {task['name']}")
+        run_scheduled_requests(
+            url=task["url"],
+            method=task.get("method"),
+            headers=task.get("headers"),
+            params=task.get("params"),
+            send_data=task.get("send_data"),
+        )
 
 # Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request
 with app.app_context():
@@ -190,35 +205,54 @@ scheduler = BackgroundScheduler()
 overnight_trigger = CronTrigger(
     hour = background_task_timing[0],
     minute = background_task_timing[1],
-    timezone = timezone.utc,
-    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+    timezone = timezone.utc
 )
 login_code_trigger = IntervalTrigger(
     minutes = login_code_task_timing,
-    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+    jitter = 10
 )
 
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="meter_health_cache_generation",
-                  args=("http://127.0.0.1:5000/api/regenerate-cache", "get",
-                        {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="usage_summary_cache_generation",
-                  args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="clean_database_all",
-                  args=("http://127.0.0.1:5000/api/settings/clean-database", "post",
-                        {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="clean_database_login_codes",
-                  args=("http://127.0.0.1:5000/api/settings/clean-database?type=login_codes","post",
-                        {"Authorization": app.config["internal_api_key"]}))
+scheduler.add_job(
+    func=run_sequential_tasks,
+    trigger=overnight_trigger,
+    id="overnight_tasks",
+    args=(
+        [
+            # {
+            #     "name": "meter_health_cache_generation",
+            #     "url": "http://127.0.0.1:5050/api/regenerate-cache",
+            #     "method": "GET",
+            #     "headers": {"Authorization": app.config["internal_api_key"]}
+            # },
+            # {
+            #     "name": "usage_summary_cache_generation",
+            #     "url": "http://127.0.0.1:5050/api/summary",
+            #     "method": "GET",
+            #     "headers": {"Authorization": app.config["internal_api_key"]},
+            # },
+            {
+                "name": "clean_database_all",
+                "url": "http://127.0.0.1:5050/api/settings/clean-database",
+                "method": "POST",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+            }
+        ],
+        "overnight_tasks"
+    )
+)
+
+scheduler.add_job(
+    func=run_scheduled_requests,
+    trigger=login_code_trigger,
+    id="clean_database_login_codes",
+    args=(
+        "http://127.0.0.1:5050/api/settings/clean-database?type=login_codes",
+        "post",
+        {"Authorization": app.config["internal_api_key"]}
+    )
+)
 
 scheduler.start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5050)
