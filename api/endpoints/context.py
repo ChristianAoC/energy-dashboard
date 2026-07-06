@@ -46,7 +46,7 @@ def add_context():
         end_timestamp = end_time
         
         log_msg = f"WARNING: User {email} forged authorship of {context_elem['author']} for the following context item:"
-        log_extra_info = f"target_type={context_elem['target_type'].lower()};target_id={context_elem['target_id']};context_type={context_elem['type']};start_timestamp={start_timestamp};end_timestamp={end_timestamp};deleted={context_elem.get('deleted', False)}"
+        log_extra_info = f"target_type={context_elem['target_type'].lower()}; target_id={context_elem['target_id']}; context_type={context_elem['type']}; start_timestamp={start_timestamp}; end_timestamp={end_timestamp}; deleted={context_elem.get('deleted', False)}"
         log.write(msg=log_msg, level=log.warning, extra_info=log_extra_info)
         print(log_msg)
         print(log_extra_info)
