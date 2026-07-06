@@ -42,8 +42,22 @@ application = app
 
 # Set app config
 load_dotenv()
-app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
-app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
+
+app.secret_key = os.getenv("SECRET_KEY")
+if app.secret_key is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Flask Secret Key (SECRET_KEY)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    shutdown.hard()
+
+app.config["internal_api_key"] = os.getenv("INTERNAL_API_KEY")
+if app.config["internal_api_key"] is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Internal API Key (INTERNAL_API_KEY)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    shutdown.hard()
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "net0i")
 POSTGRES_PASS = os.getenv("POSTGRES_PASS")
@@ -146,7 +160,7 @@ app.register_blueprint(dashboard_bp)
 ###               Set up scheduled tasks                ###
 ###########################################################
 
-def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None):
+def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None, allow_errors: bool = False):
     if method is None:
         method = "GET"
     if headers is None:
@@ -158,7 +172,7 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
 
     request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
 
-    if request_response.status_code != 200:
+    if request_response.status_code != 200 and not allow_errors:
         print("\n" + "="*20)
         print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
         print("\tPlease manually call the endpoint to complete the scheduled task")
@@ -173,13 +187,14 @@ def run_sequential_tasks(tasks: list[dict], key) -> None:
         return
     
     for task in tasks:
-        print(f"Running {task['name']}")
+        print(f"Running <<{task['name']}>>")
         run_scheduled_requests(
             url=task["url"],
             method=task.get("method"),
             headers=task.get("headers"),
             params=task.get("params"),
             send_data=task.get("send_data"),
+            allow_errors=task.get("allow_errors", False)
         )
 
 # Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request
@@ -224,17 +239,26 @@ scheduler.add_job(
             #     "method": "GET",
             #     "headers": {"Authorization": app.config["internal_api_key"]}
             # },
-            # {
-            #     "name": "usage_summary_cache_generation",
-            #     "url": "http://127.0.0.1:5050/api/summary",
-            #     "method": "GET",
-            #     "headers": {"Authorization": app.config["internal_api_key"]},
-            # },
+            {
+                "name": "usage_summary_cache_generation",
+                "url": "http://127.0.0.1:5050/api/summary",
+                "method": "GET",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": False
+            },
+            {
+                "name": "health_check_cache_generation",
+                "url": "http://127.0.0.1:5050/api/meter-health",
+                "method": "GET",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": True
+            },
             {
                 "name": "clean_database_all",
                 "url": "http://127.0.0.1:5050/api/settings/clean-database",
                 "method": "POST",
                 "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": False
             }
         ],
         "overnight_tasks"

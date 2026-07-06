@@ -91,6 +91,7 @@ file, and either write a script to recreate context data and users via the API o
 - POSTGRES_USER
 - POSTGRES_PASS
 - POSTGRES_TABLE
+- INTERNAL_API_KEY
 
 #### Changed .env variables
 - data_interval => INFLUX_DATA_INTERVAL
