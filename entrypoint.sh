@@ -6,4 +6,6 @@ if [ ! -e /$DB_INIT ]; then
     touch /$DB_INIT
 fi
 
+rm -f *.lock
+
 exec "$@"

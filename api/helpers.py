@@ -1,6 +1,9 @@
 from flask import g, has_request_context
 
 import datetime as dt
+from functools import wraps
+import os
+import time
 
 
 def calculate_time_args(from_time_requested: dt.datetime|str|None = None, to_time_requested: dt.datetime|str|None = None, date_range_requested: int|None = None, desired_time_range: int = 30) -> tuple[dt.datetime,dt.datetime,int]:
@@ -91,3 +94,45 @@ def has_g_support():
         return has_request_context()
     except RuntimeError:
         return False
+
+def acquire_lock(key: str, timeout: int = 5) -> bool:
+    lockfile = f"{key}.lock"
+    
+    start = time.time()
+    while True:
+        try:
+            fd = os.open(lockfile, os.O_CREAT | os.O_EXCL | os.O_RDWR)
+            os.close(fd)
+            return True
+        except FileExistsError:
+            if time.time() - start > timeout:
+                return False
+            time.sleep(0.01)  # wait and retry
+
+def release_lock(key: str) -> None:
+    lockfile = f"{key}.lock"
+    
+    try:
+        os.remove(lockfile)
+    except FileNotFoundError:
+        pass
+
+def check_lock(key: str) -> bool:
+    # Returns True if the lock is free, or False if locked
+    return not os.path.exists(f"{key}.lock")
+
+def lock_release_guard(key: str):
+    def decorator(function):
+        @wraps(function)
+        def wrapper(*args, **kwargs):
+            result = function(*args, **kwargs)
+            
+            # Only release lock if lock was obtained by this process (Need to find a more reliable way to do this)
+            has_lock = kwargs.get("cache_result", True)
+            if has_lock:
+                release_lock(key)
+            
+            return result
+        
+        return wrapper
+    return decorator

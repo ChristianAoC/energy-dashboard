@@ -8,7 +8,7 @@ import time
 
 import api.cache as cache
 from api.data_handling import query_time_series, get_health, generate_summary, generate_health_score
-from api.helpers import calculate_time_args, data_cleaner
+from api.helpers import calculate_time_args, data_cleaner, acquire_lock, check_lock
 from api.users import get_user_level, is_admin
 from constants import *
 from database import initial_database_population
@@ -365,14 +365,14 @@ def meter_health():
     try:
         meter_ids = request.args["id"]
         meter_ids = meter_ids.split(";")
-        
+
         if not is_admin():
             for meter_id in meter_ids:
                 meter = db.session.execute(
                     db.select(models.Meter)
                     .where(models.Meter.id == meter_id)
                 ).scalar_one_or_none()
-                
+
                 if meter is None:
                     return make_response("Access Denied", 403)
                 if meter.invoiced:
@@ -385,12 +385,14 @@ def meter_health():
         meter_ids = [x.id for x in db.session.execute(statement)]
 
     if not default_args_selected:
-        health_check_data = get_health(from_time=from_time,
-                                       to_time=to_time,
-                                       offline_mode=g.settings["offline_mode"],
-                                       app_obj=current_app._get_current_object(),
-                                       cache_result=default_args_selected,
-                                       meter_ids=meter_ids)
+        health_check_data = get_health(
+            from_time=from_time,
+            to_time=to_time,
+            offline_mode=g.settings["offline_mode"],
+            app_obj=current_app._get_current_object(),
+            cache_result=default_args_selected,
+            meter_ids=meter_ids
+        )
         if not is_admin():
             out = []
             for meter_data in health_check_data:
@@ -398,12 +400,12 @@ def meter_health():
                     db.select(models.Meter)
                     .where(models.Meter.id == meter_data["meter_id"])
                 ).scalar_one_or_none()
-                
+
                 if meter is None or meter.invoiced:
                     continue
-                
+
                 out.append(meter_data)
-        
+
         response = make_response(jsonify(health_check_data), 200)
         response.headers['X-Cache-State'] = "fresh"
         return response
@@ -418,15 +420,22 @@ def meter_health():
                 response.headers['X-Cache-State'] = "fresh"
                 return response
         except:
-            if not any(th.name == "updateMainHC" for th in threading.enumerate()):
+            if check_lock("health-check"):
                 log.write(msg="Error reading cache metadata, skipping HC cache", level=log.warning)
 
-    if not any(th.name == "updateMainHC" for th in threading.enumerate()):
-        thread = threading.Thread(target=get_health,
-                                  args=(from_time, to_time, g.settings["offline_mode"],
-                                        current_app._get_current_object(), default_args_selected, meter_ids),
-                                  name="updateMainHC",
-                                  daemon=True)
+    if acquire_lock("health-check"):
+        thread = threading.Thread(
+            target=get_health,
+            args=(
+                from_time,
+                to_time,
+                g.settings["offline_mode"],
+                current_app._get_current_object(),
+                default_args_selected,
+                meter_ids
+            ),
+            daemon=True
+        )
         thread.start()
 
     if hc_cache:

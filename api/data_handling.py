@@ -9,7 +9,7 @@ import pandas as pd
 import threading
 import time
 
-from api.helpers import data_cleaner, clean_file_name, has_g_support
+from api.helpers import data_cleaner, clean_file_name, has_g_support, lock_release_guard
 from api.users import is_admin
 from constants import *
 import log
@@ -318,7 +318,8 @@ def process_meter_health(m: models.Meter, from_time: dt.datetime, to_time: dt.da
             all_outputs.append(out)
         return out
 
-def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None= None):
+@lock_release_guard("health-check")
+def get_health(from_time: dt.datetime, to_time: dt.datetime, offline_mode: bool, app_obj, cache_result: bool = False, meter_ids: list|None = None):
     # Because this function can be run in a separate thread, we need to push app context onto the thread when ever we
     # want to use app specific functions
     
