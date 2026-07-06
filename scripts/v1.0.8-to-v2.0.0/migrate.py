@@ -5,6 +5,7 @@
 #
 # - Luke Needle (v2.0.0 release coordinator)
 
+import base64
 from datetime import datetime
 import getpass
 import json
@@ -436,6 +437,7 @@ if not log_steps["settings"]:
         complete_section(log_steps=log_steps, key="settings") # Not skipping as user will be doing the migration
         print(f"As you are manually skipping you must add '{MIGRATOR_DOMAIN}' to DEMO_EMAIL_DOMAINS in your .env file for this")
         print("script to work. You will also need to add your Postgres settings.")
+        print("You must also add INTERNAL_API_KEY - an authentication token for local requests.")
         print("When you have finished, start the dashboard (Most likely `sudo docker compose up -d`) and once it is")
         print("online, restart this script.")
         input("Press Enter to exit.")
@@ -584,7 +586,16 @@ if not log_steps["settings"]:
         if flask_secret == "":
             flask_secret = secrets.token_urlsafe(40)
     
-    env_file_contents += f"SECRET_KEY={flask_secret}"
+    env_file_contents += f"SECRET_KEY={flask_secret}\n"
+    
+    print("=> Adding Internal API Key from .env")
+    print("Please enter choose a new secret key below. Press Enter to generate a random 128 character secret")
+    print("This key only works for requests originating from \"127.0.0.1\" or \"::1\"")
+    internal_api_key = input("Key: ").strip()
+    if internal_api_key == "":
+        internal_api_key = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
+    
+    env_file_contents += f"INTERNAL_API_KEY={internal_api_key}"
     
     with open(TEMP_ENV_FILE, "w") as f:
         f.write(env_file_contents)
