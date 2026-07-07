@@ -108,8 +108,6 @@ def load_settings_from_env(from_env: bool = True) -> dict[str,str|bool|None|int|
         result["offline_data_end_time"] = end_time
         result["offline_data_interval"] = interval
         
-        result["background_task_timing"] = os.getenv("BACKGROUND_TASK_TIMING",
-                                                     settings.default_settings["background_task_timing"])
         result["meter_batch_size"] = os.getenv("METER_BATCH_SIZE", settings.default_settings["meter_batch_size"])
     return result
 
@@ -429,11 +427,6 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         
         # Server settings
         settings.create_record(
-            key="background_task_timing",
-            value=initial_settings["background_task_timing"],
-            setting_type="str"
-        )
-        settings.create_record(
             key="meter_batch_size",
             value=initial_settings["meter_batch_size"],
             setting_type="int"
@@ -441,11 +434,6 @@ def initialise_settings_table(from_env: bool = False) -> bool:
         settings.create_record(
             key="session_timeout",
             value=initial_settings["session_timeout"],
-            setting_type="int"
-        )
-        settings.create_record(
-            key="login_code_timeout",
-            value=initial_settings["login_code_timeout"],
             setting_type="int"
         )
         settings.create_record(
@@ -509,7 +497,7 @@ if POSTGRES_PASS is None:
 
 # Test if database is accessible
 database_available = False
-max_database_connection_attempts = 10
+max_database_connection_attempts = 20
 for attempts in range(0, max_database_connection_attempts):
     s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)
     s.settimeout(5)

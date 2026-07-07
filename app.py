@@ -10,7 +10,6 @@ sys.path.append(dname)
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-import base64
 from datetime import timezone
 from dotenv import load_dotenv
 from flask import Flask
@@ -28,7 +27,7 @@ from dashboard.main import dashboard_bp
 import database
 import log
 import models
-from settings import load_settings, default_settings
+from settings import load_settings
 import shutdown
 
 
@@ -43,13 +42,15 @@ application = app
 # Set app config
 load_dotenv()
 
+missing_keys = False
+
 app.secret_key = os.getenv("SECRET_KEY")
 if app.secret_key is None:
     print("\n" + "="*20)
     print("\tERROR: You have not set the Flask Secret Key (SECRET_KEY)!")
     print("\tPlease set it in your .env file.")
     print("="*20 + "\n")
-    shutdown.hard()
+    missing_keys = True
 
 app.config["internal_api_key"] = os.getenv("INTERNAL_API_KEY")
 if app.config["internal_api_key"] is None:
@@ -57,7 +58,23 @@ if app.config["internal_api_key"] is None:
     print("\tERROR: You have not set the Internal API Key (INTERNAL_API_KEY)!")
     print("\tPlease set it in your .env file.")
     print("="*20 + "\n")
-    shutdown.hard()
+    missing_keys = True
+
+app.config["background_task_timing"] = os.getenv("BACKGROUND_TASK_TIMING")
+if app.config["background_task_timing"] is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Background task timing (BACKGROUND_TASK_TIMING)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
+
+app.config["login_code_timeout"] = int(os.getenv("LOGIN_CODE_TIMEOUT", -1))
+if app.config["login_code_timeout"] == -1:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Login code timeout (LOGIN_CODE_TIMEOUT)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "net0i")
 POSTGRES_PASS = os.getenv("POSTGRES_PASS")
@@ -73,7 +90,11 @@ if POSTGRES_PASS is None:
     print("\tPlease set them in your .env file.")
     print("\tPostgreSQL credentials cannot be updated through the application - the values in .env are always used.")
     print("="*20 + "\n")
+    missing_keys = True
+
+if missing_keys:
     shutdown.hard()
+del missing_keys
 
 # Test if database is accessible
 database_available = False
@@ -197,39 +218,15 @@ def run_sequential_tasks(tasks: list[dict], key) -> None:
             allow_errors=task.get("allow_errors", False)
         )
 
-# Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request
-with app.app_context():
-    result = database.db.session.execute(
-        database.db.Select(models.Settings)
-        .where(models.Settings.key == "background_task_timing")
-    ).scalar_one_or_none()
-    val = default_settings["background_task_timing"]
-    if result is not None:
-        val = result.value
-    background_task_timing = val.split(":")
-    
-    result = database.db.session.execute(
-        database.db.Select(models.Settings)
-        .where(models.Settings.key == "login_code_timeout")
-    ).scalar_one_or_none()
-    login_code_task_timing = default_settings["login_code_timeout"]
-    if result is not None:
-        login_code_task_timing = result.value
-
 scheduler = BackgroundScheduler()
-overnight_trigger = CronTrigger(
-    hour = background_task_timing[0],
-    minute = background_task_timing[1],
-    timezone = timezone.utc
-)
-login_code_trigger = IntervalTrigger(
-    minutes = login_code_task_timing,
-    jitter = 10
-)
 
 scheduler.add_job(
     func=run_sequential_tasks,
-    trigger=overnight_trigger,
+    trigger=CronTrigger(
+        hour = app.config["background_task_timing"].split(":")[0],
+        minute = app.config["background_task_timing"].split(":")[1],
+        timezone = timezone.utc
+    ),
     id="overnight_tasks",
     args=(
         [
@@ -267,7 +264,10 @@ scheduler.add_job(
 
 scheduler.add_job(
     func=run_scheduled_requests,
-    trigger=login_code_trigger,
+    trigger=IntervalTrigger(
+        minutes = app.config["login_code_timeout"],
+        jitter = 10
+    ),
     id="clean_database_login_codes",
     args=(
         "http://127.0.0.1:5050/api/settings/clean-database?type=login_codes",

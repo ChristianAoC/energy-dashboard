@@ -16,7 +16,8 @@ You can manually migrate by updating your .env file with any settings changes th
 [.env changes](#changed-env-variables) listed below) and add your Postgres credential, reupload your metadata .xlsx
 file, and either write a script to recreate context data and users via the API or manually recreate them yourself.
 
-### Changed settings:
+### DB Settings
+#### Changed settings
 >Formatted as `category.key => key` as categories were removed
 - users.DEFAULT_USER_LEVEL => default_user_level
 - users.USER_LEVEL_VIEW_DASHBOARD => user_level_view_dashboard
@@ -78,11 +79,14 @@ file, and either write a script to recreate context data and users via the API o
 - server.BACKGROUND_TASK_TIMING => background_task_timing
 - server.meter_batch_size => meter_batch_size
 - server.session_timeout => session_timeout
-- server.login_code_timeout => login_code_timeout
 - server.log_info_expiry => log_info_expiry
 - server.log_warning_expiry => log_warning_expiry
 - server.log_error_expiry => log_error_expiry
 - server.log_critical_expiry => log_critical_expiry
+
+#### Removed settings
+- background_task_timing
+- login_code_timeout
 
 ### .env variables
 #### Added .env variables
@@ -92,6 +96,7 @@ file, and either write a script to recreate context data and users via the API o
 - POSTGRES_PASS
 - POSTGRES_TABLE
 - INTERNAL_API_KEY
+- LOGIN_CODE_TIMEOUT
 
 #### Changed .env variables
 - data_interval => INFLUX_DATA_INTERVAL

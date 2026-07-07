@@ -181,7 +181,7 @@ SETTINGS_TO_ENV_MAP = {
     "background_task_timing": "BACKGROUND_TASK_TIMING",
     "meter_batch_size": "METER_BATCH_SIZE",
     "session_timeout": None,
-    "login_code_timeout": None,
+    "login_code_timeout": "LOGIN_CODE_TIMEOUT",
     "log_info_expiry": None,
     "log_warning_expiry": None,
     "log_error_expiry": None,
@@ -534,7 +534,7 @@ if not log_steps["settings"]:
     print(f"=> Adding '{MIGRATOR_DOMAIN}' domain to DEMO_EMAIL_DOMAINS")
     print("   NOTE: This is required for the remaining steps.\n")
     existing_demo_domains = new_settings.get("demo_email_domains")
-    if existing_demo_domains is None or existing_demo_domains["value"] is None:
+    if existing_demo_domains is None or existing_demo_domains["value"] is None or existing_demo_domains["value"] == "":
         new_demo_domains = MIGRATOR_DOMAIN
     else:
         new_demo_domains = f"{new_settings['demo_email_domains']['value']},{MIGRATOR_DOMAIN}"
@@ -570,6 +570,13 @@ if not log_steps["settings"]:
             json.dump(settings_for_later, f)
         print("=> Saved non-.env settings")
     
+    # Add Postgres credentials to .env
+    env_file_contents += f"POSTGRES_ADDRESS='{postgres_address}'\n"
+    env_file_contents += f"POSTGRES_PORT={postgres_port}\n"
+    env_file_contents += f"POSTGRES_USER='{postgres_user}'\n"
+    env_file_contents += f"POSTGRES_PASS='{postgres_pass}'\n"
+    env_file_contents += f"POSTGRES_TABLE='{postgres_table}'\n"
+    
     # Load Flask secret from original .env file
     flask_secret = None
     with open(ORIGINAL_DOTENV, "r") as f:
@@ -584,10 +591,11 @@ if not log_steps["settings"]:
         print("Please enter the secret below (or choose a new one). Press Enter to generate a random 40 character secret")
         flask_secret = input("Key: ").strip()
         if flask_secret == "":
-            flask_secret = secrets.token_urlsafe(40)
+            flask_secret = f"'{secrets.token_urlsafe(40)}'"
     
     env_file_contents += f"SECRET_KEY={flask_secret}\n"
     
+    # Add Internal API Key
     print("=> Adding Internal API Key from .env")
     print("Please enter choose a new secret key below. Press Enter to generate a random 128 character secret")
     print("This key only works for requests originating from \"127.0.0.1\" or \"::1\"")
@@ -595,7 +603,7 @@ if not log_steps["settings"]:
     if internal_api_key == "":
         internal_api_key = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
     
-    env_file_contents += f"INTERNAL_API_KEY={internal_api_key}"
+    env_file_contents += f"INTERNAL_API_KEY='{internal_api_key}'"
     
     with open(TEMP_ENV_FILE, "w") as f:
         f.write(env_file_contents)
