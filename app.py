@@ -10,7 +10,6 @@ sys.path.append(dname)
 from apscheduler.schedulers.background import BackgroundScheduler
 from apscheduler.triggers.cron import CronTrigger
 from apscheduler.triggers.interval import IntervalTrigger
-import base64
 from datetime import timezone
 from dotenv import load_dotenv
 from flask import Flask
@@ -22,12 +21,13 @@ from api.endpoints.context import context_api_bp
 from api.endpoints.data import data_api_bp
 from api.endpoints.settings import settings_api_bp
 from api.endpoints.user import users_api_bp
+from api.helpers import acquire_lock
 import constants
 from dashboard.main import dashboard_bp
 import database
 import log
 import models
-from settings import load_settings, default_settings
+from settings import load_settings
 import shutdown
 
 
@@ -41,8 +41,40 @@ application = app
 
 # Set app config
 load_dotenv()
-app.secret_key = os.getenv("SECRET_KEY") or os.urandom(24)
-app.config["internal_api_key"] = base64.urlsafe_b64encode(os.urandom(96)).decode().rstrip('=')
+
+missing_keys = False
+
+app.secret_key = os.getenv("SECRET_KEY")
+if app.secret_key is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Flask Secret Key (SECRET_KEY)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
+
+app.config["internal_api_key"] = os.getenv("INTERNAL_API_KEY")
+if app.config["internal_api_key"] is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Internal API Key (INTERNAL_API_KEY)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
+
+app.config["background_task_timing"] = os.getenv("BACKGROUND_TASK_TIMING")
+if app.config["background_task_timing"] is None:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Background task timing (BACKGROUND_TASK_TIMING)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
+
+app.config["login_code_timeout"] = int(os.getenv("LOGIN_CODE_TIMEOUT", -1))
+if app.config["login_code_timeout"] == -1:
+    print("\n" + "="*20)
+    print("\tERROR: You have not set the Login code timeout (LOGIN_CODE_TIMEOUT)!")
+    print("\tPlease set it in your .env file.")
+    print("="*20 + "\n")
+    missing_keys = True
 
 POSTGRES_USER = os.getenv("POSTGRES_USER", "net0i")
 POSTGRES_PASS = os.getenv("POSTGRES_PASS")
@@ -58,7 +90,11 @@ if POSTGRES_PASS is None:
     print("\tPlease set them in your .env file.")
     print("\tPostgreSQL credentials cannot be updated through the application - the values in .env are always used.")
     print("="*20 + "\n")
+    missing_keys = True
+
+if missing_keys:
     shutdown.hard()
+del missing_keys
 
 # Test if database is accessible
 database_available = False
@@ -145,9 +181,9 @@ app.register_blueprint(dashboard_bp)
 ###               Set up scheduled tasks                ###
 ###########################################################
 
-def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None):
+def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None = None, params: dict|None = None, send_data: dict|None = None, allow_errors: bool = False):
     if method is None:
-        method = "get"
+        method = "GET"
     if headers is None:
         headers = {}
     if params is None:
@@ -156,8 +192,8 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
         send_data = {}
 
     request_response = requests.request(method=method, url=url, headers=headers, data=send_data, params=params)
-    
-    if request_response.status_code != 200:
+
+    if request_response.status_code != 200 and not allow_errors:
         print("\n" + "="*20)
         print(f"\tERROR: Scheduled api call to {url} failed with code {request_response.status_code}!")
         print("\tPlease manually call the endpoint to complete the scheduled task")
@@ -167,58 +203,80 @@ def run_scheduled_requests(url: str, method: str|None = None, headers: dict|None
     else:
         log.write(msg=f"Finished scheduled request to: {url}", level=log.info)
 
-# Need to get background task timing manually from database as g.settings hasn't been created as this isn't a request
-with app.app_context():
-    result = database.db.session.execute(
-        database.db.Select(models.Settings)
-        .where(models.Settings.key == "background_task_timing")
-    ).scalar_one_or_none()
-    val = default_settings["background_task_timing"]
-    if result is not None:
-        val = result.value
-    background_task_timing = val.split(":")
+def run_sequential_tasks(tasks: list[dict], key) -> None:
+    if not acquire_lock(key):
+        return
     
-    result = database.db.session.execute(
-        database.db.Select(models.Settings)
-        .where(models.Settings.key == "login_code_timeout")
-    ).scalar_one_or_none()
-    login_code_task_timing = default_settings["login_code_timeout"]
-    if result is not None:
-        login_code_task_timing = result.value
+    for task in tasks:
+        print(f"Running <<{task['name']}>>")
+        run_scheduled_requests(
+            url=task["url"],
+            method=task.get("method"),
+            headers=task.get("headers"),
+            params=task.get("params"),
+            send_data=task.get("send_data"),
+            allow_errors=task.get("allow_errors", False)
+        )
 
 scheduler = BackgroundScheduler()
-overnight_trigger = CronTrigger(
-    hour = background_task_timing[0],
-    minute = background_task_timing[1],
-    timezone = timezone.utc,
-    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
-)
-login_code_trigger = IntervalTrigger(
-    minutes = login_code_task_timing,
-    jitter = 60 # Jitter randomises the time the scheduled task runs by +-x to avoid sudden spikes in cpu usage
+
+scheduler.add_job(
+    func=run_sequential_tasks,
+    trigger=CronTrigger(
+        hour = app.config["background_task_timing"].split(":")[0],
+        minute = app.config["background_task_timing"].split(":")[1],
+        timezone = timezone.utc
+    ),
+    id="overnight_tasks",
+    args=(
+        [
+            # {
+            #     "name": "meter_health_cache_generation",
+            #     "url": "http://127.0.0.1:5050/api/regenerate-cache",
+            #     "method": "GET",
+            #     "headers": {"Authorization": app.config["internal_api_key"]}
+            # },
+            {
+                "name": "usage_summary_cache_generation",
+                "url": "http://127.0.0.1:5050/api/summary",
+                "method": "GET",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": False
+            },
+            {
+                "name": "health_check_cache_generation",
+                "url": "http://127.0.0.1:5050/api/meter-health",
+                "method": "GET",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": True
+            },
+            {
+                "name": "clean_database_all",
+                "url": "http://127.0.0.1:5050/api/settings/clean-database",
+                "method": "POST",
+                "headers": {"Authorization": app.config["internal_api_key"]},
+                "allow_errors": False
+            }
+        ],
+        "overnight_tasks"
+    )
 )
 
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="meter_health_cache_generation",
-                  args=("http://127.0.0.1:5000/api/regenerate-cache", "get",
-                        {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="usage_summary_cache_generation",
-                  args=("http://127.0.0.1:5000/api/summary", "get", {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="clean_database_all",
-                  args=("http://127.0.0.1:5000/api/settings/clean-database", "post",
-                        {"Authorization": app.config["internal_api_key"]}))
-scheduler.add_job(run_scheduled_requests,
-                  overnight_trigger,
-                  id="clean_database_login_codes",
-                  args=("http://127.0.0.1:5000/api/settings/clean-database?type=login_codes","post",
-                        {"Authorization": app.config["internal_api_key"]}))
+scheduler.add_job(
+    func=run_scheduled_requests,
+    trigger=IntervalTrigger(
+        minutes = app.config["login_code_timeout"],
+        jitter = 10
+    ),
+    id="clean_database_login_codes",
+    args=(
+        "http://127.0.0.1:5050/api/settings/clean-database?type=login_codes",
+        "post",
+        {"Authorization": app.config["internal_api_key"]}
+    )
+)
 
 scheduler.start()
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000)
+    app.run(host="0.0.0.0", port=5050)

@@ -79,10 +79,8 @@ default_settings = {
     "metadata.building_sheet.maze_map_label": "mazemap_ids",
     
     "log_level": log.warning,
-    "background_task_timing": "02:00",
     "meter_batch_size": 16,
     "session_timeout": 365,
-    "login_code_timeout": 60,
     "log_info_expiry": 7,
     "log_warning_expiry": 14,
     "log_error_expiry": 30,
@@ -297,9 +295,9 @@ def clean_database_sessions():
     db.session.commit()
 
 def clean_database_login_codes():
-    # Login codes are deleted after g.settings["login_code_timeout"] minutes
+    # Login codes are deleted after current_app.config["login_code_timeout"] minutes
     
-    expiry = dt.datetime.now() - dt.timedelta(minutes=g.settings["login_code_timeout"])
+    expiry = dt.datetime.now() - dt.timedelta(minutes=current_app.config["login_code_timeout"])
     
     db.session.execute(
         db.delete(models.LoginCode)
