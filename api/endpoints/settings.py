@@ -244,18 +244,24 @@ def upload_polygons():
 @settings_api_bp.route("/download/metadata")
 @data_api_bp.required_user_level("user_level_admin")
 def download_metadata():
+    if not os.path.exists(metadata_file):
+        return make_response("Metadata file not found", 404)
     return send_file(metadata_file, as_attachment=True)
 
 @settings_api_bp.route("/download/benchmarks/")
 @settings_api_bp.route("/download/benchmarks")
 @data_api_bp.required_user_level("user_level_admin")
 def download_benchmarks():
+    if not os.path.exists(benchmark_data_file):
+        return make_response("Benchmark file not found", 404)
     return send_file(benchmark_data_file, as_attachment=True)
 
 @settings_api_bp.route("/download/polygons/")
 @settings_api_bp.route("/download/polygons")
 @data_api_bp.required_user_level("user_level_admin")
 def download_polygons():
+    if not os.path.exists(mazemap_polygons_file):
+        return make_response("Polygon file not found", 404)
     return send_file(mazemap_polygons_file, as_attachment=True)
 
 @settings_api_bp.route("/regenerate-offline-metadata/", methods=["GET", "POST"])
