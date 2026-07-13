@@ -540,12 +540,12 @@ class Context(db.Model):
 
             start_time = context_elem.get("start")
             if start_time is not None:
-                start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M:%S")
+                start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M")
             self.start_timestamp = start_time
 
             end_time = context_elem.get("end")
             if end_time is not None:
-                end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M:%S")
+                end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M")
             self.end_timestamp = end_time
 
             self.context_type = context_elem["type"]
@@ -560,8 +560,8 @@ class Context(db.Model):
             "author": self.author,
             "target_type": self.target_type,
             "target_id": self.target_id,
-            "start_timestamp": self.start_timestamp.isoformat(sep=" ") if self.start_timestamp is not None else None,
-            "end_timestamp": self.end_timestamp.isoformat(sep=" ") if self.end_timestamp is not None else None,
+            "start_timestamp": self.start_timestamp.isoformat(sep=" ", timespec="minutes") if self.start_timestamp is not None else None,
+            "end_timestamp": self.end_timestamp.isoformat(sep=" ", timespec="minutes") if self.end_timestamp is not None else None,
             "context_type": self.context_type,
             "comment": self.comment,
             "deleted": self.deleted
