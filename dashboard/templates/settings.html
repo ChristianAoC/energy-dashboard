@@ -24,6 +24,7 @@
 
 Logged in as {{ user.email | tojson | safe }}.<br><br>
 <button type="button" onclick="logout()" class="button-generic" id="button-logout">Logout</button>
+<button type="button" onclick="logoutAll()" class="button-generic" id="button-logout-all">Logout all session</button>
 
 {% if user.level >= g.settings["user_level_admin"] %}
 
