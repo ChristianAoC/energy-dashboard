@@ -302,3 +302,10 @@ def delete_user(email: str) -> bool:
 
 def list_users() -> list:
     return [x.to_dict() for x in db.session.execute(db.select(models.User)).scalars().all()]
+
+def delete_session_by_email(email: str):
+    db.session.execute(
+        db.delete(models.Sessions)
+        .where(models.Sessions.email == email)
+    )
+    db.session.commit()
