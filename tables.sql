@@ -37,12 +37,11 @@ CREATE TABLE settings (
 );
 
 CREATE TABLE log (
-	id SERIAL NOT NULL,
+	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	timestamp TIMESTAMP WITHOUT TIME ZONE NOT NULL,
 	message VARCHAR NOT NULL,
 	info VARCHAR,
-	level VARCHAR NOT NULL CHECK (level IN ('info', 'warning', 'error', 'critical')),
-	PRIMARY KEY (id)
+	level VARCHAR NOT NULL CHECK (level IN ('info', 'warning', 'error', 'critical'))
 );
 
 CREATE TABLE meter (
@@ -89,7 +88,7 @@ CREATE TABLE login_code (
 );
 
 CREATE TABLE context (
-	id SERIAL NOT NULL,
+	id INTEGER PRIMARY KEY GENERATED ALWAYS AS IDENTITY,
 	author VARCHAR(254) NOT NULL,
 	target_type VARCHAR(8) NOT NULL CHECK (target_type IN ('building', 'meter')),
 	target_id VARCHAR NOT NULL,
@@ -98,7 +97,6 @@ CREATE TABLE context (
 	context_type VARCHAR NOT NULL,
 	comment VARCHAR NOT NULL,
 	deleted BOOLEAN NOT NULL,
-	PRIMARY KEY (id),
 	FOREIGN KEY(author) REFERENCES "user" (email) ON DELETE CASCADE
 );
 
