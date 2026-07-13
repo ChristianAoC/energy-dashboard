@@ -60,6 +60,7 @@ def edit_context():
     context_elem = request.json
     if not context_elem:
         return make_response("Missing context element", 400)
+    
     if context_elem["type"] == "Global-mute":
         cookies = request.cookies
         email = cookies.get("Email", None)
@@ -75,6 +76,12 @@ def delete_context():
     context_id = request.args.get('contextID')
     if not context_id:
         return make_response("Missing contextID", 400)
+    
+    try:
+        context_id = int(context_id)
+    except:
+        return make_response("Invalid contextID", 400)
+
     cookies = request.cookies
     email = cookies.get("Email", None)
     session_id = cookies.get("SessionID", None)

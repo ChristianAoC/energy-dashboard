@@ -19,7 +19,7 @@ def add_context(context_elem):
 def edit_context(context_elem):
     existing_context = db.session.execute(
         db.Select(models.Context)
-        .where(models.Context.id == context_elem["id"])
+        .where(models.Context.id == int(context_elem["id"]))
     ).scalar_one_or_none()
     if existing_context is None:
         log.write(msg=f"Context {context_elem['id']} doesn't exist",
@@ -30,7 +30,7 @@ def edit_context(context_elem):
     existing_context.update(context_elem)
     return make_response("success", 200)
 
-def delete_context(context_id):
+def delete_context(context_id: int):
     existing_context = db.session.execute(
         db.Select(models.Context)
         .where(models.Context.id == context_id)
