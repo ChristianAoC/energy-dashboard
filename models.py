@@ -540,12 +540,12 @@ class Context(db.Model):
 
             start_time = context_elem.get("start")
             if start_time is not None:
-                start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M")
+                start_time = datetime.strptime(start_time,"%Y-%m-%d %H:%M:%S")
             self.start_timestamp = start_time
 
             end_time = context_elem.get("end")
             if end_time is not None:
-                end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M")
+                end_time = datetime.strptime(end_time,"%Y-%m-%d %H:%M:%S")
             self.end_timestamp = end_time
 
             self.context_type = context_elem["type"]
