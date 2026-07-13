@@ -1,7 +1,8 @@
-from flask import Blueprint, make_response, request, render_template, redirect, url_for
+from flask import Blueprint, make_response, request, render_template, redirect, url_for, current_app, g
 
 import api.users as users
 import dashboard.main as dashboard_bp
+import log
 
 users_api_bp = Blueprint('users_api_bp',
                          __name__,
@@ -122,3 +123,35 @@ def delete():
 @dashboard_bp.required_user_level("user_level_admin")
 def user_list():
     return users.list_users()
+
+@users_api_bp.route('/invalidate-session/', methods=['POST'])
+@users_api_bp.route('/invalidate-session', methods=['POST'])
+def invalidate_token():
+    requested_email = request.json.get("email", None)
+    user_email = request.cookies.get("Email", None)
+    cur_session_id = request.cookies.get("SessionID", None)
+
+    # Bypass authentication for internal calls
+    if (request.remote_addr in ["127.0.0.1", "::1"]
+        and request.headers.get("Authorization") == current_app.config["internal_api_key"] and requested_email != None):
+        
+        print("Bypassed user level authorization for internal call")
+        log.write(msg="Bypassed user level authorization for internal call", level=log.info)
+        users.delete_session_by_email(requested_email)
+        return "Success"
+    
+    # Require auth cookies
+    if cur_session_id == None or user_email == None:
+        return make_response("Access Denied", 401)
+    
+    # Self invalidate
+    if requested_email == user_email or requested_email == None:
+        users.delete_session_by_email(user_email)
+        return "Success"
+    
+    # Invalidate other user
+    if users.get_user_level(user_email, cur_session_id) >= g.settings["user_level_admin"] and requested_email != None:
+        users.delete_session_by_email(requested_email)
+        return "Success"
+    
+    return make_response("Access Denied", 403)

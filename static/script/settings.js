@@ -21,3 +21,17 @@ function checkKeyPressAuth(e) {
         requestLogin();
     }
 }
+
+function logoutAll() {
+    const email = getCookie("Email");
+
+    fetch(BASE_PATH + `/api/user/invalidate-session`, {
+            method: "POST",
+            headers: {
+                "Content-Type": "application/json"
+            },
+            body: JSON.stringify({ email })
+        }).then(res => {
+            location.reload();
+        });
+}
