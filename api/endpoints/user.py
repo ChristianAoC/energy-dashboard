@@ -124,10 +124,10 @@ def delete():
 def user_list():
     return users.list_users()
 
-@users_api_bp.route('/invalidate-session/')
-@users_api_bp.route('/invalidate-session')
+@users_api_bp.route('/invalidate-session/', methods=['POST'])
+@users_api_bp.route('/invalidate-session', methods=['POST'])
 def invalidate_token():
-    requested_email = request.args.get("email", None)
+    requested_email = request.json.get("email", None)
     user_email = request.cookies.get("Email", None)
     cur_session_id = request.cookies.get("SessionID", None)
 
