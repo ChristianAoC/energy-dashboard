@@ -150,7 +150,7 @@ def invalidate_token():
         return "Success"
     
     # Invalidate other user
-    if users.get_user_level(user_email, cur_session_id) > g.settings["user_level_admin"] and requested_email != None:
+    if users.get_user_level(user_email, cur_session_id) >= g.settings["user_level_admin"] and requested_email != None:
         users.delete_session_by_email(requested_email)
         return "Success"
     
