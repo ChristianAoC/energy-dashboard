@@ -135,9 +135,9 @@ async function loadUsers() {
                         data: null, title: "Actions",
                         render: function (u, type, row) {
                             if (u.level < admin_level) {
-                                return `<button class="btn-delete" data-email="${u.email}">Delete</button>`;
+                                return `<button class="btn-delete" data-email="${u.email}">Delete</button><button class="btn-invalidate-token" data-email="${u.email}">Logout</button>`;
                             } else {
-                                return `<button class="btn-delete" disabled="" data-email="${u.email}">Delete</button>`
+                                return `<button class="btn-delete" disabled="" data-email="${u.email}">Delete</button><button class="btn-invalidate-token" disabled="" data-email="${u.email}">Logout</button>`
                             }
                         }
                     }
@@ -405,6 +405,21 @@ $(document).ready(function () {
             const email = e.target.dataset.email;
             if (confirm(`Delete user ${email}?`)) {
                 fetch(BASE_PATH + `/api/user/delete`, {
+                    method: "POST",
+                    headers: {
+                        "Content-Type": "application/json"
+                    },
+                    body: JSON.stringify({ email })
+                }).then(res => {
+                    if (res.ok) {
+                        location.reload();
+                    }
+                });
+            }
+        } else if (e.target.matches(".btn-invalidate-token")) {
+            const email = e.target.dataset.email;
+            if (confirm(`Log user ${email} out?`)) {
+                fetch(BASE_PATH + `/api/user/invalidate-session`, {
                     method: "POST",
                     headers: {
                         "Content-Type": "application/json"
