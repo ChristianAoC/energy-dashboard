@@ -28,6 +28,7 @@ def edit_context(context_elem):
         return make_response("Context doesn't exist", 404)
     
     existing_context.update(context_elem)
+    db.session.commit()
     return make_response("success", 200)
 
 def delete_context(context_id: int):
